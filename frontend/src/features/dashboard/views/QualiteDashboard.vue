@@ -1,0 +1,2 @@
+<script setup>import { ref } from 'vue'; const questions = ref([]); const question = ref(''); function add(){ if(question.value.trim()) { questions.value.push(question.value.trim()); question.value='' } }</script>
+<template><section class="role-section"><div class="panel-card"><h3>Qualité — Banque de questions</h3><form class="panel-form" @submit.prevent="add"><input v-model="question" placeholder="Nouvelle question" /><button class="submit-btn">Ajouter</button></form><ul><li v-for="q in questions" :key="q">{{ q }}</li></ul></div></section></template>

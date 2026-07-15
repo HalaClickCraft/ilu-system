@@ -1,0 +1,49 @@
+const jsonHeaders = (token) => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+})
+
+async function request(url, token, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: options.method ? jsonHeaders(token) : { Authorization: `Bearer ${token}` },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message || 'Une erreur est survenue avec la structure.')
+  }
+  return data
+}
+
+export function fetchStructure(token) {
+  return request('/api/structure', token)
+}
+
+export function createProject(token, nom) {
+  return request('/api/structure/projects', token, {
+    method: 'POST',
+    body: JSON.stringify({ nom }),
+  })
+}
+
+export function addProjectMember(token, projectId, userId) {
+  return request(`/api/structure/projects/${projectId}/members`, token, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  })
+}
+
+export function createZone(token, projectId, nom) {
+  return request('/api/structure/zones', token, {
+    method: 'POST',
+    body: JSON.stringify({ projectId, nom }),
+  })
+}
+
+export function createPoste(token, zoneId, nom) {
+  return request('/api/structure/postes', token, {
+    method: 'POST',
+    body: JSON.stringify({ zoneId, nom }),
+  })
+}

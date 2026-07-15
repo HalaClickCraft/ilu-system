@@ -1,0 +1,1 @@
+<template><section class="role-section"><div class="stats-grid"><div class="stat-card"><div><span class="stat-val">100%</span><span class="stat-lbl">Indice de sécurité</span></div></div></div><div class="panel-card"><h3>Hygiène, sécurité et environnement</h3><p>Suivez les contrôles de sécurité et les alertes par zone.</p></div></section></template>

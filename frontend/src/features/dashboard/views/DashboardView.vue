@@ -2,6 +2,18 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AdminDashboard from '@/features/dashboard/views/AdminDashboard.vue'
+import ChefEquipeDashboard from '@/features/dashboard/views/ChefEquipeDashboard.vue'
+import RhDashboard from '@/features/dashboard/views/RhDashboard.vue'
+import QualiteDashboard from '@/features/dashboard/views/QualiteDashboard.vue'
+import HseDashboard from '@/features/dashboard/views/HseDashboard.vue'
+import SuperviseurDashboard from '@/features/dashboard/views/SuperviseurDashboard.vue'
+import {
+  fetchStructure,
+  createProject,
+  createZone,
+  createPoste,
+} from '@/features/structure/services/structureService'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -28,7 +40,13 @@ const newUserMsg = ref('')
 // State for Chef d'equipe Panel (Simulated tables: Suivi Integration, Demandes MAJ)
 const integrationLogs = ref([
   { id: 1, jour: 1, cadence: 80, defauts: 2, remarques: 'Bon démarrage, opérateur motivé.' },
-  { id: 2, jour: 2, cadence: 95, defauts: 1, remarques: 'Cadence atteinte avec une bonne qualité.' }
+  {
+    id: 2,
+    jour: 2,
+    cadence: 95,
+    defauts: 1,
+    remarques: 'Cadence atteinte avec une bonne qualité.',
+  },
 ])
 const newDay = ref(3)
 const newCadence = ref(100)
@@ -36,27 +54,55 @@ const newDefauts = ref(0)
 const newRemarques = ref('')
 const teamRequests = ref([
   { id: 1, type: 'Ajout Opérateur', date: '2026-07-10', statut: 'Validé' },
-  { id: 2, type: 'Modification Shift', date: '2026-07-14', statut: 'En attente' }
+  { id: 2, type: 'Modification Shift', date: '2026-07-14', statut: 'En attente' },
 ])
 const requestType = ref('Ajout Opérateur')
 const requestMsg = ref('')
 
 // State for RH Panel (Simulated Operator directory and skills matrix)
 const operators = ref([
-  { matricule: 'OP001', nom: 'Amine Ben Ali', embauche: '2025-01-10', statut: 'Actif', rework: false },
-  { matricule: 'OP002', nom: 'Salma Mansour', embauche: '2025-03-15', statut: 'Actif', rework: true },
-  { matricule: 'OP003', nom: 'Youssef Trabelsi', embauche: '2025-06-01', statut: 'Formation', rework: false }
+  {
+    matricule: 'OP001',
+    nom: 'Amine Ben Ali',
+    embauche: '2025-01-10',
+    statut: 'Actif',
+    rework: false,
+  },
+  {
+    matricule: 'OP002',
+    nom: 'Salma Mansour',
+    embauche: '2025-03-15',
+    statut: 'Actif',
+    rework: true,
+  },
+  {
+    matricule: 'OP003',
+    nom: 'Youssef Trabelsi',
+    embauche: '2025-06-01',
+    statut: 'Formation',
+    rework: false,
+  },
 ])
 const rhStats = { total: 18, polyvalence: '78%', formation: 4 }
 
 // State for Qualité Panel (Questionnaires / Templates / Questions)
 const templates = ref([
   { id: 1, nom: 'Évaluation Standard Shift A', ordre: 1, date: '2026-07-01' },
-  { id: 2, nom: 'Évaluation Avancée Rework', ordre: 2, date: '2026-07-05' }
+  { id: 2, nom: 'Évaluation Avancée Rework', ordre: 2, date: '2026-07-05' },
 ])
 const questions = ref([
-  { id: 1, enonce: 'Vérifier la conformité de l\'étiquetage du bloc arrière', reponse: 'Conforme et lisible', bloc: 'Bloc A' },
-  { id: 2, enonce: 'Calculer le temps de cycle standard sur poste de vissage', reponse: '42 secondes', bloc: 'Bloc B' }
+  {
+    id: 1,
+    enonce: "Vérifier la conformité de l'étiquetage du bloc arrière",
+    reponse: 'Conforme et lisible',
+    bloc: 'Bloc A',
+  },
+  {
+    id: 2,
+    enonce: 'Calculer le temps de cycle standard sur poste de vissage',
+    reponse: '42 secondes',
+    bloc: 'Bloc B',
+  },
 ])
 const newQuestionEnonce = ref('')
 const newQuestionReponse = ref('')
@@ -65,36 +111,89 @@ const newQuestionBloc = ref('Bloc A')
 // State for HSE Panel (Safety check lists / Safety indexes)
 const safetyChecks = ref([
   { id: 1, zone: 'Zone Assemblage A', portEPI: true, securiteMachine: true, statut: 'Sécurisé' },
-  { id: 2, zone: 'Zone Finition B', portEPI: true, securiteMachine: false, statut: 'Alerte Mineure' }
+  {
+    id: 2,
+    zone: 'Zone Finition B',
+    portEPI: true,
+    securiteMachine: false,
+    statut: 'Alerte Mineure',
+  },
 ])
 const hseLogs = ref([
-  { id: 101, date: '2026-07-14 09:15', auteur: 'Hélène HSE', motif: 'Ajout de consigne de sécurité Zone A' },
-  { id: 102, date: '2026-07-14 11:30', auteur: 'Hélène HSE', motif: 'Correction gabarit sécurité incendie' }
+  {
+    id: 101,
+    date: '2026-07-14 09:15',
+    auteur: 'Hélène HSE',
+    motif: 'Ajout de consigne de sécurité Zone A',
+  },
+  {
+    id: 102,
+    date: '2026-07-14 11:30',
+    auteur: 'Hélène HSE',
+    motif: 'Correction gabarit sécurité incendie',
+  },
 ])
 
 // State for Superviseur Panel (Sessions, line assignment)
 const sessions = ref([
   { id: 1, type: 'Hebdomadaire', date: '2026-07-14', statut: 'En cours', score: 85.5 },
-  { id: 2, type: 'Mensuelle', date: '2026-06-30', statut: 'Clôturée', score: 91.2 }
+  { id: 2, type: 'Mensuelle', date: '2026-06-30', statut: 'Clôturée', score: 91.2 },
 ])
 const assignments = ref([
-  { poste: 'Poste Assemblage 1', operateur: 'Amine Ben Ali', shift: 'Shift Matin', statut: 'Présent' },
-  { poste: 'Poste Contrôle Qualité', operateur: 'Salma Mansour', shift: 'Shift Matin', statut: 'Présent' },
-  { poste: 'Poste Emballage 3', operateur: 'Aucun', shift: 'Shift Matin', statut: 'Vide' }
+  {
+    poste: 'Poste Assemblage 1',
+    operateur: 'Amine Ben Ali',
+    shift: 'Shift Matin',
+    statut: 'Présent',
+  },
+  {
+    poste: 'Poste Contrôle Qualité',
+    operateur: 'Salma Mansour',
+    shift: 'Shift Matin',
+    statut: 'Présent',
+  },
+  { poste: 'Poste Emballage 3', operateur: 'Aucun', shift: 'Shift Matin', statut: 'Vide' },
 ])
+
+// State for Configurable Structure Module
+const activeSection = ref('dashboard')
+const structure = ref({ projects: [] })
+const structureLoading = ref(false)
+const structureError = ref('')
+const newProjectName = ref('')
+const newZoneName = ref('')
+const selectedProjectId = ref('')
+const newPosteName = ref('')
+const selectedZoneId = ref('')
+const structureMsg = ref('')
 
 // Computed Properties
 const user = computed(() => authStore.user)
+const roleComponent = computed(() => ({
+  ADMIN: AdminDashboard,
+  CHEF_EQUIPE: ChefEquipeDashboard,
+  RH: RhDashboard,
+  QUALITE: QualiteDashboard,
+  HSE: HseDashboard,
+  SUPERVISEUR: SuperviseurDashboard,
+}[user.value?.role]))
 const roleLabel = computed(() => {
   if (!user.value) return ''
   switch (user.value.role) {
-    case 'ADMIN': return 'Administrateur'
-    case 'CHEF_EQUIPE': return 'Chef d\'équipe'
-    case 'RH': return 'Ressources Humaines'
-    case 'QUALITE': return 'Responsable Qualité'
-    case 'HSE': return 'Responsable HSE'
-    case 'SUPERVISEUR': return 'Superviseur'
-    default: return user.value.role
+    case 'ADMIN':
+      return 'Administrateur'
+    case 'CHEF_EQUIPE':
+      return "Chef d'équipe"
+    case 'RH':
+      return 'Ressources Humaines'
+    case 'QUALITE':
+      return 'Responsable Qualité'
+    case 'HSE':
+      return 'Responsable HSE'
+    case 'SUPERVISEUR':
+      return 'Superviseur'
+    default:
+      return user.value.role
   }
 })
 
@@ -138,8 +237,8 @@ async function fetchUsers() {
   try {
     const response = await fetch('/api/utilisateurs', {
       headers: {
-        'Authorization': `Bearer ${authStore.token}`
-      }
+        Authorization: `Bearer ${authStore.token}`,
+      },
     })
     if (!response.ok) throw new Error('Erreur lors du chargement des utilisateurs')
     users.value = await response.json()
@@ -158,18 +257,18 @@ async function handleCreateUser() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
+        Authorization: `Bearer ${authStore.token}`,
       },
       body: JSON.stringify({
         matricule: newUserMatricule.value,
         nom: newUserNom.value,
         cin: newUserCin.value,
-        role: newUserRole.value
-      })
+        role: newUserRole.value,
+      }),
     })
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || 'Erreur lors de la création de l\'utilisateur')
+      throw new Error(data.message || "Erreur lors de la création de l'utilisateur")
     }
     newUserMatricule.value = ''
     newUserNom.value = ''
@@ -184,18 +283,105 @@ async function handleCreateUser() {
 }
 
 async function toggleUserStatus(u) {
-  const endpoint = u.actif ? `/api/utilisateurs/${u.id}/suspendre` : `/api/utilisateurs/${u.id}/reactiver`
+  const endpoint = u.actif
+    ? `/api/utilisateurs/${u.id}/suspendre`
+    : `/api/utilisateurs/${u.id}/reactiver`
   try {
     const response = await fetch(endpoint, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${authStore.token}`
-      }
+        Authorization: `Bearer ${authStore.token}`,
+      },
     })
     if (!response.ok) throw new Error('Impossible de modifier le statut')
     await fetchUsers()
   } catch (error) {
     alert(error.message)
+  }
+}
+
+async function fetchStructureData() {
+  if (!authStore.token) return
+  structureLoading.value = true
+  structureError.value = ''
+  structureMsg.value = ''
+  try {
+    const data = await fetchStructure(authStore.token)
+    structure.value = data
+    if (data.projects?.length) {
+      const selectedProject = data.projects.find(
+        (project) => project.idProjet === Number(selectedProjectId.value),
+      )
+      const project = selectedProject || data.projects[0]
+      selectedProjectId.value = project.idProjet
+
+      const selectedZone = project.zones?.find(
+        (zone) => zone.idZone === Number(selectedZoneId.value),
+      )
+      selectedZoneId.value = selectedZone?.idZone || project.zones?.[0]?.idZone || ''
+    } else {
+      selectedProjectId.value = ''
+      selectedZoneId.value = ''
+    }
+  } catch (error) {
+    structureError.value = error.message
+  } finally {
+    structureLoading.value = false
+  }
+}
+
+function requireStructureSelection(value, label) {
+  if (value) {
+    return true
+  }
+  structureMsg.value = `Veuillez sélectionner ${label}.`
+  return false
+}
+
+function formatCreation(dateCreation) {
+  if (!dateCreation) return 'Date non disponible'
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(dateCreation))
+}
+
+async function handleCreateProject() {
+  if (!newProjectName.value.trim()) return
+  structureMsg.value = ''
+  try {
+    await createProject(authStore.token, newProjectName.value.trim())
+    newProjectName.value = ''
+    await fetchStructureData()
+    structureMsg.value = 'Projet créé avec succès.'
+  } catch (error) {
+    structureMsg.value = error.message
+  }
+}
+
+async function handleCreateZone() {
+  if (!requireStructureSelection(selectedProjectId.value, 'un projet') || !newZoneName.value.trim()) return
+  structureMsg.value = ''
+  try {
+    await createZone(authStore.token, Number(selectedProjectId.value), newZoneName.value.trim())
+    newZoneName.value = ''
+    await fetchStructureData()
+    structureMsg.value = 'Zone créée avec succès.'
+  } catch (error) {
+    structureMsg.value = error.message
+  }
+}
+
+async function handleCreatePoste() {
+  if (!requireStructureSelection(selectedZoneId.value, 'une zone') || !newPosteName.value.trim()) return
+  structureMsg.value = ''
+  try {
+    await createPoste(authStore.token, Number(selectedZoneId.value), newPosteName.value.trim())
+    newPosteName.value = ''
+    await fetchStructureData()
+    structureMsg.value = 'Poste de travail créé avec succès.'
+  } catch (error) {
+    structureMsg.value = error.message
   }
 }
 
@@ -206,7 +392,7 @@ function addIntegrationLog() {
     jour: newDay.value,
     cadence: newCadence.value,
     defauts: newDefauts.value,
-    remarques: newRemarques.value || 'N/A'
+    remarques: newRemarques.value || 'N/A',
   })
   newDay.value++
   newRemarques.value = ''
@@ -218,7 +404,7 @@ function submitTeamRequest() {
     id: Date.now(),
     type: requestType.value,
     date: new Date().toISOString().split('T')[0],
-    statut: 'En attente'
+    statut: 'En attente',
   })
   requestMsg.value = ''
 }
@@ -230,7 +416,7 @@ function addQuestion() {
     id: Date.now(),
     enonce: newQuestionEnonce.value,
     reponse: newQuestionReponse.value,
-    bloc: newQuestionBloc.value
+    bloc: newQuestionBloc.value,
   })
   newQuestionEnonce.value = ''
   newQuestionReponse.value = ''
@@ -240,43 +426,66 @@ function addQuestion() {
 onMounted(() => {
   if (user.value?.role === 'ADMIN') {
     fetchUsers()
+    fetchStructureData()
+  } else if (['CHEF_EQUIPE', 'SUPERVISEUR'].includes(user.value?.role)) {
+    fetchStructureData()
   }
 })
 </script>
 
 <template>
   <div class="dashboard-container">
-    
     <!-- Forced Password Change View for First Connection -->
     <div v-if="authStore.mustChangePassword" class="password-change-overlay">
       <div class="password-card">
         <div class="card-header">
           <span class="lock-icon">🔒</span>
           <h2>Changement de mot de passe obligatoire</h2>
-          <p class="desc">C'est votre première connexion. Veuillez définir un nouveau mot de passe pour des raisons de sécurité.</p>
+          <p class="desc">
+            C'est votre première connexion. Veuillez définir un nouveau mot de passe pour des
+            raisons de sécurité.
+          </p>
         </div>
 
         <form @submit.prevent="handlePasswordChange" class="pwd-form">
           <div class="input-group">
             <label>Mot de passe actuel</label>
-            <input v-model="oldPassword" type="password" required placeholder="Saisir votre mot de passe de test" />
+            <input
+              v-model="oldPassword"
+              type="password"
+              required
+              placeholder="Saisir votre mot de passe de test"
+            />
           </div>
 
           <div class="input-group">
             <label>Nouveau mot de passe</label>
-            <input v-model="newPassword" type="password" required placeholder="Minimum 6 caractères" />
+            <input
+              v-model="newPassword"
+              type="password"
+              required
+              placeholder="Minimum 6 caractères"
+            />
           </div>
 
           <div class="input-group">
             <label>Confirmer le nouveau mot de passe</label>
-            <input v-model="confirmPassword" type="password" required placeholder="Confirmer le mot de passe" />
+            <input
+              v-model="confirmPassword"
+              type="password"
+              required
+              placeholder="Confirmer le mot de passe"
+            />
           </div>
 
           <button type="submit" :disabled="changePasswordLoading" class="action-btn">
             {{ changePasswordLoading ? 'Modification...' : 'Modifier et continuer' }}
           </button>
-          
-          <div v-if="changePasswordMsg" :class="['message-box', changePasswordSuccess ? 'success' : 'error']">
+
+          <div
+            v-if="changePasswordMsg"
+            :class="['message-box', changePasswordSuccess ? 'success' : 'error']"
+          >
             {{ changePasswordMsg }}
           </div>
         </form>
@@ -288,10 +497,10 @@ onMounted(() => {
       <!-- Sidebar -->
       <aside class="app-sidebar">
         <div class="brand">
-          <span class="logo-emoji">🚗</span>
+          <div class="opmobility-mark" aria-hidden="true">op</div>
           <div class="brand-text">
-            <h3>Système ILU</h3>
-            <span class="brand-sub">Opmobility Platform</span>
+            <h3><span>OP</span>mobility</h3>
+            <span class="brand-sub">ILU management system</span>
           </div>
         </div>
 
@@ -304,20 +513,29 @@ onMounted(() => {
         </div>
 
         <nav class="sidebar-nav">
-          <a href="#" class="nav-item active">
+          <button
+            type="button"
+            class="nav-item"
+            :class="{ active: activeSection === 'dashboard' }"
+            @click="activeSection = 'dashboard'"
+          >
             <span class="nav-icon">📊</span>
             <span>Dashboard</span>
-          </a>
-          <a href="#" class="nav-item">
+          </button>
+          <button
+            v-if="['ADMIN', 'CHEF_EQUIPE', 'SUPERVISEUR'].includes(user?.role)"
+            type="button"
+            class="nav-item"
+            :class="{ active: activeSection === 'structure' }"
+            @click="activeSection = 'structure'"
+          >
             <span class="nav-icon">⚙️</span>
-            <span>Configurations</span>
-          </a>
+            <span>Projet</span>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
-          <button @click="handleLogout" class="logout-btn">
-            <span>🚪</span> Se déconnecter
-          </button>
+          <button @click="handleLogout" class="logout-btn"><span>🚪</span> Se déconnecter</button>
         </div>
       </aside>
 
@@ -329,12 +547,121 @@ onMounted(() => {
             <p>Bienvenue, {{ user?.nom }} (Matricule: {{ user?.matricule }})</p>
           </div>
           <div class="header-date">
-            📅 {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+            📅
+            {{
+              new Date().toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })
+            }}
           </div>
         </header>
 
+        <section v-if="activeSection === 'structure'" class="role-section">
+          <div class="panel-card structure-panel">
+            <div class="panel-header">
+              <h3>Gestion des projets</h3>
+            </div>
+            <div v-if="structureMsg" class="message-box success">{{ structureMsg }}</div>
+            <div v-if="structureError" class="message-box error">{{ structureError }}</div>
+            <div v-if="structureLoading" class="loading-state">
+              <span class="spinner-blue"></span> Chargement des projets...
+            </div>
+            <div v-else class="structure-grid">
+              <div class="panel-card compact-card">
+                <div class="panel-header"><h4>Créer un projet</h4></div>
+                <form @submit.prevent="handleCreateProject" class="panel-form">
+                  <div class="input-group">
+                    <label>Nom du projet</label>
+                    <input v-model="newProjectName" required placeholder="Ex: Smart Car" />
+                  </div>
+                  <button type="submit" class="submit-btn">Ajouter le projet</button>
+                </form>
+              </div>
+              <div class="panel-card compact-card">
+                <div class="panel-header"><h4>Créer une zone</h4></div>
+                <form @submit.prevent="handleCreateZone" class="panel-form">
+                  <div class="input-group">
+                    <label>Projet</label>
+                    <select v-model="selectedProjectId">
+                      <option
+                        v-for="project in structure.projects"
+                        :key="project.idProjet"
+                        :value="project.idProjet"
+                      >
+                        {{ project.nom }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="input-group">
+                    <label>Nom de la zone</label>
+                    <input v-model="newZoneName" required placeholder="Ex: Zone Montage" />
+                  </div>
+                  <button type="submit" class="submit-btn">Ajouter la zone</button>
+                </form>
+              </div>
+              <div class="panel-card compact-card">
+                <div class="panel-header"><h4>Créer un poste de travail</h4></div>
+                <form @submit.prevent="handleCreatePoste" class="panel-form">
+                  <div class="input-group">
+                    <label>Zone</label>
+                    <select v-model="selectedZoneId">
+                      <option
+                        v-for="project in structure.projects"
+                        :key="project.idProjet"
+                        :value="null"
+                        disabled
+                      >
+                        Choisir un projet puis une zone
+                      </option>
+                      <template v-for="project in structure.projects" :key="project.idProjet">
+                        <optgroup v-if="project.zones?.length" :label="project.nom">
+                          <option v-for="zone in project.zones" :key="zone.idZone" :value="zone.idZone">
+                            {{ zone.nom }}
+                          </option>
+                        </optgroup>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="input-group">
+                    <label>Nom du poste</label>
+                    <input v-model="newPosteName" required placeholder="Ex: Poste 1" />
+                  </div>
+                  <button type="submit" class="submit-btn">Ajouter le poste</button>
+                </form>
+              </div>
+            </div>
+            <div class="panel-card">
+              <div class="panel-header"><h4>Projets actuels</h4></div>
+              <div v-for="project in structure.projects" :key="project.idProjet" class="structure-tree">
+                <div class="tree-project">
+                  <strong>📁 {{ project.nom }}</strong>
+                  <span class="creation-meta">Créé le {{ formatCreation(project.dateCreation) }} par {{ project.creePar }}</span>
+                </div>
+                <div v-for="zone in project.zones || []" :key="zone.idZone" class="tree-zone">
+                  <div class="tree-zone-title">
+                    <strong>📍 {{ zone.nom }}</strong>
+                    <span class="creation-meta">Créée le {{ formatCreation(zone.dateCreation) }} par {{ zone.creePar }}</span>
+                  </div>
+                  <ul>
+                    <li v-for="poste in zone.postes || []" :key="poste.idPoste">
+                      <strong>🛠️ {{ poste.nom }}</strong>
+                      <span class="creation-meta">Créé le {{ formatCreation(poste.dateCreation) }} par {{ poste.creePar || 'Système' }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <component v-else-if="roleComponent" :is="roleComponent" />
+
+        <!-- Legacy role panels kept temporarily while their data is migrated to dedicated components. -->
         <!-- Role Panel: ADMIN -->
-        <section v-if="user?.role === 'ADMIN'" class="role-section">
+        <section v-else-if="user?.role === 'ADMIN'" class="role-section">
           <!-- Overview statistics -->
           <div class="stats-grid">
             <div class="stat-card">
@@ -347,14 +674,14 @@ onMounted(() => {
             <div class="stat-card">
               <span class="stat-icon">🟢</span>
               <div class="stat-content">
-                <span class="stat-val">{{ users.filter(u => u.actif).length }}</span>
+                <span class="stat-val">{{ users.filter((u) => u.actif).length }}</span>
                 <span class="stat-lbl">Utilisateurs actifs</span>
               </div>
             </div>
             <div class="stat-card">
               <span class="stat-icon">🔴</span>
               <div class="stat-content">
-                <span class="stat-val">{{ users.filter(u => !u.actif).length }}</span>
+                <span class="stat-val">{{ users.filter((u) => !u.actif).length }}</span>
                 <span class="stat-lbl">Utilisateurs suspendus</span>
               </div>
             </div>
@@ -395,7 +722,7 @@ onMounted(() => {
                   </div>
                 </div>
                 <button type="submit" :disabled="newUserLoading" class="submit-btn">
-                  {{ newUserLoading ? 'Création...' : 'Créer l\'utilisateur' }}
+                  {{ newUserLoading ? 'Création...' : "Créer l'utilisateur" }}
                 </button>
                 <p v-if="newUserMsg" class="form-msg">{{ newUserMsg }}</p>
               </form>
@@ -407,15 +734,13 @@ onMounted(() => {
                 <h3>Liste des Utilisateurs</h3>
                 <button @click="fetchUsers" class="refresh-btn">🔄 Actualiser</button>
               </div>
-              
+
               <div v-if="usersLoading" class="loading-state">
                 <span class="spinner-blue"></span> Chargement des utilisateurs...
               </div>
-              
-              <div v-else-if="usersError" class="error-state">
-                ⚠️ {{ usersError }}
-              </div>
-              
+
+              <div v-else-if="usersError" class="error-state">⚠️ {{ usersError }}</div>
+
               <div v-else class="table-wrapper">
                 <table class="data-table">
                   <thead>
@@ -430,9 +755,15 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="u in users" :key="u.id">
-                      <td><code>{{ u.matricule }}</code></td>
-                      <td><strong>{{ u.nom }}</strong></td>
-                      <td><span class="role-badge">{{ u.role?.libelle }}</span></td>
+                      <td>
+                        <code>{{ u.matricule }}</code>
+                      </td>
+                      <td>
+                        <strong>{{ u.nom }}</strong>
+                      </td>
+                      <td>
+                        <span class="role-badge">{{ u.role?.libelle }}</span>
+                      </td>
                       <td>{{ u.doitChangerMdp ? 'Oui' : 'Non' }}</td>
                       <td>
                         <span :class="['status-badge', u.actif ? 'active' : 'suspended']">
@@ -440,8 +771,8 @@ onMounted(() => {
                         </span>
                       </td>
                       <td>
-                        <button 
-                          @click="toggleUserStatus(u)" 
+                        <button
+                          @click="toggleUserStatus(u)"
                           :class="['status-btn', u.actif ? 'btn-suspend' : 'btn-activate']"
                         >
                           {{ u.actif ? 'Suspendre' : 'Réactiver' }}
@@ -504,7 +835,10 @@ onMounted(() => {
                 </div>
                 <div class="input-group">
                   <label>Remarques</label>
-                  <textarea v-model="newRemarques" placeholder="Observations et points de blocage..."></textarea>
+                  <textarea
+                    v-model="newRemarques"
+                    placeholder="Observations et points de blocage..."
+                  ></textarea>
                 </div>
                 <button type="submit" class="submit-btn">Enregistrer le suivi</button>
               </form>
@@ -528,7 +862,9 @@ onMounted(() => {
                   <tbody>
                     <tr v-for="log in integrationLogs" :key="log.id">
                       <td>Jour {{ log.jour }}</td>
-                      <td><strong>{{ log.cadence }}%</strong></td>
+                      <td>
+                        <strong>{{ log.cadence }}%</strong>
+                      </td>
                       <td>{{ log.defauts }}</td>
                       <td>{{ log.remarques }}</td>
                     </tr>
@@ -538,7 +874,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="admin-grid" style="margin-top: 2rem;">
+          <div class="admin-grid" style="margin-top: 2rem">
             <!-- Submit Team Update Request -->
             <div class="panel-card">
               <div class="panel-header">
@@ -555,7 +891,11 @@ onMounted(() => {
                 </div>
                 <div class="input-group">
                   <label>Message explicatif</label>
-                  <textarea v-model="requestMsg" placeholder="Saisir la raison de la demande..." required></textarea>
+                  <textarea
+                    v-model="requestMsg"
+                    placeholder="Saisir la raison de la demande..."
+                    required
+                  ></textarea>
                 </div>
                 <button type="submit" class="submit-btn btn-secondary">Envoyer la demande</button>
               </form>
@@ -577,10 +917,17 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="req in teamRequests" :key="req.id">
-                      <td><strong>{{ req.type }}</strong></td>
+                      <td>
+                        <strong>{{ req.type }}</strong>
+                      </td>
                       <td>{{ req.date }}</td>
                       <td>
-                        <span :class="['status-badge', req.statut === 'Validé' ? 'active' : 'suspended']">
+                        <span
+                          :class="[
+                            'status-badge',
+                            req.statut === 'Validé' ? 'active' : 'suspended',
+                          ]"
+                        >
                           {{ req.statut }}
                         </span>
                       </td>
@@ -637,12 +984,18 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="op in operators" :key="op.matricule">
-                      <td><code>{{ op.matricule }}</code></td>
-                      <td><strong>{{ op.nom }}</strong></td>
+                      <td>
+                        <code>{{ op.matricule }}</code>
+                      </td>
+                      <td>
+                        <strong>{{ op.nom }}</strong>
+                      </td>
                       <td>{{ op.embauche }}</td>
                       <td>{{ op.rework ? '✅ Oui' : '❌ Non' }}</td>
                       <td>
-                        <span :class="['status-badge', op.statut === 'Actif' ? 'active' : 'suspended']">
+                        <span
+                          :class="['status-badge', op.statut === 'Actif' ? 'active' : 'suspended']"
+                        >
                           {{ op.statut }}
                         </span>
                       </td>
@@ -658,7 +1011,10 @@ onMounted(() => {
                 <h3>Matrice de Polyvalence (Postes / Compétences)</h3>
               </div>
               <div class="skills-matrix-sim">
-                <p class="subtitle">Indicateur de compétence d'après le diagramme de classe (SessionEvaluation -> niveauObtenu)</p>
+                <p class="subtitle">
+                  Indicateur de compétence d'après le diagramme de classe (SessionEvaluation ->
+                  niveauObtenu)
+                </p>
                 <div class="matrix-grid">
                   <div class="matrix-row header-row">
                     <span class="header-cell">Opérateur</span>
@@ -686,10 +1042,18 @@ onMounted(() => {
                   </div>
                 </div>
                 <div class="matrix-legend">
-                  <span class="leg-item"><span class="color-box lvl-1"></span> Niveau 1 (Débutant)</span>
-                  <span class="leg-item"><span class="color-box lvl-2"></span> Niveau 2 (Intermédiaire)</span>
-                  <span class="leg-item"><span class="color-box lvl-3"></span> Niveau 3 (Autonome)</span>
-                  <span class="leg-item"><span class="color-box lvl-4"></span> Niveau 4 (Expert/Formateur)</span>
+                  <span class="leg-item"
+                    ><span class="color-box lvl-1"></span> Niveau 1 (Débutant)</span
+                  >
+                  <span class="leg-item"
+                    ><span class="color-box lvl-2"></span> Niveau 2 (Intermédiaire)</span
+                  >
+                  <span class="leg-item"
+                    ><span class="color-box lvl-3"></span> Niveau 3 (Autonome)</span
+                  >
+                  <span class="leg-item"
+                    ><span class="color-box lvl-4"></span> Niveau 4 (Expert/Formateur)</span
+                  >
                 </div>
               </div>
             </div>
@@ -731,11 +1095,19 @@ onMounted(() => {
               <form @submit.prevent="addQuestion" class="panel-form">
                 <div class="input-group">
                   <label>Énoncé de la question</label>
-                  <input v-model="newQuestionEnonce" required placeholder="Ex: Vérifier le couple de serrage" />
+                  <input
+                    v-model="newQuestionEnonce"
+                    required
+                    placeholder="Ex: Vérifier le couple de serrage"
+                  />
                 </div>
                 <div class="input-group">
                   <label>Réponse attendue</label>
-                  <input v-model="newQuestionReponse" required placeholder="Ex: Entre 4.5 et 5.2 Nm" />
+                  <input
+                    v-model="newQuestionReponse"
+                    required
+                    placeholder="Ex: Entre 4.5 et 5.2 Nm"
+                  />
                 </div>
                 <div class="input-group">
                   <label>Bloc d'évaluation concerné</label>
@@ -758,11 +1130,12 @@ onMounted(() => {
                 <p><strong>Gabarits actifs (TemplateQuestionnaire) :</strong></p>
                 <ul>
                   <li v-for="t in templates" :key="t.id">
-                    📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le {{ t.date }}
+                    📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le
+                    {{ t.date }}
                   </li>
                 </ul>
 
-                <p style="margin-top: 1.5rem;"><strong>Banque de questions associées :</strong></p>
+                <p style="margin-top: 1.5rem"><strong>Banque de questions associées :</strong></p>
                 <div class="table-wrapper">
                   <table class="data-table">
                     <thead>
@@ -774,9 +1147,13 @@ onMounted(() => {
                     </thead>
                     <tbody>
                       <tr v-for="q in questions" :key="q.id">
-                        <td><span class="role-badge">{{ q.bloc }}</span></td>
+                        <td>
+                          <span class="role-badge">{{ q.bloc }}</span>
+                        </td>
                         <td>{{ q.enonce }}</td>
-                        <td><code>{{ q.reponse }}</code></td>
+                        <td>
+                          <code>{{ q.reponse }}</code>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -830,11 +1207,18 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="check in safetyChecks" :key="check.id">
-                      <td><strong>{{ check.zone }}</strong></td>
+                      <td>
+                        <strong>{{ check.zone }}</strong>
+                      </td>
                       <td>{{ check.portEPI ? '✅ Conforme' : '❌ Non conforme' }}</td>
                       <td>{{ check.securiteMachine ? '✅ Active' : '⚠️ Anomalie' }}</td>
                       <td>
-                        <span :class="['status-badge', check.statut === 'Sécurisé' ? 'active' : 'suspended']">
+                        <span
+                          :class="[
+                            'status-badge',
+                            check.statut === 'Sécurisé' ? 'active' : 'suspended',
+                          ]"
+                        >
                           {{ check.statut }}
                         </span>
                       </td>
@@ -860,9 +1244,13 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="log in hseLogs" :key="log.id">
-                      <td><code>{{ log.date }}</code></td>
+                      <td>
+                        <code>{{ log.date }}</code>
+                      </td>
                       <td>{{ log.auteur }}</td>
-                      <td><em>{{ log.motif }}</em></td>
+                      <td>
+                        <em>{{ log.motif }}</em>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -916,12 +1304,21 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="s in sessions" :key="s.id">
-                      <td><code>#00{{ s.id }}</code></td>
+                      <td>
+                        <code>#00{{ s.id }}</code>
+                      </td>
                       <td>{{ s.type }}</td>
                       <td>{{ s.date }}</td>
-                      <td><strong>{{ s.score }}%</strong></td>
                       <td>
-                        <span :class="['status-badge', s.statut === 'En cours' ? 'active' : 'suspended']">
+                        <strong>{{ s.score }}%</strong>
+                      </td>
+                      <td>
+                        <span
+                          :class="[
+                            'status-badge',
+                            s.statut === 'En cours' ? 'active' : 'suspended',
+                          ]"
+                        >
                           {{ s.statut }}
                         </span>
                       </td>
@@ -948,11 +1345,18 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr v-for="asg in assignments" :key="asg.poste">
-                      <td><strong>{{ asg.poste }}</strong></td>
+                      <td>
+                        <strong>{{ asg.poste }}</strong>
+                      </td>
                       <td>{{ asg.operateur }}</td>
                       <td>{{ asg.shift }}</td>
                       <td>
-                        <span :class="['status-badge', asg.statut === 'Présent' ? 'active' : 'suspended']">
+                        <span
+                          :class="[
+                            'status-badge',
+                            asg.statut === 'Présent' ? 'active' : 'suspended',
+                          ]"
+                        >
                           {{ asg.statut }}
                         </span>
                       </td>
@@ -963,7 +1367,6 @@ onMounted(() => {
             </div>
           </div>
         </section>
-
       </main>
     </div>
   </div>
@@ -1379,7 +1782,8 @@ textarea {
   resize: vertical;
 }
 
-textarea:focus, select:focus {
+textarea:focus,
+select:focus {
   outline: none;
   border-color: #2563eb;
 }
@@ -1435,7 +1839,8 @@ select {
   background: #e2e8f0;
 }
 
-.loading-state, .error-state {
+.loading-state,
+.error-state {
   padding: 2rem;
   text-align: center;
   color: #64748b;
@@ -1565,7 +1970,9 @@ code {
   border-bottom: 0;
 }
 
-.header-cell, .cell-name, .cell-level {
+.header-cell,
+.cell-name,
+.cell-level {
   padding: 0.75rem;
   display: flex;
   align-items: center;
@@ -1576,10 +1983,22 @@ code {
   font-weight: 600;
 }
 
-.lvl-1 { background: #fee2e2; color: #b91c1c; }
-.lvl-2 { background: #fef3c7; color: #d97706; }
-.lvl-3 { background: #e0f2fe; color: #0369a1; }
-.lvl-4 { background: #dcfce7; color: #15803d; }
+.lvl-1 {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.lvl-2 {
+  background: #fef3c7;
+  color: #d97706;
+}
+.lvl-3 {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.lvl-4 {
+  background: #dcfce7;
+  color: #15803d;
+}
 
 .matrix-legend {
   display: flex;
@@ -1616,7 +2035,172 @@ code {
   margin-bottom: 0.4rem;
 }
 
+/* OPmobility-inspired dashboard theme */
+.dashboard-container {
+  background: #edf3f2;
+  color: #254b4e;
+}
+
+.app-sidebar {
+  width: 248px;
+  background: #123f43;
+  color: #c8d8d8;
+  border-right: 0;
+}
+
+.brand {
+  padding: 1.75rem 1.5rem 1.4rem;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.opmobility-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #123f43;
+  background: #b6e675;
+  border-radius: 50% 50% 50% 12%;
+  font-size: 0.77rem;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.brand-text h3 {
+  font-size: 1.15rem;
+  letter-spacing: -0.04em;
+}
+
+.brand-text h3 span { color: #b6e675; }
+.brand-sub { color: #a6c0c0; }
+
+.user-profile {
+  padding: 1rem;
+  margin: 1.15rem 1rem 0.5rem;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+}
+
+.avatar { background: #79c66b; }
+.user-role-pill { background: transparent; color: #a6c0c0; padding: 0; }
+.sidebar-nav { gap: 0.35rem; }
+
+.nav-item {
+  width: 100%;
+  padding: 0.78rem 0.9rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #c8d8d8;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-item:hover { background: rgba(255, 255, 255, 0.08); }
+.nav-item.active {
+  background: #255b5d;
+  color: #dff2bf;
+  box-shadow: inset 3px 0 #b6e675;
+}
+
+.sidebar-footer { padding: 1rem; border-top-color: rgba(255, 255, 255, 0.1); }
+.logout-btn { border: 0; border-radius: 6px; color: #c8d8d8; font-weight: 500; }
+.logout-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+.app-main { padding: 1.5rem 2rem 2.5rem; gap: 1.5rem; }
+.main-header { padding: 0.25rem 0 0.75rem; border-bottom: 0; }
+.header-title h1 { color: #254b4e; font-size: 1.65rem; }
+.header-date {
+  padding: 0.7rem 0.9rem;
+  border-radius: 6px;
+  background: #fff;
+  color: #547174;
+  font-size: 0.8rem;
+  box-shadow: 0 3px 12px rgba(34, 70, 72, 0.06);
+}
+
+.stats-grid { gap: 1rem; }
+.stat-card,
+.panel-card {
+  border: 1px solid #e3eeee;
+  border-radius: 7px;
+  box-shadow: 0 4px 14px rgba(34, 70, 72, 0.06);
+}
+
+.stat-card { padding: 1.15rem; }
+.panel-card { padding: 1.35rem; }
+.panel-header h3 { color: #254b4e; }
+.stat-icon { background: #e8f6f4; border-radius: 7px; font-size: 1.5rem; }
+
+.input-group input,
+select,
+textarea {
+  border: 1px solid #d8e5e4;
+  border-radius: 6px;
+}
+
+.input-group input:focus,
+select:focus,
+textarea:focus {
+  border-color: #58a88c;
+  box-shadow: 0 0 0 3px rgba(88, 168, 140, 0.14);
+}
+
+.submit-btn,
+.action-btn { background: #2c766f; border-radius: 6px; }
+.submit-btn:hover,
+.action-btn:hover { background: #205d58; }
+.submit-btn.btn-secondary { background: #56777a; }
+.submit-btn.btn-secondary:hover { background: #3d6265; }
+
+.data-table th { background: #f2f8f7; color: #416568; }
+.data-table td { border-bottom-color: #edf3f2; }
+.role-badge { background: #e8f6f4; color: #28746d; }
+
+.structure-tree {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #e7efee;
+}
+
+.structure-tree:last-child { border-bottom: 0; }
+.tree-project,
+.tree-zone-title,
+.tree-zone li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tree-project { color: #205d58; }
+.tree-zone { margin: 0.8rem 0 0 1.2rem; }
+.tree-zone ul { margin: 0.55rem 0 0; padding-left: 1.25rem; }
+.tree-zone li { padding: 0.35rem 0; color: #547174; }
+
+.creation-meta {
+  color: #789193;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .app-sidebar { width: 76px; }
+  .brand { padding: 1.25rem; }
+  .brand-text, .user-info, .nav-item span:last-child, .logout-btn span:last-child { display: none; }
+  .user-profile { margin: 1rem 0.75rem; justify-content: center; }
+  .nav-item { justify-content: center; padding: 0.85rem; }
+  .app-main { padding: 1rem; }
+  .main-header { align-items: flex-start; gap: 0.75rem; flex-direction: column; }
+  .tree-project, .tree-zone-title, .tree-zone li { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
+  .creation-meta { white-space: normal; }
+}
+
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
