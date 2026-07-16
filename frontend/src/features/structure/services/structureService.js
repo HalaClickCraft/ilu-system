@@ -20,17 +20,17 @@ export function fetchStructure(token) {
   return request('/api/structure', token)
 }
 
-export function createProject(token, nom) {
+export function createProject(token, nom, membres = []) {
   return request('/api/structure/projects', token, {
     method: 'POST',
-    body: JSON.stringify({ nom }),
+    body: JSON.stringify({ nom, membres }),
   })
 }
 
-export function addProjectMember(token, projectId, userId) {
+export function addProjectMember(token, projectId, userId, roleProjet) {
   return request(`/api/structure/projects/${projectId}/members`, token, {
     method: 'POST',
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({ userId, roleProjet }),
   })
 }
 

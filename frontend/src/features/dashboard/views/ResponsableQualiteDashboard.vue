@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from 'vue'
-
 const templates = ref([
   { id: 1, nom: 'Évaluation Standard Shift A', ordre: 1, date: '2026-07-01' },
   { id: 2, nom: 'Évaluation Avancée Rework', ordre: 2, date: '2026-07-05' },
@@ -19,7 +18,6 @@ const questions = ref([
     bloc: 'Bloc B',
   },
 ])
-
 const newQuestionEnonce = ref('')
 const newQuestionReponse = ref('')
 const newQuestionBloc = ref('Bloc A')
@@ -36,7 +34,6 @@ function addQuestion() {
   newQuestionReponse.value = ''
 }
 </script>
-
 <template>
   <section class="role-section">
     <div class="stats-grid">
@@ -63,8 +60,7 @@ function addQuestion() {
       </div>
     </div>
 
-    <div class="admin-grid" style="margin-top: 1.5rem;">
-      <!-- Add Question Form -->
+    <div class="admin-grid">
       <div class="panel-card">
         <div class="panel-header">
           <h3>Ajouter une Question d'Évaluation</h3>
@@ -72,19 +68,11 @@ function addQuestion() {
         <form @submit.prevent="addQuestion" class="panel-form">
           <div class="input-group">
             <label>Énoncé de la question</label>
-            <input
-              v-model="newQuestionEnonce"
-              required
-              placeholder="Ex: Vérifier le couple de serrage"
-            />
+            <input v-model="newQuestionEnonce" required placeholder="Ex: Vérifier le couple de serrage" />
           </div>
           <div class="input-group">
             <label>Réponse attendue</label>
-            <input
-              v-model="newQuestionReponse"
-              required
-              placeholder="Ex: Entre 4.5 et 5.2 Nm"
-            />
+            <input v-model="newQuestionReponse" required placeholder="Ex: Entre 4.5 et 5.2 Nm" />
           </div>
           <div class="input-group">
             <label>Bloc d'évaluation concerné</label>
@@ -98,7 +86,6 @@ function addQuestion() {
         </form>
       </div>
 
-      <!-- Templates and Questions List -->
       <div class="panel-card">
         <div class="panel-header">
           <h3>Gabarits & Banque de Questions</h3>
@@ -107,8 +94,7 @@ function addQuestion() {
           <p><strong>Gabarits actifs (TemplateQuestionnaire) :</strong></p>
           <ul>
             <li v-for="t in templates" :key="t.id">
-              📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le
-              {{ t.date }}
+              📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le {{ t.date }}
             </li>
           </ul>
 
@@ -124,13 +110,9 @@ function addQuestion() {
               </thead>
               <tbody>
                 <tr v-for="q in questions" :key="q.id">
-                  <td>
-                    <span class="role-badge">{{ q.bloc }}</span>
-                  </td>
+                  <td><span class="role-badge">{{ q.bloc }}</span></td>
                   <td>{{ q.enonce }}</td>
-                  <td>
-                    <code>{{ q.reponse }}</code>
-                  </td>
+                  <td><code>{{ q.reponse }}</code></td>
                 </tr>
               </tbody>
             </table>

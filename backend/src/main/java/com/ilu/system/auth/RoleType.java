@@ -5,6 +5,8 @@ public enum RoleType {
     CHEF_EQUIPE,
     RH,
     QUALITE,
+    RESPONSABLE_QUALITE,
+    AGENT_QUALITE,
     HSE,
     SUPERVISEUR
 }

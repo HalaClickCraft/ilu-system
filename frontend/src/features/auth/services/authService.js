@@ -31,7 +31,9 @@ export async function changePasswordApi(token, { ancienMotDePasse, nouveauMotDeP
     try {
       const data = await response.json()
       errMsg = data.message || errMsg
-    } catch (e) {}
+    } catch {
+      // Ignored
+    }
     throw new Error(errMsg)
   }
 }

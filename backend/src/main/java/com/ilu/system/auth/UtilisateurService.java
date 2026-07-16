@@ -1,10 +1,12 @@
 package com.ilu.system.auth;
 
 import com.ilu.system.auth.dto.CreateUtilisateurRequest;
+import com.ilu.system.auth.dto.UtilisateurDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UtilisateurService {
@@ -37,6 +39,20 @@ public class UtilisateurService {
 
     public List<Utilisateur> listerTous() {
         return utilisateurRepository.findAll();
+    }
+
+    public List<UtilisateurDto> listerParRole(RoleType roleType) {
+        return utilisateurRepository.findByRoleLibelleAndActifTrue(roleType).stream()
+                .map(user -> new UtilisateurDto(
+                        user.getId(),
+                        user.getMatricule(),
+                        user.getNom(),
+                        user.getCin(),
+                        user.getRole().getLibelle().name(),
+                        user.isActif(),
+                        user.isDoitChangerMdp()
+                ))
+                .collect(Collectors.toList());
     }
 
     public Utilisateur suspendre(Long id) {

@@ -1,6 +1,7 @@
 package com.ilu.system.auth;
 
 import com.ilu.system.auth.dto.CreateUtilisateurRequest;
+import com.ilu.system.auth.dto.UtilisateurDto;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,11 @@ public class UtilisateurController {
     @GetMapping
     public List<Utilisateur> lister() {
         return utilisateurService.listerTous();
+    }
+
+    @GetMapping("/par-role")
+    public List<UtilisateurDto> listerParRole(@RequestParam String role) {
+        return utilisateurService.listerParRole(RoleType.valueOf(role));
     }
 
     @PostMapping
