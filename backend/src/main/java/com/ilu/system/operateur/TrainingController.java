@@ -42,7 +42,7 @@ public class TrainingController {
         String operateurMatricule = (String) payload.get("operateurMatricule");
         Long posteId = Long.valueOf(payload.get("posteId").toString());
         Long projetId = Long.valueOf(payload.get("projetId").toString());
-        
+
         return operateurService.initializeTraining(operateurMatricule, posteId, projetId, userDetails.getUsername());
     }
 

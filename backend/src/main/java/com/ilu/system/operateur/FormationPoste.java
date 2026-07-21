@@ -26,6 +26,10 @@ public class FormationPoste {
     @Column(name = "date_evaluation_prevue", nullable = false)
     private LocalDate dateEvaluationPrevue;
 
+    // Remplie seulement quand l'évaluation a réellement eu lieu (peut être avant ou après la date prévue)
+    @Column(name = "date_evaluation_reelle")
+    private LocalDate dateEvaluationReelle;
+
     protected FormationPoste() { }
 
     public static FormationPoste enFormation(Operateur operateur, PosteTravail poste) {
@@ -40,7 +44,11 @@ public class FormationPoste {
 
     public Long getId() { return id; }
     public PosteTravail getPoste() { return poste; }
+    public Operateur getOperateur() { return operateur; }
     public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
     public LocalDate getDateDebut() { return dateDebut; }
     public LocalDate getDateEvaluationPrevue() { return dateEvaluationPrevue; }
+    public LocalDate getDateEvaluationReelle() { return dateEvaluationReelle; }
+    public void setDateEvaluationReelle(LocalDate dateEvaluationReelle) { this.dateEvaluationReelle = dateEvaluationReelle; }
 }

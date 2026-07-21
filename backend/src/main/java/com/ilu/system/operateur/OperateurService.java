@@ -325,7 +325,22 @@ public class OperateurService {
         }
         
         af.setStatut(newStatus);
-        return affectationFormationRepository.save(af);
+        affectationFormationRepository.save(af);
+
+        // L'affectation avait déjà créé la ligne dans la matrice (OPERATEUR_POSTE)
+        // avec statut = EN_FORMATION. Ici on la met à jour avec le résultat réel de
+        // l'évaluation, qui arrive plus tard (souvent après les 12 jours de suivi).
+        formationPosteRepository.findByOperateur_MatriculeAndPoste_IdPoste(
+                af.getOperateur().getMatricule(), af.getPoste().getIdPoste()
+        ).ifPresent(fp -> {
+            fp.setStatut(newStatus.equals("VALIDEE") ? "CONFIRME"
+                    : newStatus.equals("ECHOUEE") ? "ECHEC"
+                    : "EN_EVALUATION");
+            fp.setDateEvaluationReelle(LocalDate.now());
+            formationPosteRepository.save(fp);
+        });
+
+        return af;
     }
 
     /**

@@ -1,8 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { fetchTeamOperators, createOperator } from '@/features/dashboard/services/operateurService'
+import { fetchTeamOperators, fetchAllOperators, createOperator } from '@/features/dashboard/services/operateurService'
 import { fetchStructure } from '@/features/structure/services/structureService'
+import { initializeFormation } from '@/features/formations/services/formationService'
 import ChefFormationPanel from '@/features/formations/components/ChefFormationPanel.vue'
 
 defineProps({
@@ -29,6 +30,80 @@ const newOpPosteId = ref('')
 const createLoading = ref(false)
 const createMsg = ref('')
 
+// "Créer un opérateur" : choix Nouveau / Existant
+const operatorMode = ref('nouveau') // 'nouveau' | 'existant'
+const allOperatorsList = ref([])
+const existingSearchQuery = ref('')
+const selectedExistingOperator = ref(null)
+const existingProjetId = ref('')
+const existingPosteId = ref('')
+const addFormationLoading = ref(false)
+const addFormationMsg = ref('')
+
+const filteredExistingOperators = computed(() => {
+  const q = existingSearchQuery.value.trim().toLowerCase()
+  if (!q) return []
+  return allOperatorsList.value
+    .filter(
+      (op) =>
+        op.matricule.toLowerCase().includes(q) ||
+        op.nom.toLowerCase().includes(q) ||
+        (op.prenom || '').toLowerCase().includes(q)
+    )
+    .slice(0, 8)
+})
+
+const postesForExistingProjet = computed(() => {
+  if (!existingProjetId.value) return []
+  const projet = (structure.value.projects || []).find(
+    (p) => String(p.idProjet) === String(existingProjetId.value)
+  )
+  if (!projet) return []
+  const postes = []
+  for (const zone of projet.zones || []) {
+    for (const poste of zone.postes || []) {
+      postes.push({ id: poste.idPoste, nom: `${zone.nom} — ${poste.nom}` })
+    }
+  }
+  return postes
+})
+
+function selectExistingOperator(op) {
+  selectedExistingOperator.value = op
+  existingSearchQuery.value = `${op.matricule} - ${op.nom} ${op.prenom}`
+  existingProjetId.value = ''
+  existingPosteId.value = ''
+  addFormationMsg.value = ''
+}
+
+function resetExistingOperatorFlow() {
+  selectedExistingOperator.value = null
+  existingSearchQuery.value = ''
+  existingProjetId.value = ''
+  existingPosteId.value = ''
+  addFormationMsg.value = ''
+}
+
+async function handleAddFormationToExisting() {
+  addFormationMsg.value = ''
+  addFormationLoading.value = true
+  try {
+    await initializeFormation(authStore.token, {
+      operateurMatricule: selectedExistingOperator.value.matricule,
+      posteId: Number(existingPosteId.value),
+      projetId: Number(existingProjetId.value),
+    })
+    addFormationMsg.value = `Formation ajoutée pour ${selectedExistingOperator.value.matricule} sur le nouveau poste.`
+    existingProjetId.value = ''
+    existingPosteId.value = ''
+    await loadData()
+  } catch (err) {
+    addFormationMsg.value = `Erreur: ${err.message}`
+  } finally {
+    addFormationLoading.value = false
+  }
+}
+
 const allPostes = computed(() => {
   const postes = []
   for (const projet of structure.value.projects || []) {
@@ -45,12 +120,14 @@ async function loadData() {
   opLoading.value = true
   opError.value = ''
   try {
-    const [opsData, structureData] = await Promise.all([
+    const [opsData, structureData, allOpsData] = await Promise.all([
       fetchTeamOperators(authStore.token),
       fetchStructure(authStore.token),
+      fetchAllOperators(authStore.token),
     ])
     operators.value = opsData
     structure.value = structureData
+    allOperatorsList.value = allOpsData
   } catch (err) {
     opError.value = err.message
   } finally {
@@ -158,7 +235,29 @@ onMounted(loadData)
         <div class="panel-header">
           <h3>Créer un Opérateur</h3>
         </div>
-        <form @submit.prevent="handleCreateOperator" class="panel-form">
+
+        <!-- Toggle Nouveau / Existant -->
+        <div class="mode-toggle" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem">
+          <button
+            type="button"
+            class="submit-btn"
+            :style="operatorMode !== 'nouveau' ? 'opacity: 0.5' : ''"
+            @click="operatorMode = 'nouveau'; resetExistingOperatorFlow()"
+          >
+            ➕ Nouvel opérateur
+          </button>
+          <button
+            type="button"
+            class="submit-btn"
+            :style="operatorMode !== 'existant' ? 'opacity: 0.5' : ''"
+            @click="operatorMode = 'existant'"
+          >
+            🔍 Opérateur existe déjà
+          </button>
+        </div>
+
+        <!-- FORM: Nouvel opérateur (inchangé) -->
+        <form v-if="operatorMode === 'nouveau'" @submit.prevent="handleCreateOperator" class="panel-form">
           <div class="input-group">
             <label>Matricule</label>
             <input v-model="newOpMatricule" required placeholder="Ex: OP123" />
@@ -197,6 +296,79 @@ onMounted(loadData)
           </button>
           <p v-if="createMsg" class="form-msg">{{ createMsg }}</p>
         </form>
+
+        <!-- FORM: Opérateur existe déjà -->
+        <div v-else class="panel-form">
+          <div class="input-group">
+            <label>Rechercher (matricule ou nom)</label>
+            <input
+              v-model="existingSearchQuery"
+              placeholder="Ex: OP001 ou Mohamed"
+              @input="selectedExistingOperator = null"
+            />
+          </div>
+
+          <!-- Résultats de recherche -->
+          <ul
+            v-if="!selectedExistingOperator && filteredExistingOperators.length"
+            style="list-style: none; padding: 0; margin: 0 0 1rem 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden"
+          >
+            <li
+              v-for="op in filteredExistingOperators"
+              :key="op.matricule"
+              style="padding: 0.6rem 0.9rem; cursor: pointer; border-bottom: 1px solid #f1f5f9"
+              @click="selectExistingOperator(op)"
+            >
+              <code>{{ op.matricule }}</code> — <strong>{{ op.nom }} {{ op.prenom }}</strong>
+              <span v-if="op.posteAffecte" class="empty-hint"> · actuellement sur {{ op.posteAffecte.nom }}</span>
+            </li>
+          </ul>
+          <p v-else-if="existingSearchQuery && !selectedExistingOperator" class="empty-hint">
+            Aucun opérateur trouvé.
+          </p>
+
+          <!-- Une fois l'opérateur choisi : juste poste + projet -->
+          <template v-if="selectedExistingOperator">
+            <p class="subtitle">
+              Ajout d'une formation pour
+              <strong>{{ selectedExistingOperator.matricule }} - {{ selectedExistingOperator.nom }} {{ selectedExistingOperator.prenom }}</strong>
+              <button type="button" style="margin-left: 0.5rem" @click="resetExistingOperatorFlow" class="refresh-btn">
+                ✕ changer
+              </button>
+            </p>
+            <div class="input-group">
+              <label>Projet</label>
+              <select v-model="existingProjetId" @change="existingPosteId = ''" required>
+                <option value="" disabled>-- Choisir un projet --</option>
+                <option
+                  v-for="projet in structure.projects"
+                  :key="projet.idProjet"
+                  :value="projet.idProjet"
+                >
+                  {{ projet.nom }}
+                </option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Poste</label>
+              <select v-model="existingPosteId" :disabled="!existingProjetId" required>
+                <option value="" disabled>-- Choisir un poste --</option>
+                <option v-for="poste in postesForExistingProjet" :key="poste.id" :value="poste.id">
+                  {{ poste.nom }}
+                </option>
+              </select>
+            </div>
+            <button
+              type="button"
+              :disabled="addFormationLoading || !existingProjetId || !existingPosteId"
+              class="submit-btn"
+              @click="handleAddFormationToExisting"
+            >
+              {{ addFormationLoading ? 'Ajout...' : 'Ajouter la formation' }}
+            </button>
+            <p v-if="addFormationMsg" class="form-msg">{{ addFormationMsg }}</p>
+          </template>
+        </div>
       </div>
     </div>
 

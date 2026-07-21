@@ -47,11 +47,12 @@ const stats = computed(() => {
       totalCadence += entry.cadenceRealisee
       count++
     }
-    totalDefauts += entry.nbDefauts || 0
+    totalDefauts += entry?.nbDefauts || 0
   }
 
   return {
-    averageCadence: count > 0 ? Math.round(totalCadence / count) : 0,
+    averageCadence: count > 0 ? Math.round((totalCadence / count) * 100) / 100 : 0,
+    avgDefauts: Math.round((totalDefauts / 12) * 10000) / 10000,
     totalDefauts: totalDefauts,
     defautAlert: totalDefauts >= 7,
   }
@@ -114,8 +115,9 @@ async function loadTrainingData(training) {
       }
     })
 
-    // Get post objective
-    postObjective.value = training.postObjectif || 40 // Default fallback
+    // Cadence objectif lives on the poste (backend: PosteTravail.cadenceObjectif),
+    // not directly on the training/affectation object.
+    postObjective.value = training.poste?.cadenceObjectif || 40
 
     // Draw chart after data loads
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -147,24 +149,26 @@ function drawChart() {
       labels: Array.from({ length: 12 }, (_, i) => `J${i + 1}`),
       datasets: [
         {
-          label: 'Cadence Objectif',
+          label: 'Cadence objectif du poste',
           data: Array(12).fill(postObjective.value),
-          borderColor: '#22c55e',
+          borderColor: '#16a34a',
           borderWidth: 2,
-          borderDash: [5, 5],
+          pointRadius: 0,
           fill: false,
           tension: 0,
         },
         {
-          label: 'Cadence Réalisée',
+          label: 'Cadence réalisée',
           data: cadenceData,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37, 99, 235, 0.08)',
           borderWidth: 2,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 4,
-          pointBackgroundColor: '#3b82f6',
+          pointStyle: 'crossRot', // draws an "X" marker, like the Excel screenshot
+          pointRadius: 6,
+          pointBorderWidth: 2,
+          pointBackgroundColor: '#2563eb',
+          fill: false,
+          tension: 0,
         },
       ],
     },
@@ -179,7 +183,7 @@ function drawChart() {
       scales: {
         y: {
           beginAtZero: true,
-          max: Math.max(postObjective.value * 1.2, 120),
+          max: Math.max(postObjective.value * 1.5, 60),
         },
       },
     },
@@ -281,7 +285,7 @@ watch(selectedTrainingId, async (newId) => {
         <select v-model="selectedTrainingId" class="select-input">
           <option value="">-- Choisir une formation --</option>
           <option v-for="t in trainings" :key="t.idAffectation" :value="t.idAffectation">
-            {{ t.posteNom }} (Jour {{ t.dernierJourSaisi || 0 }}/12)
+            {{ t.poste?.nom }} — {{ t.projet?.nom }}
           </option>
         </select>
       </div>
@@ -296,8 +300,8 @@ watch(selectedTrainingId, async (newId) => {
       <!-- Operator Info -->
       <div class="operator-info">
         <div class="info-card"><strong>Opérateur:</strong> {{ operator.nom }}</div>
-        <div class="info-card"><strong>Poste:</strong> {{ trainingData.posteNom }}</div>
-        <div class="info-card"><strong>Projet:</strong> {{ trainingData.projetNom }}</div>
+        <div class="info-card"><strong>Poste:</strong> {{ trainingData.poste?.nom }}</div>
+        <div class="info-card"><strong>Projet:</strong> {{ trainingData.projet?.nom }}</div>
         <div class="info-card">
           <strong>Statut:</strong>
           <span :class="['status-badge', trainingData.statut.toLowerCase()]">
@@ -311,22 +315,31 @@ watch(selectedTrainingId, async (newId) => {
         <canvas id="trainingChart"></canvas>
       </div>
 
-      <!-- 12-Day Editable Table -->
+      <!-- J1-J12 Pivoted Table (Excel-style) -->
       <div class="table-section">
-        <h3>📋 Historique des 12 Jours</h3>
-        <table class="training-table">
+        <h3>📋 Suivi journalier</h3>
+        <table class="training-table pivoted">
           <thead>
             <tr>
-              <th>Jour</th>
-              <th>Cadence Réalisée</th>
-              <th>Nombre de Défauts</th>
-              <th>Remarques</th>
+              <th class="row-label"></th>
+              <th v-for="day in 12" :key="'h' + day">J{{ day }}</th>
+              <th class="summary-col">Moyenne</th>
+              <th class="summary-col">Total</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="day in 12" :key="day">
-              <td class="day-cell">J{{ day }}</td>
-              <td class="input-cell">
+            <!-- Cadence objectif du poste (read-only, same value repeated) -->
+            <tr class="objectif-row">
+              <td class="row-label">Cadence objectif du poste</td>
+              <td v-for="day in 12" :key="'co' + day">{{ postObjective }}</td>
+              <td class="summary-col">{{ postObjective }}</td>
+              <td class="summary-col">--</td>
+            </tr>
+
+            <!-- Cadence réalisée (editable by Chef d'Équipe) -->
+            <tr>
+              <td class="row-label">Cadence réalisée</td>
+              <td v-for="day in 12" :key="'cr' + day" class="input-cell">
                 <input
                   v-model.number="journalEntries[day].cadenceRealisee"
                   type="number"
@@ -336,7 +349,14 @@ watch(selectedTrainingId, async (newId) => {
                   :class="{ 'disabled-input': !canEditCadence }"
                 />
               </td>
-              <td class="input-cell">
+              <td class="summary-col">{{ stats.averageCadence }}</td>
+              <td class="summary-col">--</td>
+            </tr>
+
+            <!-- Nbr de défauts (editable by Agent Qualité) -->
+            <tr>
+              <td class="row-label">Nbr de défauts</td>
+              <td v-for="day in 12" :key="'nd' + day" class="input-cell">
                 <input
                   v-model.number="journalEntries[day].nbDefauts"
                   type="number"
@@ -346,32 +366,40 @@ watch(selectedTrainingId, async (newId) => {
                   :class="{ 'disabled-input': !canEditDefauts }"
                 />
               </td>
-              <td class="input-cell remarks">
-                <textarea
-                  v-model="journalEntries[day].remarques"
-                  :disabled="!canEditRemarques"
-                  class="cell-input cell-textarea"
-                  :class="{ 'disabled-input': !canEditRemarques }"
-                  rows="1"
-                ></textarea>
+              <td class="summary-col">{{ stats.avgDefauts }}</td>
+              <td class="summary-col" :class="{ 'alert-defauts': stats.defautAlert }">
+                {{ stats.totalDefauts }}
+              </td>
+            </tr>
+
+            <!-- Objectif qualité (merged text row) -->
+            <tr class="qualite-row">
+              <td class="row-label">Objectif qualité</td>
+              <td colspan="14">
+                {{
+                  trainingData.qualiteObjectif ||
+                  'nbre de défaut < 7 sur une période de 12 jours (équivalent de 10000 ppm sur les 12 jours)'
+                }}
               </td>
             </tr>
           </tbody>
-          <tfoot>
-            <tr class="footer-row">
-              <td><strong>Totaux</strong></td>
-              <td>
-                <strong>Moy: {{ stats.averageCadence }}</strong>
-              </td>
-              <td>
-                <strong :class="{ 'alert-defauts': stats.defautAlert }">
-                  Total: {{ stats.totalDefauts }}
-                </strong>
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
         </table>
+      </div>
+
+      <!-- Remarques (kept separate, like the notes box under the Excel table) -->
+      <div class="remarks-section">
+        <h3>📝 Remarques et observations</h3>
+        <div class="remarks-grid">
+          <div v-for="day in 12" :key="'rem' + day" class="remark-item">
+            <label>J{{ day }}</label>
+            <textarea
+              v-model="journalEntries[day].remarques"
+              :disabled="!canEditRemarques"
+              class="cell-textarea"
+              rows="2"
+            ></textarea>
+          </div>
+        </div>
       </div>
 
       <!-- Save Button -->
@@ -546,6 +574,7 @@ watch(selectedTrainingId, async (newId) => {
 /* Table Section */
 .table-section {
   margin-bottom: 2rem;
+  overflow-x: auto;
 }
 
 .table-section h3 {
@@ -582,12 +611,6 @@ watch(selectedTrainingId, async (newId) => {
   color: #547174;
 }
 
-.day-cell {
-  font-weight: 600;
-  color: #254b4e;
-  min-width: 60px;
-}
-
 .input-cell {
   vertical-align: middle;
 }
@@ -618,29 +641,69 @@ watch(selectedTrainingId, async (newId) => {
   resize: vertical;
   min-height: 50px;
   font-family: inherit;
-}
-
-.remarks {
-  width: 300px;
-}
-
-/* Footer Row */
-.footer-row {
-  background: #f3f4f6;
-  border-top: 2px solid #d1d5db;
-  font-weight: 600;
-}
-
-.footer-row td {
-  border-bottom: none;
-  color: #254b4e;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
 }
 
 .alert-defauts {
   color: #dc2626;
-  background: #fee2e2;
+  background: #fee2e2 !important;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
+}
+
+/* Pivoted table (metrics as rows, J1-J12 as columns) */
+.training-table.pivoted th,
+.training-table.pivoted td {
+  text-align: center;
+  min-width: 55px;
+}
+
+.row-label {
+  text-align: left !important;
+  font-weight: 600;
+  background: #f0fdf4;
+  min-width: 200px;
+  position: sticky;
+  left: 0;
+}
+
+.summary-col {
+  background: #f3f4f6;
+  font-weight: 700;
+}
+
+.qualite-row td:last-child {
+  text-align: left;
+  font-style: italic;
+  background: #fffbeb;
+}
+
+/* Remarks Section */
+.remarks-section {
+  margin-bottom: 2rem;
+}
+
+.remarks-section h3 {
+  color: #254b4e;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.remarks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.remark-item label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #254b4e;
+  font-size: 0.85rem;
 }
 
 /* Button Section */
@@ -693,10 +756,6 @@ watch(selectedTrainingId, async (newId) => {
   .search-section {
     grid-template-columns: 1fr;
     gap: 1rem;
-  }
-
-  .remarks {
-    width: 100%;
   }
 
   .table-section {
