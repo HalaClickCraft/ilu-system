@@ -36,30 +36,6 @@ function addQuestion() {
 </script>
 <template>
   <section class="role-section">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon">📋</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ templates.length }}</span>
-          <span class="stat-lbl">Gabarits de Questionnaire</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">❓</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ questions.length }}</span>
-          <span class="stat-lbl">Questions enregistrées</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🔍</span>
-        <div class="stat-content">
-          <span class="stat-val">2</span>
-          <span class="stat-lbl">Évaluations à valider</span>
-        </div>
-      </div>
-    </div>
-
     <div class="admin-grid">
       <div class="panel-card">
         <div class="panel-header">
@@ -68,7 +44,11 @@ function addQuestion() {
         <form @submit.prevent="addQuestion" class="panel-form">
           <div class="input-group">
             <label>Énoncé de la question</label>
-            <input v-model="newQuestionEnonce" required placeholder="Ex: Vérifier le couple de serrage" />
+            <input
+              v-model="newQuestionEnonce"
+              required
+              placeholder="Ex: Vérifier le couple de serrage"
+            />
           </div>
           <div class="input-group">
             <label>Réponse attendue</label>
@@ -94,7 +74,8 @@ function addQuestion() {
           <p><strong>Gabarits actifs (TemplateQuestionnaire) :</strong></p>
           <ul>
             <li v-for="t in templates" :key="t.id">
-              📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le {{ t.date }}
+              📁 <strong>{{ t.nom }}</strong> (Ordre affichage: {{ t.ordre }}) - Créé le
+              {{ t.date }}
             </li>
           </ul>
 
@@ -110,9 +91,13 @@ function addQuestion() {
               </thead>
               <tbody>
                 <tr v-for="q in questions" :key="q.id">
-                  <td><span class="role-badge">{{ q.bloc }}</span></td>
+                  <td>
+                    <span class="role-badge">{{ q.bloc }}</span>
+                  </td>
                   <td>{{ q.enonce }}</td>
-                  <td><code>{{ q.reponse }}</code></td>
+                  <td>
+                    <code>{{ q.reponse }}</code>
+                  </td>
                 </tr>
               </tbody>
             </table>

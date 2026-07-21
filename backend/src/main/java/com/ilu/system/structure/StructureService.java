@@ -156,6 +156,13 @@ public class StructureService {
         return toPosteDto(posteTravailRepository.save(new PosteTravail(nom, zone, creePar)));
     }
 
+    @Transactional(readOnly = true)
+    public List<PosteTravailDto> getAllPostes() {
+        return posteTravailRepository.findAll().stream()
+                .map(this::toPosteDto)
+                .collect(Collectors.toList());
+    }
+
     private ProjectDto toProjectDto(Project project, List<ZoneDto> zones) {
         return new ProjectDto(project.getIdProjet(), project.getNom(), project.getLogo(), project.getDateCreation(), project.getCreePar(), zones,
                 projectMemberRepository.findByProjet_IdProjet(project.getIdProjet()).stream().map(member -> new ProjectMemberDto(
@@ -173,21 +180,65 @@ public class StructureService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seuls les rôles opérationnels peuvent être affectés à un projet.");
         if (projectMemberRepository.existsByProjet_IdProjetAndUtilisateur_Id(projectId, userId))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cet utilisateur est déjà affecté à ce projet.");
-        
-        ProjectMember.RoleInProject roleProjetEnum;
-        if (roleProjet == null || roleProjet.isBlank()) {
-            roleProjetEnum = ProjectMember.RoleInProject.SUPERVISEUR;
-        } else {
-            try {
-                roleProjetEnum = ProjectMember.RoleInProject.valueOf(roleProjet);
-            } catch (IllegalArgumentException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rôle de projet invalide: " + roleProjet);
-            }
-        }
+        ProjectMember.RoleInProject roleProjetEnum = parseRoleProjet(roleProjet, true);
 
         ProjectMember member = projectMemberRepository.save(new ProjectMember(project, user, roleProjetEnum));
         return new ProjectMemberDto(member.getId(), user.getId(), user.getMatricule(), user.getNom(), role.name(),
                 member.getRoleProjet().name());
+    }
+
+    @Transactional
+    public ProjectMemberDto updateProjectMember(Long projectId, Long memberId, Long userId, String roleProjet) {
+        ProjectMember member = projectMemberRepository.findByIdAndProjet_IdProjet(memberId, projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Affectation introuvable."));
+        Utilisateur updatedUser = member.getUtilisateur();
+        if (userId != null) {
+            updatedUser = utilisateurRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable."));
+            RoleType updatedUserRole = updatedUser.getRole().getLibelle();
+            if (!java.util.Set.of(RoleType.CHEF_EQUIPE, RoleType.HSE, RoleType.QUALITE, RoleType.AGENT_QUALITE, RoleType.SUPERVISEUR, RoleType.RESPONSABLE_QUALITE).contains(updatedUserRole)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seuls les rôles opérationnels peuvent être affectés à un projet.");
+            }
+            if (projectMemberRepository.existsByProjet_IdProjetAndUtilisateur_IdAndIdNot(projectId, userId, memberId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cet utilisateur est déjà affecté à ce projet.");
+            }
+            member.setUtilisateur(updatedUser);
+        }
+
+        if (roleProjet != null && !roleProjet.isBlank()) {
+            member.setRoleProjet(parseRoleProjet(roleProjet, false));
+        }
+
+        ProjectMember updatedMember = projectMemberRepository.save(member);
+        return new ProjectMemberDto(
+                updatedMember.getId(),
+                updatedMember.getUtilisateur().getId(),
+                updatedMember.getUtilisateur().getMatricule(),
+                updatedMember.getUtilisateur().getNom(),
+                updatedMember.getUtilisateur().getRole().getLibelle().name(),
+                updatedMember.getRoleProjet().name()
+        );
+    }
+
+    @Transactional
+    public void removeProjectMember(Long projectId, Long memberId) {
+        ProjectMember member = projectMemberRepository.findByIdAndProjet_IdProjet(memberId, projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Affectation introuvable."));
+        projectMemberRepository.delete(member);
+    }
+
+    private ProjectMember.RoleInProject parseRoleProjet(String roleProjet, boolean allowDefault) {
+        if (roleProjet == null || roleProjet.isBlank()) {
+            if (allowDefault) {
+                return ProjectMember.RoleInProject.SUPERVISEUR;
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rôle de projet obligatoire.");
+        }
+        try {
+            return ProjectMember.RoleInProject.valueOf(roleProjet);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rôle de projet invalide: " + roleProjet);
+        }
     }
 
     private ZoneDto toZoneDto(Zone zone, List<PosteTravailDto> postes) {

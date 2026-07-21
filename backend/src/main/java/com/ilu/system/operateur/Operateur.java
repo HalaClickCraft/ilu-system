@@ -15,6 +15,12 @@ public class Operateur {
     @Column(nullable = false, length = 150)
     private String nom;
 
+    @Column(name = "prenom", nullable = false, length = 150)
+    private String prenom;
+
+    @Column(name = "fonctionnalite", length = 255)
+    private String fonctionnalite;
+
     @Column(name = "date_embauche", nullable = false)
     private LocalDate dateEmbauche;
 
@@ -52,6 +58,12 @@ public class Operateur {
     public void setNom(String nom) {
         this.nom = nom;
     }
+
+    public String getPrenom() { return prenom; }
+    public void setPrenom(String prenom) { this.prenom = prenom; }
+
+    public String getFonctionnalite() { return fonctionnalite; }
+    public void setFonctionnalite(String fonctionnalite) { this.fonctionnalite = fonctionnalite; }
 
     public LocalDate getDateEmbauche() {
         return dateEmbauche;

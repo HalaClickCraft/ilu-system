@@ -4,7 +4,10 @@ import com.ilu.system.auth.dto.CreateUtilisateurRequest;
 import com.ilu.system.auth.dto.UtilisateurDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -53,6 +56,48 @@ public class UtilisateurService {
                         user.isDoitChangerMdp()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    public List<UtilisateurDto> listerParRole(String roleValue) {
+        List<RoleType> roleTypes = resolveRoleAliases(roleValue);
+        return utilisateurRepository.findByRoleLibelleInAndActifTrue(roleTypes).stream()
+                .map(user -> new UtilisateurDto(
+                        user.getId(),
+                        user.getMatricule(),
+                        user.getNom(),
+                        user.getCin(),
+                        user.getRole().getLibelle().name(),
+                        user.isActif(),
+                        user.isDoitChangerMdp()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private List<RoleType> resolveRoleAliases(String roleValue) {
+        RoleType requestedRole;
+        try {
+            requestedRole = RoleType.valueOf(roleValue);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role inconnu: " + roleValue);
+        }
+
+        List<RoleType> roleTypes = new ArrayList<>();
+        roleTypes.add(requestedRole);
+
+        if (requestedRole == RoleType.CHEF_EQUIPE) {
+            // Compatibilité avec rôles projet historiques.
+            return roleTypes;
+        }
+
+        if (requestedRole == RoleType.QUALITE) {
+            roleTypes.add(RoleType.AGENT_QUALITE);
+        } else if (requestedRole == RoleType.AGENT_QUALITE) {
+            roleTypes.add(RoleType.QUALITE);
+        } else if (requestedRole == RoleType.HSE) {
+            return roleTypes;
+        }
+
+        return roleTypes;
     }
 
     public Utilisateur suspendre(Long id) {

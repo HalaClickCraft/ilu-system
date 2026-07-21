@@ -1,6 +1,7 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import StatisticsDashboard from '@/features/formations/components/StatisticsDashboard.vue'
 
 const authStore = useAuthStore()
 const users = ref([])
@@ -14,15 +15,15 @@ const newUserRole = ref('CHEF_EQUIPE')
 const newUserLoading = ref(false)
 const newUserMsg = ref('')
 
-const activeUsersCount = computed(() => users.value.filter(u => u.actif).length)
-const suspendedUsersCount = computed(() => users.value.filter(u => !u.actif).length)
+// View state
+const showFormations = ref(false)
 
 async function loadUsers() {
   loading.value = true
   error.value = ''
   try {
     const response = await fetch('/api/utilisateurs', {
-      headers: { Authorization: `Bearer ${authStore.token}` }
+      headers: { Authorization: `Bearer ${authStore.token}` },
     })
     if (!response.ok) throw new Error('Impossible de charger les utilisateurs.')
     users.value = await response.json()
@@ -89,32 +90,24 @@ onMounted(loadUsers)
 
 <template>
   <section class="role-section">
-    <!-- Overview statistics -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon">👥</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ users.length }}</span>
-          <span class="stat-lbl">Utilisateurs enregistrés</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🟢</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ activeUsersCount }}</span>
-          <span class="stat-lbl">Utilisateurs actifs</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🔴</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ suspendedUsersCount }}</span>
-          <span class="stat-lbl">Utilisateurs suspendus</span>
-        </div>
-      </div>
+    <!-- Navigation Buttons -->
+    <div class="tabs-navigation" style="margin-bottom: 1.5rem">
+      <button 
+        @click="showFormations = false"
+        :class="['tab-btn', !showFormations ? 'active' : '']"
+      >
+        👥 Gestion des Utilisateurs
+      </button>
+      <button 
+        @click="showFormations = true"
+        :class="['tab-btn', showFormations ? 'active' : '']"
+      >
+        📊 Statistiques Formations
+      </button>
     </div>
 
-    <div class="admin-grid" style="margin-top: 1.5rem;">
+    <!-- Users Tab -->
+    <div v-show="!showFormations" class="admin-grid" style="margin-top: 1.5rem">
       <!-- Create User Form -->
       <div class="panel-card">
         <div class="panel-header">
@@ -212,5 +205,10 @@ onMounted(loadUsers)
         </div>
       </div>
     </div>
+    <!-- End Users Tab -->
+
+    <!-- Formations Statistics Tab -->
+    <StatisticsDashboard v-show="showFormations" />
+    <!-- End Formations Statistics Tab -->
   </section>
 </template>

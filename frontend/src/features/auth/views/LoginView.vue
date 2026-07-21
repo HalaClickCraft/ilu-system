@@ -14,8 +14,8 @@ import LoginForm from '../components/LoginForm.vue'
   width: 100vw;
   display: grid;
   place-items: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f5f9f8 0%, #edf3f2 100%);
   position: absolute;
   top: 0;
   left: 0;

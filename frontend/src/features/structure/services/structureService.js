@@ -34,6 +34,19 @@ export function addProjectMember(token, projectId, userId, roleProjet) {
   })
 }
 
+export function updateProjectMemberRole(token, projectId, memberId, userId, roleProjet) {
+  return request(`/api/structure/projects/${projectId}/members/${memberId}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ userId, roleProjet }),
+  })
+}
+
+export function deleteProjectMember(token, projectId, memberId) {
+  return request(`/api/structure/projects/${projectId}/members/${memberId}`, token, {
+    method: 'DELETE',
+  })
+}
+
 export function createZone(token, projectId, nom) {
   return request('/api/structure/zones', token, {
     method: 'POST',

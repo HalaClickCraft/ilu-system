@@ -1,291 +1,282 @@
--- SQL Script to create tables and insert mock data matching the class diagram and MLD.
--- To be executed inside the MySQL Docker container.
+-- ILU System Database Schema & Mock Data
+-- Tables created via JPA (Hibernate create-drop mode)
+-- Use these INSERT commands manually when needed
+-- Note: Hibernate will auto-create tables based on entities
 
 USE ilu_db;
 
--- 0. ROLES & UTILISATEURS (Matches JPA structures)
-CREATE TABLE IF NOT EXISTS roles (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    libelle VARCHAR(255) UNIQUE NOT NULL
-);
+-- =============================================================
+-- SCHEMA FIXES (Run these first if schema needs updates)
+-- =============================================================
 
-CREATE TABLE IF NOT EXISTS utilisateurs (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    matricule VARCHAR(255) UNIQUE NOT NULL,
-    nom VARCHAR(255) NOT NULL,
-    cin VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    doit_changer_mdp BOOLEAN NOT NULL DEFAULT FALSE,
-    actif BOOLEAN NOT NULL DEFAULT TRUE,
-    role_id BIGINT NOT NULL,
-    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
-);
+-- Add DEFAULT CURRENT_TIMESTAMP to affectation_formation.date_creation if not already set
+ALTER TABLE affectation_formation MODIFY date_creation datetime(6) DEFAULT CURRENT_TIMESTAMP(6);
 
--- 1. PROJET
-CREATE TABLE IF NOT EXISTS PROJET (
-    id_projet BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    logo VARCHAR(255),
-    date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cree_par VARCHAR(255) NOT NULL DEFAULT 'Système'
-);
+-- Add DEFAULT CURRENT_TIMESTAMP to suivi_formation_journalier.date_saisie if not already set
+ALTER TABLE suivi_formation_journalier MODIFY date_saisie datetime(6) DEFAULT CURRENT_TIMESTAMP(6);
 
--- 2. ZONE_LIGNE
-CREATE TABLE IF NOT EXISTS ZONE_LIGNE (
-    id_zone BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    projet_id BIGINT,
-    date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cree_par VARCHAR(255) NOT NULL DEFAULT 'Système',
-    FOREIGN KEY (projet_id) REFERENCES PROJET(id_projet) ON DELETE SET NULL
-);
-
--- 3a. PROJET_MEMBRE (projet_membre) with role_projet
-CREATE TABLE IF NOT EXISTS projet_membre (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    projet_id BIGINT NOT NULL,
-    utilisateur_id BIGINT NOT NULL,
-    role_projet VARCHAR(50) NOT NULL DEFAULT 'SUPERVISEUR',
-    FOREIGN KEY (projet_id) REFERENCES PROJET(id_projet) ON DELETE CASCADE,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    UNIQUE KEY uk_projet_utilisateur (projet_id, utilisateur_id)
-);
-
-CREATE TABLE IF NOT EXISTS POSTE (
-    id_poste BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    type_poste VARCHAR(50) NOT NULL,
-    cadence_objectif INT NOT NULL,
-    cible_polyvalence INT NOT NULL,
-    zone_id BIGINT,
-    date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cree_par VARCHAR(255) NOT NULL DEFAULT 'Système',
-    FOREIGN KEY (zone_id) REFERENCES ZONE_LIGNE(id_zone) ON DELETE SET NULL
-);
-
--- 4. EQUIPE
-CREATE TABLE IF NOT EXISTS EQUIPE (
-    id_equipe BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    chef_id BIGINT,
-    FOREIGN KEY (chef_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
-);
-
--- 5. OPERATEUR
-CREATE TABLE IF NOT EXISTS OPERATEUR (
-    matricule VARCHAR(50) PRIMARY KEY,
-    nom VARCHAR(150) NOT NULL,
-    date_embauche DATE NOT NULL,
-    date_sortie DATE,
-    statut VARCHAR(50) NOT NULL,
-    formation_rework BOOLEAN DEFAULT FALSE,
-    equipe_id BIGINT,
-    FOREIGN KEY (equipe_id) REFERENCES EQUIPE(id_equipe) ON DELETE SET NULL
-);
-
--- 6. TEMPLATE_QUESTIONNAIRE
-CREATE TABLE IF NOT EXISTS TEMPLATE_QUESTIONNAIRE (
-    id_gabarit BIGINT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(150) NOT NULL,
-    ordre_affichage INT NOT NULL,
-    date_creation DATE NOT NULL
-);
-
--- 7. QUESTION
-CREATE TABLE IF NOT EXISTS QUESTION (
-    id_question BIGINT AUTO_INCREMENT PRIMARY KEY,
-    enonce TEXT NOT NULL,
-    reponse_attendue VARCHAR(255) NOT NULL,
-    bloc VARCHAR(100) NOT NULL,
-    image VARCHAR(255),
-    statut_validation VARCHAR(50) NOT NULL,
-    gabarit_id BIGINT,
-    FOREIGN KEY (gabarit_id) REFERENCES TEMPLATE_QUESTIONNAIRE(id_gabarit) ON DELETE SET NULL
-);
-
--- 8. SESSION_EVALUATION
-CREATE TABLE IF NOT EXISTS SESSION_EVALUATION (
-    id_session BIGINT AUTO_INCREMENT PRIMARY KEY,
-    type_session VARCHAR(50) NOT NULL,
-    date_debut DATETIME NOT NULL,
-    date_cloture DATETIME,
-    shift VARCHAR(20) NOT NULL,
-    statut VARCHAR(50) NOT NULL,
-    score_global DOUBLE DEFAULT 0.0,
-    niveau_obtenu VARCHAR(50),
-    operateur_matricule VARCHAR(50),
-    FOREIGN KEY (operateur_matricule) REFERENCES OPERATEUR(matricule) ON DELETE SET NULL
-);
-
--- 9. SUIVI_INTEGRATION_JOURNALIER
-CREATE TABLE IF NOT EXISTS SUIVI_INTEGRATION_JOURNALIER (
-    id_suivi BIGINT AUTO_INCREMENT PRIMARY KEY,
-    jour INT NOT NULL,
-    cadence_realisee INT NOT NULL,
-    nb_defauts INT NOT NULL,
-    remarques TEXT,
-    session_id BIGINT,
-    FOREIGN KEY (session_id) REFERENCES SESSION_EVALUATION(id_session) ON DELETE CASCADE
-);
-
--- 10. EVALUATION_REPONSE_INDIVIDUELLE
-CREATE TABLE IF NOT EXISTS EVALUATION_REPONSE_INDIVIDUELLE (
-    id_reponse BIGINT AUTO_INCREMENT PRIMARY KEY,
-    est_correcte BOOLEAN NOT NULL,
-    session_id BIGINT,
-    question_id BIGINT,
-    FOREIGN KEY (session_id) REFERENCES SESSION_EVALUATION(id_session) ON DELETE CASCADE,
-    FOREIGN KEY (question_id) REFERENCES QUESTION(id_question) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS DETAILS_EVALUATION_POSTE (
-    id_detail BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bloc VARCHAR(100) NOT NULL,
-    statut VARCHAR(50) NOT NULL,
-    score_bloc DOUBLE DEFAULT 0.0,
-    date_validation DATE,
-    session_id BIGINT,
-    FOREIGN KEY (session_id) REFERENCES SESSION_EVALUATION(id_session) ON DELETE CASCADE
-);
-
--- 12. JOURNAL_MODIF_GABARIT
-CREATE TABLE IF NOT EXISTS JOURNAL_MODIF_GABARIT (
-    id_log BIGINT AUTO_INCREMENT PRIMARY KEY,
-    date_modification DATETIME NOT NULL,
-    motif VARCHAR(255) NOT NULL,
-    gabarit_id BIGINT,
-    FOREIGN KEY (gabarit_id) REFERENCES TEMPLATE_QUESTIONNAIRE(id_gabarit) ON DELETE CASCADE
-);
-
--- 13. NOTIFICATION
-CREATE TABLE IF NOT EXISTS NOTIFICATION (
-    id_notification BIGINT AUTO_INCREMENT PRIMARY KEY,
-    message TEXT NOT NULL,
-    type_notif VARCHAR(50) NOT NULL,
-    date_envoi DATETIME NOT NULL,
-    lue BOOLEAN DEFAULT FALSE,
-    destinataire_id BIGINT,
-    FOREIGN KEY (destinataire_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
-);
-
--- 14. DEMANDE_MAJ_EQUIPE
-CREATE TABLE IF NOT EXISTS DEMANDE_MAJ_EQUIPE (
-    id_demande BIGINT AUTO_INCREMENT PRIMARY KEY,
-    type_demande VARCHAR(100) NOT NULL,
-    statut VARCHAR(50) NOT NULL,
-    date_demande DATE NOT NULL,
-    equipe_id BIGINT,
-    demandeur_id BIGINT,
-    FOREIGN KEY (equipe_id) REFERENCES EQUIPE(id_equipe) ON DELETE SET NULL,
-    FOREIGN KEY (demandeur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
-);
-
--- =======================================================
+-- =============================================================
 -- MOCK DATA INSERTS
--- =======================================================
+-- =============================================================
 
--- Mock Roles done
-INSERT INTO roles (id, libelle) VALUES
-(1, 'ADMIN'),
-(2, 'CHEF_EQUIPE'),
-(3, 'RH'),
-(4, 'QUALITE'),
-(5, 'RESPONSABLE_QUALITE'),
-(6, 'HSE'),
-(7, 'SUPERVISEUR')
+-- Roles (RoleType enum)
+INSERT INTO roles (libelle) VALUES
+('ADMIN'),
+('CHEF_EQUIPE'),
+('RH'),
+('QUALITE'),
+('AGENT_QUALITE'),
+('SUPERVISEUR'),
+('HSE'),
+('RESPONSABLE_QUALITE')
 ON DUPLICATE KEY UPDATE libelle=VALUES(libelle);
 
--- Mock Users (Plain Text Passwords) done
-INSERT INTO utilisateurs (id, matricule, nom, cin, password, doit_changer_mdp, actif, role_id) VALUES
-(1, 'admin', 'Administrateur', '12345678', '12345678', TRUE, TRUE, 1),
-(2, 'chef1', 'Jean Chef', 'chef123', 'chef123', TRUE, TRUE, 2),
-(3, 'rh1', 'Sophie RH', 'rh123', 'rh123', TRUE, TRUE, 3),
-(4, 'qualite1', 'Marc Qualité', 'q123', 'q123', TRUE, TRUE, 4),
-(5, 'rq1', 'Nadia Responsable Qualité', 'rq123', 'rq123', TRUE, TRUE, 5),
-(6, 'hse1', 'Hélène HSE', 'hse123', 'hse123', TRUE, TRUE, 6),
-(7, 'super1', 'Paul Superviseur', 'super123', 'super123', TRUE, TRUE, 7)
-ON DUPLICATE KEY UPDATE matricule=VALUES(matricule);
-
--- Mock Projet done 
-INSERT INTO projet (id_projet, nom, logo, cree_par) VALUES 
-(1, 'Projet Renault Clio', 'renault_logo.png', 'Système'),
-(2, 'Projet Peugeot 208', 'peugeot_logo.png', 'Système')
+-- Utilisateurs (Users)
+INSERT INTO utilisateurs (matricule, nom, cin, password, doit_changer_mdp, actif, role_id) 
+SELECT 'admin1', 'Alice Administratrice', 'AB123456', 'admin123', 1, 1, r.id FROM roles r WHERE r.libelle = 'ADMIN'
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock projet_membre (members with roles in projects) done 
-INSERT INTO projet_membre (projet_id, utilisateur_id, role_projet) VALUES
-(1, 2, 'CHEF_DE_PROJET'),
-(1, 4, 'AGENT_QUALITE'),
-(1, 6, 'RESPONSABLE_HSE'),
-(1, 7, 'SUPERVISEUR'),
-(2, 2, 'CHEF_DE_PROJET'),
-(2, 6, 'RESPONSABLE_HSE')
-ON DUPLICATE KEY UPDATE role_projet=VALUES(role_projet);
-
-INSERT INTO zone_ligne (id_zone, nom, projet_id, cree_par) VALUES
-(1, 'Ligne Assemblage Pare-chocs', 1, 'Système'),
-(2, 'Ligne Finition Cockpit', 2, 'Système')
+INSERT INTO utilisateurs (matricule, nom, cin, password, doit_changer_mdp, actif, role_id) 
+SELECT 'chef1', 'Bob Chef d''Équipe', 'BC234567', 'chef123', 1, 1, r.id FROM roles r WHERE r.libelle = 'CHEF_EQUIPE'
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Poste done
-INSERT INTO poste (id_poste, nom, type_poste, cadence_objectif, cible_polyvalence, zone_id, cree_par) VALUES
-(1, 'Poste Assemblage Visuel', 'Manuel', 120, 3, 1, 'Système'),
-(2, 'Poste Vissage Automatique', 'Automatique', 95, 4, 1, 'Système'),
-(3, 'Poste Finition & Polissage', 'Manuel', 80, 2, 2, 'Système')
+INSERT INTO utilisateurs (matricule, nom, cin, password, doit_changer_mdp, actif, role_id) 
+SELECT 'rh1', 'Carole RH', 'CD345678', 'rh123', 1, 1, r.id FROM roles r WHERE r.libelle = 'RH'
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Equipe
-INSERT INTO EQUIPE (id_equipe, nom, chef_id) VALUES
-(1, 'Equipe Shift A', 2),
-(2, 'Equipe Shift B', 2)
+INSERT INTO utilisateurs (matricule, nom, cin, password, doit_changer_mdp, actif, role_id) 
+SELECT 'aq1', 'David Agent Qualité', 'DE456789', 'aq123', 1, 1, r.id FROM roles r WHERE r.libelle = 'AGENT_QUALITE'
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Operateur
-INSERT INTO OPERATEUR (matricule, nom, date_embauche, date_sortie, statut, formation_rework, equipe_id) VALUES
-('OP001', 'Amine Ben Ali', '2025-01-10', NULL, 'Actif', FALSE, 1),
-('OP002', 'Salma Mansour', '2025-03-15', NULL, 'Actif', TRUE, 1),
-('OP003', 'Youssef Trabelsi', '2025-06-01', NULL, 'En Formation', FALSE, 2)
+INSERT INTO utilisateurs (matricule, nom, cin, password, doit_changer_mdp, actif, role_id) 
+SELECT 'super1', 'Paul Superviseur', 'PQ567890', 'super123', 1, 1, r.id FROM roles r WHERE r.libelle = 'SUPERVISEUR'
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Template Questionnaire
-INSERT INTO TEMPLATE_QUESTIONNAIRE (id_gabarit, nom, ordre_affichage, date_creation) VALUES
-(1, 'Gabarit Evaluation Visuelle', 1, '2026-07-01'),
-(2, 'Gabarit Vissage Couple', 2, '2026-07-05')
+-- Projets
+INSERT INTO projet (nom, cree_par) VALUES
+('Projet Renault Clio', 'Système'),
+('Projet Peugeot 208', 'Système')
 ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Question
-INSERT INTO QUESTION (id_question, enonce, reponse_attendue, bloc, image, statut_validation, gabarit_id) VALUES
-(1, 'Vérifier la conformité de l\'étiquetage du bloc arrière', 'Conforme et lisible', 'Bloc A', NULL, 'Validé', 1),
-(2, 'Calculer le temps de cycle standard sur poste de vissage', '42 secondes', 'Bloc B', NULL, 'Validé', 1),
-(3, 'Ajuster la pression de serrage à 5 bars', '5 bars +/- 0.2', 'Bloc B', NULL, 'En Attente', 2)
-ON DUPLICATE KEY UPDATE enonce=VALUES(enonce);
+-- Zones
+INSERT INTO zone_ligne (nom, cree_par, projet_id) 
+SELECT 'Zone A - Assemblage', 'Système', p.id_projet FROM projet p WHERE p.nom = 'Projet Renault Clio' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Session Evaluation
-INSERT INTO SESSION_EVALUATION (id_session, type_session, date_debut, date_cloture, shift, statut, score_global, niveau_obtenu, operateur_matricule) VALUES
-(1, 'Hebdomadaire', '2026-07-14 08:00:00', NULL, 'Matin', 'En cours', 85.5, 'Niveau 3', 'OP001'),
-(2, 'Mensuelle', '2026-06-30 08:00:00', '2026-06-30 16:00:00', 'Après-midi', 'Clôturée', 91.2, 'Niveau 4', 'OP002')
-ON DUPLICATE KEY UPDATE score_global=VALUES(score_global);
+INSERT INTO zone_ligne (nom, cree_par, projet_id) 
+SELECT 'Zone B - Finition', 'Système', p.id_projet FROM projet p WHERE p.nom = 'Projet Renault Clio' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
 
--- Mock Suivi Integration Journalier
-INSERT INTO SUIVI_INTEGRATION_JOURNALIER (id_suivi, jour, cadence_realisee, nb_defauts, remarques, session_id) VALUES
-(1, 1, 80, 2, 'Bon démarrage, opérateur motivé.', 1),
-(2, 2, 95, 1, 'Cadence atteinte avec une bonne qualité.', 1)
+-- Postes (Work Stations)
+INSERT INTO poste (nom, type_poste, cadence_objectif, cible_polyvalence, cree_par, zone_id) 
+SELECT 'Assemblage', 'PRODUCTION', 100, 3, 'Système', z.id_zone FROM zone_ligne z WHERE z.nom = 'Zone A - Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+INSERT INTO poste (nom, type_poste, cadence_objectif, cible_polyvalence, cree_par, zone_id) 
+SELECT 'Vissage', 'PRODUCTION', 120, 3, 'Système', z.id_zone FROM zone_ligne z WHERE z.nom = 'Zone A - Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+INSERT INTO poste (nom, type_poste, cadence_objectif, cible_polyvalence, cree_par, zone_id) 
+SELECT 'Finition & Polissage', 'PRODUCTION', 80, 2, 'Système', z.id_zone FROM zone_ligne z WHERE z.nom = 'Zone B - Finition' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+-- Formation Templates (Modèles de Formation)
+-- These define the training objectives and quality standards for each workstation
+INSERT INTO formation_template (poste_id, cadence_objectif, qualite_objectif_texte, cree_par)
+SELECT p.id_poste, p.cadence_objectif, '< 7 défauts en 12 jours', 'Système' 
+FROM poste p WHERE p.nom = 'Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_objectif=VALUES(cadence_objectif);
+
+INSERT INTO formation_template (poste_id, cadence_objectif, qualite_objectif_texte, cree_par)
+SELECT p.id_poste, p.cadence_objectif, '< 5 défauts en 12 jours', 'Système' 
+FROM poste p WHERE p.nom = 'Vissage' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_objectif=VALUES(cadence_objectif);
+
+INSERT INTO formation_template (poste_id, cadence_objectif, qualite_objectif_texte, cree_par)
+SELECT p.id_poste, p.cadence_objectif, '< 10 défauts en 12 jours', 'Système' 
+FROM poste p WHERE p.nom = 'Finition & Polissage' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_objectif=VALUES(cadence_objectif);
+
+-- Equipes (Teams)
+INSERT INTO equipe (nom, chef_id, projet_id) 
+SELECT 'Équipe Assemblage', u.id, p.id_projet FROM utilisateurs u, projet p 
+WHERE u.matricule = 'chef1' AND p.nom = 'Projet Renault Clio' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+-- Operateurs (Operators)
+INSERT INTO operateur (matricule, nom, prenom, fonctionnalite, date_embauche, statut, formation_rework, equipe_id, poste_affecte_id) 
+SELECT 'OP001', 'Dupont', 'Jean', 'Opérateur Production', '2024-01-15', 'ACTIF', 0, e.id_equipe, p.id_poste 
+FROM equipe e, poste p WHERE e.nom = 'Équipe Assemblage' AND p.nom = 'Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+INSERT INTO operateur (matricule, nom, prenom, fonctionnalite, date_embauche, statut, formation_rework, equipe_id, poste_affecte_id) 
+SELECT 'OP002', 'Martin', 'Sophie', 'Opérateur Production', '2024-02-20', 'ACTIF', 0, e.id_equipe, p.id_poste 
+FROM equipe e, poste p WHERE e.nom = 'Équipe Assemblage' AND p.nom = 'Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+INSERT INTO operateur (matricule, nom, prenom, fonctionnalite, date_embauche, statut, formation_rework, equipe_id, poste_affecte_id) 
+SELECT 'OP003', 'Bernard', 'Pierre', 'Opérateur Production', '2024-03-10', 'ACTIF', 0, e.id_equipe, p.id_poste 
+FROM equipe e, poste p WHERE e.nom = 'Équipe Assemblage' AND p.nom = 'Assemblage' LIMIT 1
+ON DUPLICATE KEY UPDATE nom=VALUES(nom);
+
+-- Affectation Formation (Training Assignments)
+-- OP001: Primary training on Poste 1 (Assemblage) - VALIDATED
+INSERT INTO affectation_formation (operateur_matricule, id_poste, id_projet, est_affectation_primaire, statut, date_debut, date_evaluation_prevue, cree_par) 
+SELECT 'OP001', p.id_poste, pr.id_projet, 1, 'VALIDEE', '2026-02-10', '2026-02-22', u.id 
+FROM poste p, projet pr, utilisateurs u 
+WHERE p.nom = 'Assemblage' AND pr.nom = 'Projet Renault Clio' AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE statut=VALUES(statut);
+
+-- OP001: Secondary training on Poste 2 (Vissage) - IN TRAINING
+INSERT INTO affectation_formation (operateur_matricule, id_poste, id_projet, est_affectation_primaire, statut, date_debut, date_evaluation_prevue, cree_par) 
+SELECT 'OP001', p.id_poste, pr.id_projet, 0, 'EN_FORMATION', '2026-07-08', '2026-07-20', u.id 
+FROM poste p, projet pr, utilisateurs u 
+WHERE p.nom = 'Vissage' AND pr.nom = 'Projet Renault Clio' AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE statut=VALUES(statut);
+
+-- OP002: Primary training on Poste 2 (Vissage) - VALIDATED
+INSERT INTO affectation_formation (operateur_matricule, id_poste, id_projet, est_affectation_primaire, statut, date_debut, date_evaluation_prevue, cree_par) 
+SELECT 'OP002', p.id_poste, pr.id_projet, 1, 'VALIDEE', '2026-04-15', '2026-04-27', u.id 
+FROM poste p, projet pr, utilisateurs u 
+WHERE p.nom = 'Vissage' AND pr.nom = 'Projet Renault Clio' AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE statut=VALUES(statut);
+
+-- OP002: Secondary training on Poste 3 (Finition & Polissage) - IN TRAINING
+INSERT INTO affectation_formation (operateur_matricule, id_poste, id_projet, est_affectation_primaire, statut, date_debut, date_evaluation_prevue, cree_par) 
+SELECT 'OP002', p.id_poste, pr.id_projet, 0, 'EN_FORMATION', '2026-07-10', '2026-07-22', u.id 
+FROM poste p, projet pr, utilisateurs u 
+WHERE p.nom = 'Finition & Polissage' AND pr.nom = 'Projet Renault Clio' AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE statut=VALUES(statut);
+
+-- OP003: Primary training on Poste 3 (Finition & Polissage) - IN TRAINING
+INSERT INTO affectation_formation (operateur_matricule, id_poste, id_projet, est_affectation_primaire, statut, date_debut, date_evaluation_prevue, cree_par) 
+SELECT 'OP003', p.id_poste, pr.id_projet, 1, 'EN_FORMATION', '2026-06-01', '2026-06-13', u.id 
+FROM poste p, projet pr, utilisateurs u 
+WHERE p.nom = 'Finition & Polissage' AND pr.nom = 'Projet Renault Clio' AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE statut=VALUES(statut);
+
+-- =============================================================
+-- Daily Journal Entries (Suivi Formation Journalier)
+-- Note: Fill these in manually via the UI or insert here as needed
+-- =============================================================
+
+-- OP001 Secondary Training (Poste 2 - Vissage) - 12 Days
+-- Day 1
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 1, 60, 5, 'Premier jour : apprentissage des gestes de base. Beaucoup de défauts initiaux.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
 ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
 
--- Mock Details Evaluation Poste
-INSERT INTO DETAILS_EVALUATION_POSTE (id_detail, bloc, statut, score_bloc, date_validation, session_id) VALUES
-(1, 'Bloc A', 'Validé', 90.0, '2026-07-14', 1),
-(2, 'Bloc B', 'En attente', 81.0, NULL, 1)
-ON DUPLICATE KEY UPDATE score_bloc=VALUES(score_bloc);
+-- Day 2
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 2, 75, 3, 'Progression notable. Opérateur comprend bien la mécanique du poste.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
 
--- Mock Journal Modif Gabarit
-INSERT INTO JOURNAL_MODIF_GABARIT (id_log, date_modification, motif, gabarit_id) VALUES
-(1, '2026-07-14 09:15:00', 'Ajout de consigne de sécurité Zone A', 1),
-(2, '2026-07-14 11:30:00', 'Correction gabarit sécurité incendie', 2)
-ON DUPLICATE KEY UPDATE motif=VALUES(motif);
+-- Day 3
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 3, 82, 2, 'Cadence s''améliore. Qualité bonne.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
 
--- Mock Demande MAJ Equipe
-INSERT INTO DEMANDE_MAJ_EQUIPE (id_demande, type_demande, statut, date_demande, equipe_id, demandeur_id) VALUES
-(1, 'Ajout Opérateur', 'Validé', '2026-07-10', 1, 2),
-(2, 'Modification Shift', 'En attente', '2026-07-14', 1, 2)
-ON DUPLICATE KEY UPDATE type_demande=VALUES(type_demande);
+-- Day 4
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 4, 88, 1, 'Très bon progrès. Opérateur à l''aise avec le poste.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 5
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 5, 92, 1, 'Cadence cible presque atteinte. Qualité excellente.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 6
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 6, 95, 0, 'Cadence cible atteinte ! Zéro défaut.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 7
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 7, 94, 1, 'Maintien de la cadence cible avec qualité constante.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 8
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 8, 93, 0, 'Excellent rendement. Autonomie confirmée.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 9
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 9, 95, 1, 'Cadence stable. Un petit défaut détecté en fin de journée.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 10
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 10, 96, 0, 'Performance optimale. Opérateur maîtrise complètement le poste.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 11
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 11, 95, 0, 'Maintien excellent de la performance et de la qualité.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 12
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 12, 94, 0, 'Formation complète avec succès. Prêt pour évaluation finale.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP001' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- OP002 Secondary Training (Poste 3 - Finition & Polissage) - 5 Days
+-- Day 1
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 1, 55, 6, 'Première journée sur Finition & Polissage. Courbe d''apprentissage initiale.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 2
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 2, 65, 4, 'Adaptation progressive. Opérateur apprend les techniques de polissage.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 3
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 3, 70, 3, 'Bonne progression. Maîtrise des outils croissante.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 4
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 4, 75, 2, 'Cadence augmente régulièrement. Qualité acceptable.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+
+-- Day 5
+INSERT INTO suivi_formation_journalier (id_affectation, jour, cadence_realisee, nb_defauts, remarques, saisie_par) 
+SELECT af.id_affectation, 5, 76, 2, 'Stabilité croissante. Opérateur devient autonome progressivement.', u.id 
+FROM affectation_formation af, utilisateurs u, operateur op 
+WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
+ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);

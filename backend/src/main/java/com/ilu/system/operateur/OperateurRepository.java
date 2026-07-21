@@ -8,4 +8,5 @@ import java.util.List;
 public interface OperateurRepository extends JpaRepository<Operateur, String> {
     List<Operateur> findByEquipe_IdEquipe(Long idEquipe);
     List<Operateur> findByEquipe_Chef_Id(Long chefId);
+    List<Operateur> findByPosteAffecte_Zone_Projet_IdProjetIn(List<Long> projectIds);
 }

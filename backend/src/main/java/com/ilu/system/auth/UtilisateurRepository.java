@@ -12,4 +12,7 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
 
     @Query("SELECT u FROM Utilisateur u WHERE u.role.libelle = :roleType AND u.actif = true")
     List<Utilisateur> findByRoleLibelleAndActifTrue(@Param("roleType") RoleType roleType);
+
+    @Query("SELECT u FROM Utilisateur u WHERE u.role.libelle IN :roleTypes AND u.actif = true")
+    List<Utilisateur> findByRoleLibelleInAndActifTrue(@Param("roleTypes") List<RoleType> roleTypes);
 }

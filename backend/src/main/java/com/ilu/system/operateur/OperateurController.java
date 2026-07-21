@@ -51,6 +51,16 @@ public class OperateurController {
         return operateurService.assignToWorkstation(matricule, posteId);
     }
 
+    @GetMapping("/{matricule}/encadrement")
+    public List<EncadrementDto> getEncadrement(@PathVariable String matricule) {
+        return operateurService.getEncadrement(matricule);
+    }
+
+    @GetMapping("/{matricule}/formations")
+    public List<FormationPoste> getFormations(@PathVariable String matricule) {
+        return operateurService.getFormations(matricule);
+    }
+
     @PutMapping("/{matricule}/statut")
     public Operateur updateStatus(@PathVariable String matricule, @RequestBody Map<String, Object> payload) {
         String statut = payload.get("statut").toString();

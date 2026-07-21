@@ -3,14 +3,17 @@ package com.ilu.system.structure;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -45,6 +48,28 @@ public class StructureController {
     public ProjectMemberDto addProjectMember(@PathVariable Long projectId, @RequestBody Map<String, Object> payload) {
         String roleProjet = payload.containsKey("roleProjet") && payload.get("roleProjet") != null ? payload.get("roleProjet").toString() : "SUPERVISEUR";
         return structureService.addProjectMember(projectId, Long.valueOf(payload.get("userId").toString()), roleProjet);
+    }
+
+    @PutMapping("/projects/{projectId}/members/{memberId}")
+    public ProjectMemberDto updateProjectMember(@PathVariable Long projectId, @PathVariable Long memberId,
+                                                @RequestBody Map<String, Object> payload) {
+        Long userId = payload.containsKey("userId") && payload.get("userId") != null
+                ? Long.valueOf(payload.get("userId").toString())
+                : null;
+        String roleProjet = payload.containsKey("roleProjet") && payload.get("roleProjet") != null
+                ? payload.get("roleProjet").toString()
+                : null;
+        return structureService.updateProjectMember(projectId, memberId, userId, roleProjet);
+    }
+
+    @DeleteMapping("/projects/{projectId}/members/{memberId}")
+    public void removeProjectMember(@PathVariable Long projectId, @PathVariable Long memberId) {
+        structureService.removeProjectMember(projectId, memberId);
+    }
+
+    @GetMapping("/postes")
+    public List<PosteTravailDto> getAllPostes() {
+        return structureService.getAllPostes();
     }
 
     @PostMapping("/postes")

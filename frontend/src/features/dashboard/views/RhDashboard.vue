@@ -1,19 +1,18 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   fetchAllOperators,
-  updateOperatorStatus
+  updateOperatorStatus,
 } from '@/features/dashboard/services/operateurService'
+import StatisticsDashboard from '@/features/formations/components/StatisticsDashboard.vue'
 
 const authStore = useAuthStore()
 
 const operators = ref([])
 const loading = ref(false)
 const error = ref('')
-
-const totalOperators = computed(() => operators.value.length)
-const formationCount = computed(() => operators.value.filter(op => op.statut === 'En Formation').length)
+const showFormations = ref(false)
 
 async function loadOperators() {
   loading.value = true
@@ -42,32 +41,24 @@ onMounted(loadOperators)
 
 <template>
   <section class="role-section">
-    <!-- Stats -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon">👔</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ totalOperators }}</span>
-          <span class="stat-lbl">Opérateurs enregistrés</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🏆</span>
-        <div class="stat-content">
-          <span class="stat-val">78%</span>
-          <span class="stat-lbl">Taux de polyvalence cible</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🎓</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ formationCount }}</span>
-          <span class="stat-lbl">Opérateurs en formation</span>
-        </div>
-      </div>
+    <!-- Toggle Between Operators and Formations -->
+    <div class="tabs-navigation" style="margin-bottom: 1.5rem">
+      <button 
+        @click="showFormations = false"
+        :class="['tab-btn', !showFormations ? 'active' : '']"
+      >
+        👥 Annuaire des Opérateurs
+      </button>
+      <button 
+        @click="showFormations = true"
+        :class="['tab-btn', showFormations ? 'active' : '']"
+      >
+        📊 Statistiques Formations
+      </button>
     </div>
 
-    <div class="admin-grid" style="margin-top: 1.5rem;">
+    <!-- Operators View -->
+    <div v-show="!showFormations" class="admin-grid" style="margin-top: 1.5rem">
       <!-- Operator directory -->
       <div class="panel-card list-users-card">
         <div class="panel-header">
@@ -94,8 +85,12 @@ onMounted(loadOperators)
             </thead>
             <tbody>
               <tr v-for="op in operators" :key="op.matricule">
-                <td><code>{{ op.matricule }}</code></td>
-                <td><strong>{{ op.nom }}</strong></td>
+                <td>
+                  <code>{{ op.matricule }}</code>
+                </td>
+                <td>
+                  <strong>{{ op.nom }}</strong>
+                </td>
                 <td>{{ op.dateEmbauche }}</td>
                 <td>{{ op.dateSortie || '—' }}</td>
                 <td>{{ op.formationRework ? '✅ Oui' : '❌ Non' }}</td>
@@ -109,7 +104,7 @@ onMounted(loadOperators)
                   <select
                     :value="op.statut"
                     @change="handleStatusChange(op, $event.target.value)"
-                    style="padding: 0.25rem 0.5rem; font-size: 0.85rem;"
+                    style="padding: 0.25rem 0.5rem; font-size: 0.85rem"
                   >
                     <option value="Actif">Actif</option>
                     <option value="En Formation">En Formation</option>
@@ -129,8 +124,9 @@ onMounted(loadOperators)
           <h3>Matrice de Polyvalence (Postes / Compétences)</h3>
         </div>
         <div class="skills-matrix-sim">
-          <p class="subtitle" style="font-size: 0.9rem; color: #547174;">
-            Indicateur de compétence d'après le diagramme de classe (SessionEvaluation -> niveauObtenu)
+          <p class="subtitle" style="font-size: 0.9rem; color: #547174">
+            Indicateur de compétence d'après le diagramme de classe (SessionEvaluation ->
+            niveauObtenu)
           </p>
           <div class="matrix-grid">
             <div class="matrix-row header-row">
@@ -160,12 +156,21 @@ onMounted(loadOperators)
           </div>
           <div class="matrix-legend">
             <span class="leg-item"><span class="color-box lvl-1"></span> Niveau 1 (Débutant)</span>
-            <span class="leg-item"><span class="color-box lvl-2"></span> Niveau 2 (Intermédiaire)</span>
+            <span class="leg-item"
+              ><span class="color-box lvl-2"></span> Niveau 2 (Intermédiaire)</span
+            >
             <span class="leg-item"><span class="color-box lvl-3"></span> Niveau 3 (Autonome)</span>
-            <span class="leg-item"><span class="color-box lvl-4"></span> Niveau 4 (Expert/Formateur)</span>
+            <span class="leg-item"
+              ><span class="color-box lvl-4"></span> Niveau 4 (Expert/Formateur)</span
+            >
           </div>
         </div>
       </div>
     </div>
+    <!-- End Operators View -->
+
+    <!-- Formations Statistics View -->
+    <StatisticsDashboard v-show="showFormations" />
+    <!-- End Formations Statistics View -->
   </section>
 </template>

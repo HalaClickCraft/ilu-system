@@ -50,5 +50,7 @@ public class ProjectMember {
     public Long getId() { return id; }
     public Project getProjet() { return projet; }
     public Utilisateur getUtilisateur() { return utilisateur; }
+    public void setUtilisateur(Utilisateur utilisateur) { this.utilisateur = utilisateur; }
     public RoleInProject getRoleProjet() { return roleProjet; }
+    public void setRoleProjet(RoleInProject roleProjet) { this.roleProjet = roleProjet; }
 }

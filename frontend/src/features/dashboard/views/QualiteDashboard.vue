@@ -39,31 +39,7 @@ function addQuestion() {
 
 <template>
   <section class="role-section">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon">📋</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ templates.length }}</span>
-          <span class="stat-lbl">Gabarits de Questionnaire</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">❓</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ questions.length }}</span>
-          <span class="stat-lbl">Questions enregistrées</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🔍</span>
-        <div class="stat-content">
-          <span class="stat-val">2</span>
-          <span class="stat-lbl">Évaluations à valider</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="admin-grid" style="margin-top: 1.5rem;">
+    <div class="admin-grid" style="margin-top: 1.5rem">
       <!-- Add Question Form -->
       <div class="panel-card">
         <div class="panel-header">
@@ -80,11 +56,7 @@ function addQuestion() {
           </div>
           <div class="input-group">
             <label>Réponse attendue</label>
-            <input
-              v-model="newQuestionReponse"
-              required
-              placeholder="Ex: Entre 4.5 et 5.2 Nm"
-            />
+            <input v-model="newQuestionReponse" required placeholder="Ex: Entre 4.5 et 5.2 Nm" />
           </div>
           <div class="input-group">
             <label>Bloc d'évaluation concerné</label>

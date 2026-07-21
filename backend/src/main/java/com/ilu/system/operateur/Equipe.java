@@ -1,6 +1,8 @@
 package com.ilu.system.operateur;
 
 import com.ilu.system.auth.Utilisateur;
+import com.ilu.system.structure.Project;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -18,6 +20,11 @@ public class Equipe {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "chef_id")
     private Utilisateur chef;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "projet_id")
+    @JsonIgnore
+    private Project projet;
 
     public Equipe() {}
 
@@ -49,4 +56,7 @@ public class Equipe {
     public void setChef(Utilisateur chef) {
         this.chef = chef;
     }
+
+    public Project getProjet() { return projet; }
+    public void setProjet(Project projet) { this.projet = projet; }
 }

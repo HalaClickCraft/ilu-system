@@ -68,7 +68,7 @@ const assignMemberLoading = ref({})
 // Computed Properties
 const user = computed(() => authStore.user)
 const roleComponent = computed(() => {
-  if (['creer-operateur', 'saisir-suivi', 'demande-maj'].includes(activeSection.value)) {
+  if (['creer-operateur', 'saisir-suivi', 'demande-maj', 'formations'].includes(activeSection.value)) {
     return ChefEquipeDashboard
   }
   return ({
@@ -415,6 +415,15 @@ onMounted(() => {
             >
               <span class="nav-icon">🔔</span>
               <span>Demande MAJ</span>
+            </button>
+            <button
+              type="button"
+              class="nav-item"
+              :class="{ active: activeSection === 'formations' }"
+              @click="activeSection = 'formations'"
+            >
+              <span class="nav-icon">📚</span>
+              <span>Formations</span>
             </button>
           </template>
 

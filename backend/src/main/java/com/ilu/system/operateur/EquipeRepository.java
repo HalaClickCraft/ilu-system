@@ -7,4 +7,5 @@ import java.util.List;
 @Repository
 public interface EquipeRepository extends JpaRepository<Equipe, Long> {
     List<Equipe> findByChef_Id(Long chefId);
+    List<Equipe> findByProjet_IdProjet(Long projectId);
 }

@@ -23,7 +23,7 @@ public class UtilisateurController {
 
     @GetMapping("/par-role")
     public List<UtilisateurDto> listerParRole(@RequestParam String role) {
-        return utilisateurService.listerParRole(RoleType.valueOf(role));
+        return utilisateurService.listerParRole(role);
     }
 
     @PostMapping

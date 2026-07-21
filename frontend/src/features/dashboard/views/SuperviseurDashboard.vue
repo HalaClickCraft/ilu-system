@@ -2,10 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { fetchStructure } from '@/features/structure/services/structureService'
-import {
-  fetchAllOperators,
-  assignPoste
-} from '@/features/dashboard/services/operateurService'
+import { fetchAllOperators, assignPoste } from '@/features/dashboard/services/operateurService'
+import StatisticsDashboard from '@/features/formations/components/StatisticsDashboard.vue'
 
 const authStore = useAuthStore()
 
@@ -20,11 +18,8 @@ const selectedPoste = ref('')
 const assignLoading = ref(false)
 const assignMsg = ref('')
 
-// Simulated sessions
-const sessions = ref([
-  { id: 1, type: 'Hebdomadaire', date: '2026-07-14', statut: 'En cours', score: 85.5 },
-  { id: 2, type: 'Mensuelle', date: '2026-06-30', statut: 'Clôturée', score: 91.2 },
-])
+// Show formations stats view
+const showFormations = ref(false)
 
 // Flat list of all workstations in the system
 const allPostes = computed(() => {
@@ -37,7 +32,7 @@ const allPostes = computed(() => {
       for (const poste of zone.postes) {
         list.push({
           id: poste.idPoste,
-          nom: `${project.nom} - ${zone.nom} - ${poste.nom}`
+          nom: `${project.nom} - ${zone.nom} - ${poste.nom}`,
         })
       }
     }
@@ -47,7 +42,7 @@ const allPostes = computed(() => {
 
 // Operators who currently have a workstation assigned
 const assignedOperators = computed(() => {
-  return operators.value.filter(op => op.posteAffecte)
+  return operators.value.filter((op) => op.posteAffecte)
 })
 
 async function loadData() {
@@ -56,7 +51,7 @@ async function loadData() {
   try {
     const [opsData, structData] = await Promise.all([
       fetchAllOperators(authStore.token),
-      fetchStructure(authStore.token)
+      fetchStructure(authStore.token),
     ])
     operators.value = opsData
     structure.value = structData
@@ -90,32 +85,24 @@ onMounted(loadData)
 
 <template>
   <section class="role-section">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon">🔄</span>
-        <div class="stat-content">
-          <span class="stat-val">1</span>
-          <span class="stat-lbl">Session d'évaluation active</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🛠️</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ allPostes.length }}</span>
-          <span class="stat-lbl">Postes de travail configurés</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">👷</span>
-        <div class="stat-content">
-          <span class="stat-val">{{ assignedOperators.length }} / {{ operators.length }}</span>
-          <span class="stat-lbl">Opérateurs affectés</span>
-        </div>
-      </div>
+    <!-- Tabs Navigation -->
+    <div class="tabs-navigation" style="margin-bottom: 1.5rem">
+      <button 
+        @click="showFormations = false"
+        :class="['tab-btn', !showFormations ? 'active' : '']"
+      >
+        🏭 Affectations aux Postes
+      </button>
+      <button 
+        @click="showFormations = true"
+        :class="['tab-btn', showFormations ? 'active' : '']"
+      >
+        📊 Statistiques Formations
+      </button>
     </div>
 
-    <!-- Workstation assignment form and active assignments -->
-    <div class="admin-grid" style="margin-top: 1.5rem;">
+    <!-- Workstations Assignment -->
+    <div v-show="!showFormations" class="admin-grid" style="margin-top: 1.5rem">
       <div class="panel-card">
         <div class="panel-header">
           <h3>Affecter un Opérateur à un Poste</h3>
@@ -140,7 +127,7 @@ onMounted(loadData)
             </select>
           </div>
           <button type="submit" :disabled="assignLoading" class="submit-btn">
-            {{ assignLoading ? 'Affectation...' : 'Valider l\'affectation' }}
+            {{ assignLoading ? 'Affectation...' : "Valider l'affectation" }}
           </button>
           <p v-if="assignMsg" class="form-msg">{{ assignMsg }}</p>
         </form>
@@ -168,9 +155,15 @@ onMounted(loadData)
             </thead>
             <tbody>
               <tr v-for="op in assignedOperators" :key="op.matricule">
-                <td><strong>{{ op.nom }}</strong></td>
-                <td><code>{{ op.matricule }}</code></td>
-                <td><span class="role-badge">{{ op.posteAffecte.nom }}</span></td>
+                <td>
+                  <strong>{{ op.nom }}</strong>
+                </td>
+                <td>
+                  <code>{{ op.matricule }}</code>
+                </td>
+                <td>
+                  <span class="role-badge">{{ op.posteAffecte.nom }}</span>
+                </td>
                 <td>{{ op.equipe ? op.equipe.nom : '—' }}</td>
                 <td>
                   <span :class="['status-badge', op.statut === 'Actif' ? 'active' : 'suspended']">
@@ -179,7 +172,7 @@ onMounted(loadData)
                 </td>
               </tr>
               <tr v-if="assignedOperators.length === 0">
-                <td colspan="5" style="text-align: center; color: #547174;">
+                <td colspan="5" style="text-align: center; color: #547174">
                   Aucun opérateur n'est affecté actuellement.
                 </td>
               </tr>
@@ -188,38 +181,10 @@ onMounted(loadData)
         </div>
       </div>
     </div>
+    <!-- End Workstations Tab -->
 
-    <!-- Active sessions (simulated) -->
-    <div class="panel-card" style="margin-top: 1.5rem;">
-      <div class="panel-header">
-        <h3>Sessions d'Évaluation (SessionEvaluation)</h3>
-      </div>
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID Session</th>
-              <th>Type</th>
-              <th>Date</th>
-              <th>Score Global Moyen</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in sessions" :key="s.id">
-              <td><code>#00{{ s.id }}</code></td>
-              <td>{{ s.type }}</td>
-              <td>{{ s.date }}</td>
-              <td><strong>{{ s.score }}%</strong></td>
-              <td>
-                <span :class="['status-badge', s.statut === 'En cours' ? 'active' : 'suspended']">
-                  {{ s.statut }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!-- Formations Statistics Tab -->
+    <StatisticsDashboard v-show="showFormations" />
+    <!-- End Formations Statistics Tab -->
   </section>
 </template>

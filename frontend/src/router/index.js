@@ -14,7 +14,31 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../features/dashboard/views/DashboardView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/formations',
+      name: 'formations',
+      component: () => import('../features/formations/views/FormationsListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/formations/new',
+      name: 'create-formation',
+      component: () => import('../features/formations/views/CreateFormationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/formations/tracking/:id',
+      name: 'formation-tracking',
+      component: () => import('../features/formations/views/FormationTrackingView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/formations/templates',
+      name: 'formation-templates',
+      component: () => import('../features/formations/views/FormationTemplatesView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/about',

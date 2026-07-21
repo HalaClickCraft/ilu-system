@@ -1,5 +1,6 @@
 package com.ilu.system.structure;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -43,6 +44,7 @@ public class PosteTravail {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id")
+    @JsonIgnore
     private Zone zone;
 
     public PosteTravail() {}
