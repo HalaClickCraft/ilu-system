@@ -280,3 +280,18 @@ SELECT af.id_affectation, 5, 76, 2, 'Stabilité croissante. Opérateur devient a
 FROM affectation_formation af, utilisateurs u, operateur op 
 WHERE op.matricule = 'OP002' AND af.operateur_matricule = op.matricule AND af.est_affectation_primaire = 0 AND u.matricule = 'chef1' LIMIT 1
 ON DUPLICATE KEY UPDATE cadence_realisee=VALUES(cadence_realisee);
+--update 
+UPDATE poste p
+JOIN zone_ligne z ON p.zone_id = z.id_zone
+SET p.niveau_cible_ilu = 'I'
+WHERE p.nom = 'Assemblage' AND z.nom = 'Zone A - Assemblage';
+
+UPDATE poste p
+JOIN zone_ligne z ON p.zone_id = z.id_zone
+SET p.niveau_cible_ilu = 'I'
+WHERE p.nom = 'Vissage' AND z.nom = 'Zone A - Assemblage';
+
+UPDATE poste p
+JOIN zone_ligne z ON p.zone_id = z.id_zone
+SET p.niveau_cible_ilu = 'I'
+WHERE p.nom = 'Finition & Polissage' AND z.nom = 'Zone B - Finition';

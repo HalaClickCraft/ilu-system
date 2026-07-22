@@ -121,7 +121,7 @@ public class OperateurService {
         return savedOperateur;
     }
 
-    @Transactional
+ @Transactional
     public Operateur updateStatus(String matricule, String statut) {
         Operateur operateur = operateurRepository.findById(matricule)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Opérateur introuvable avec le matricule: " + matricule));
@@ -133,6 +133,49 @@ public class OperateurService {
             operateur.setDateSortie(null);
         }
         
+        return operateurRepository.save(operateur);
+    }
+
+    private static final java.util.Set<String> MOTIFS_ABSENCE_VALIDES = java.util.Set.of("MALADIE", "ACCOUCHEMENT");
+
+    /**
+     * Marque un opérateur en arrêt maladie ou accouchement (arrêt de 3 mois).
+     * Réservé au rôle RH.
+     */
+    @Transactional
+    public Operateur marquerAbsence(String matricule, String motif) {
+        Operateur operateur = operateurRepository.findById(matricule)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Opérateur introuvable avec le matricule: " + matricule));
+
+        String motifNormalise = motif == null ? null : motif.trim().toUpperCase();
+        if (motifNormalise == null || !MOTIFS_ABSENCE_VALIDES.contains(motifNormalise)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le motif d'absence doit être MALADIE ou ACCOUCHEMENT.");
+        }
+
+        operateur.setStatut("ABSENT");
+        operateur.setMotifAbsence(motifNormalise);
+        operateur.setDateDebutAbsence(LocalDate.now());
+        operateur.setDateReprisePrevue(LocalDate.now().plusMonths(3));
+        return operateurRepository.save(operateur);
+    }
+
+    /**
+     * Marque la reprise (retour) d'un opérateur absent pour maladie ou accouchement.
+     * Accessible au Chef d'équipe et au RH.
+     */
+    @Transactional
+    public Operateur marquerReprise(String matricule) {
+        Operateur operateur = operateurRepository.findById(matricule)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Opérateur introuvable avec le matricule: " + matricule));
+
+        if (!"ABSENT".equalsIgnoreCase(operateur.getStatut())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cet opérateur n'est pas actuellement en arrêt maladie/accouchement.");
+        }
+
+        operateur.setStatut("Actif");
+        operateur.setMotifAbsence(null);
+        operateur.setDateDebutAbsence(null);
+        operateur.setDateReprisePrevue(null);
         return operateurRepository.save(operateur);
     }
 

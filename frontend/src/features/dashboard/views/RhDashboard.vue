@@ -4,6 +4,8 @@ import { useAuthStore } from '@/stores/auth'
 import {
   fetchAllOperators,
   updateOperatorStatus,
+  markOperatorAbsence,
+  markOperatorReprise,
 } from '@/features/dashboard/services/operateurService'
 import StatisticsDashboard from '@/features/formations/components/StatisticsDashboard.vue'
 
@@ -25,8 +27,8 @@ const STATUS_META = {
   'En Formation': { label: 'En Formation', class: 'training' },
   Suspendu: { label: 'Suspendu', class: 'suspended' },
   Sorti: { label: 'Sorti', class: 'exited' },
+  ABSENT: { label: 'Absent', class: 'suspended' },
 }
-
 function statusMeta(statut) {
   return STATUS_META[statut] || { label: statut || '—', class: 'pending' }
 }
@@ -63,6 +65,25 @@ async function handleStatusChange(op, newStatus) {
     await loadOperators()
   } catch (err) {
     alert(`Erreur lors du changement de statut: ${err.message}`)
+  }
+}
+
+async function handleMarkAbsence(op, motif) {
+  if (!motif) return
+  try {
+    await markOperatorAbsence(authStore.token, op.matricule, motif)
+    await loadOperators()
+  } catch (err) {
+    alert(`Erreur lors du signalement de l'absence: ${err.message}`)
+  }
+}
+
+async function handleMarkReprise(op) {
+  try {
+    await markOperatorReprise(authStore.token, op.matricule)
+    await loadOperators()
+  } catch (err) {
+    alert(`Erreur lors du signalement de la reprise: ${err.message}`)
   }
 }
 
@@ -114,8 +135,9 @@ onMounted(loadOperators)
                 <th>Date de sortie</th>
                 <th>Formation Rework</th>
                 <th>Projet</th>
-                <th>Poste</th>
+            <th>Poste</th>
                 <th>Statut</th>
+                <th>Arrêt maladie / Reprise</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +153,7 @@ onMounted(loadOperators)
                 <td>{{ op.formationRework ? '✅ Oui' : '❌ Non' }}</td>
                 <td>{{ op.posteAffecte?.zone?.projet?.nom || '—' }}</td>
                 <td>{{ op.posteAffecte?.nom || '—' }}</td>
-                <td>
+                       <td>
                   <select
                     :value="op.statut"
                     :class="['status-select', statusMeta(op.statut).class]"
@@ -144,9 +166,34 @@ onMounted(loadOperators)
                     <option value="Sorti">Sorti</option>
                   </select>
                 </td>
+                <td>
+                  <template v-if="op.statut === 'ABSENT'">
+                    <span class="status-badge suspended" style="margin-right: 0.4rem">
+                      {{ op.motifAbsence === 'ACCOUCHEMENT' ? 'Accouchement' : 'Maladie' }}
+                      (retour prévu {{ formatDate(op.dateReprisePrevue) }})
+                    </span>
+                    <button
+                      class="submit-btn"
+                      style="padding: 0.25rem 0.6rem; font-size: 0.8rem; height: auto"
+                      @click="handleMarkReprise(op)"
+                    >
+                      Marquer la reprise
+                    </button>
+                  </template>
+                  <select
+                    v-else
+                    :value="''"
+                    class="status-select pending"
+                    @change="handleMarkAbsence(op, $event.target.value); $event.target.value = ''"
+                  >
+                    <option value="" disabled>Signaler une absence…</option>
+                    <option value="MALADIE">Arrêt maladie</option>
+                    <option value="ACCOUCHEMENT">Arrêt accouchement</option>
+                  </select>
+                </td>
               </tr>
               <tr v-if="filteredOperators.length === 0">
-                <td colspan="8" style="text-align: center; color: #547174">
+                <td colspan="9" style="text-align: center; color: #547174">
                   Aucun opérateur ne correspond à ce matricule.
                 </td>
               </tr>

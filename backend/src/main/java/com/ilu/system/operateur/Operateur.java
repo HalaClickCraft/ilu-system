@@ -30,6 +30,15 @@ public class Operateur {
     @Column(nullable = false, length = 50)
     private String statut;
 
+    @Column(name = "motif_absence", length = 30)
+    private String motifAbsence;
+
+    @Column(name = "date_debut_absence")
+    private LocalDate dateDebutAbsence;
+
+    @Column(name = "date_reprise_prevue")
+    private LocalDate dateReprisePrevue;
+
     @Column(name = "formation_rework", nullable = false)
     private boolean formationRework = false;
 
@@ -81,7 +90,7 @@ public class Operateur {
         this.dateSortie = dateSortie;
     }
 
-    public String getStatut() {
+  public String getStatut() {
         return statut;
     }
 
@@ -89,6 +98,14 @@ public class Operateur {
         this.statut = statut;
     }
 
+    public String getMotifAbsence() { return motifAbsence; }
+    public void setMotifAbsence(String motifAbsence) { this.motifAbsence = motifAbsence; }
+
+    public LocalDate getDateDebutAbsence() { return dateDebutAbsence; }
+    public void setDateDebutAbsence(LocalDate dateDebutAbsence) { this.dateDebutAbsence = dateDebutAbsence; }
+
+    public LocalDate getDateReprisePrevue() { return dateReprisePrevue; }
+    public void setDateReprisePrevue(LocalDate dateReprisePrevue) { this.dateReprisePrevue = dateReprisePrevue; }
     public boolean isFormationRework() {
         return formationRework;
     }

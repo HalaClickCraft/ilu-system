@@ -52,3 +52,16 @@ export function updateOperatorStatus(token, matricule, statut) {
     body: JSON.stringify({ statut }),
   })
 }
+
+export function markOperatorAbsence(token, matricule, motif) {
+  return request(`/api/operateurs/${matricule}/absence`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ motif }),
+  })
+}
+
+export function markOperatorReprise(token, matricule) {
+  return request(`/api/operateurs/${matricule}/reprise`, token, {
+    method: 'PUT',
+  })
+}

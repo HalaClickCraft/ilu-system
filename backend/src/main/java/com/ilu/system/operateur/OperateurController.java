@@ -1,12 +1,12 @@
 package com.ilu.system.operateur;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-
 @RestController
 @RequestMapping("/api/operateurs")
 public class OperateurController {
@@ -61,9 +61,23 @@ public class OperateurController {
         return operateurService.getFormations(matricule);
     }
 
+ @PreAuthorize("hasAnyRole('RH', 'ADMIN')")
     @PutMapping("/{matricule}/statut")
     public Operateur updateStatus(@PathVariable String matricule, @RequestBody Map<String, Object> payload) {
         String statut = payload.get("statut").toString();
         return operateurService.updateStatus(matricule, statut);
+    }
+
+    @PreAuthorize("hasAnyRole('RH', 'ADMIN')")
+    @PutMapping("/{matricule}/absence")
+    public Operateur markAbsence(@PathVariable String matricule, @RequestBody Map<String, Object> payload) {
+        String motif = payload.get("motif").toString();
+        return operateurService.marquerAbsence(matricule, motif);
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF_EQUIPE', 'RH', 'ADMIN')")
+    @PutMapping("/{matricule}/reprise")
+    public Operateur markReprise(@PathVariable String matricule) {
+        return operateurService.marquerReprise(matricule);
     }
 }

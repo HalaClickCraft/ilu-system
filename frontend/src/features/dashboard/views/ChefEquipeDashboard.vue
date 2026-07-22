@@ -1,7 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { fetchTeamOperators, fetchAllOperators, createOperator } from '@/features/dashboard/services/operateurService'
+import {
+  fetchTeamOperators,
+  fetchAllOperators,
+  createOperator,
+  updateOperatorStatus,
+  markOperatorReprise,
+} from '@/features/dashboard/services/operateurService'
 import { fetchStructure } from '@/features/structure/services/structureService'
 import { initializeFormation } from '@/features/formations/services/formationService'
 import ChefFormationPanel from '@/features/formations/components/ChefFormationPanel.vue'
@@ -135,6 +141,25 @@ async function loadData() {
   }
 }
 
+async function handleMarkDeparture(op) {
+  if (!confirm(`Confirmer le départ de ${op.nom} ?`)) return
+  try {
+    await updateOperatorStatus(authStore.token, op.matricule, 'Sorti')
+    await loadData()
+  } catch (err) {
+    alert(`Erreur lors du marquage du départ: ${err.message}`)
+  }
+}
+
+async function handleMarkReprise(op) {
+  try {
+    await markOperatorReprise(authStore.token, op.matricule)
+    await loadData()
+  } catch (err) {
+    alert(`Erreur lors du signalement de la reprise: ${err.message}`)
+  }
+}
+
 async function handleCreateOperator() {
   createMsg.value = ''
   createLoading.value = true
@@ -191,6 +216,7 @@ onMounted(loadData)
                 <th>Formation Rework</th>
                 <th>Affectation Poste</th>
                 <th>Statut</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -214,9 +240,27 @@ onMounted(loadData)
                     {{ op.statut }}
                   </span>
                 </td>
+                <td>
+                  <button
+                    v-if="op.statut === 'ABSENT'"
+                    class="submit-btn"
+                    style="padding: 0.25rem 0.6rem; font-size: 0.8rem; height: auto; margin-right: 0.4rem"
+                    @click="handleMarkReprise(op)"
+                  >
+                    Marquer la reprise
+                  </button>
+                  <button
+                    v-if="op.statut !== 'Sorti'"
+                    class="submit-btn btn-secondary"
+                    style="padding: 0.25rem 0.6rem; font-size: 0.8rem; height: auto"
+                    @click="handleMarkDeparture(op)"
+                  >
+                    Marquer le départ
+                  </button>
+                </td>
               </tr>
               <tr v-if="operators.length === 0">
-                <td colspan="6" style="text-align: center; color: #547174">
+                <td colspan="7" style="text-align: center; color: #547174">
                   Aucun opérateur trouvé dans votre équipe.
                 </td>
               </tr>
