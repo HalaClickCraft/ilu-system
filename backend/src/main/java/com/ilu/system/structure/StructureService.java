@@ -8,6 +8,11 @@ import org.springframework.web.server.ResponseStatusException;
 import com.ilu.system.auth.RoleType;
 import com.ilu.system.auth.Utilisateur;
 import com.ilu.system.auth.UtilisateurRepository;
+import com.ilu.system.structure.ProjectMember;
+import com.ilu.system.structure.ProjectMemberDto;
+import com.ilu.system.structure.ProjectMemberRepository;
+import com.ilu.system.structure.ProjectRepository;
+import com.ilu.system.structure.ZoneRepository;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,7 +90,8 @@ public class StructureService {
                                                 poste.getNom(),
                                                 poste.getTypePoste(),
                                                 poste.getCadenceObjectif(),
-                                                poste.getCiblePolyvalence(),
+                                               poste.getCiblePolyvalence(),
+                                                poste.getNiveauCibleIlu(),
                                                 poste.getDateCreation(),
                                                 poste.getCreePar()
                                         ))
@@ -145,15 +151,22 @@ public class StructureService {
         return toZoneDto(zone, List.of());
     }
 
+      private static final java.util.Set<String> NIVEAUX_ILU_VALIDES = java.util.Set.of("I", "L", "U");
+
     @Transactional
-    public PosteTravailDto createPoste(Long zoneId, String nom, String creePar) {
+    public PosteTravailDto createPoste(Long zoneId, String nom, String creePar, String niveauCibleIlu) {
         Zone zone = zoneRepository.findById(zoneId).orElseThrow(() -> new IllegalArgumentException("Zone introuvable"));
         Long projectId = zone.getProjet().getIdProjet();
         if (posteTravailRepository.existsByNomAndZone_Projet_IdProjet(nom, projectId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Un poste portant ce nom existe déjà dans ce projet.");
         }
-        return toPosteDto(posteTravailRepository.save(new PosteTravail(nom, zone, creePar)));
+        String niveau = niveauCibleIlu == null || niveauCibleIlu.isBlank() ? "I" : niveauCibleIlu.trim().toUpperCase();
+        if (!NIVEAUX_ILU_VALIDES.contains(niveau)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le niveau cible doit être I, L ou U.");
+        }
+        return toPosteDto(posteTravailRepository.save(new PosteTravail(nom, zone, creePar, niveau)));
     }
 
     @Transactional(readOnly = true)
@@ -245,13 +258,14 @@ public class StructureService {
         return new ZoneDto(zone.getIdZone(), zone.getNom(), zone.getDateCreation(), zone.getCreePar(), postes);
     }
 
-    private PosteTravailDto toPosteDto(PosteTravail poste) {
+     private PosteTravailDto toPosteDto(PosteTravail poste) {
         return new PosteTravailDto(
                 poste.getIdPoste(),
                 poste.getNom(),
                 poste.getTypePoste(),
                 poste.getCadenceObjectif(),
                 poste.getCiblePolyvalence(),
+                poste.getNiveauCibleIlu(),
                 poste.getDateCreation(),
                 poste.getCreePar()
         );

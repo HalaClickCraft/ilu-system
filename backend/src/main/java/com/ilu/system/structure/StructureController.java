@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ilu.system.structure.ProjectMemberDto;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,8 +74,10 @@ public class StructureController {
         return structureService.getAllPostes();
     }
 
-    @PostMapping("/postes")
+     @PostMapping("/postes")
     public PosteTravailDto createPoste(@AuthenticationPrincipal UserDetails userDetails, @RequestBody Map<String, Object> payload) {
-        return structureService.createPoste(Long.valueOf(payload.get("zoneId").toString()), payload.get("nom").toString(), userDetails.getUsername());
+        String niveauCibleIlu = payload.get("niveauCibleIlu") != null ? payload.get("niveauCibleIlu").toString() : null;
+        return structureService.createPoste(Long.valueOf(payload.get("zoneId").toString()), payload.get("nom").toString(),
+                userDetails.getUsername(), niveauCibleIlu);
     }
 }

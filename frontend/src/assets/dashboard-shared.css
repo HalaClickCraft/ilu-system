@@ -613,6 +613,62 @@ code {
   color: #b91c1c;
 }
 
+.status-badge.training {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-badge.pending {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-badge.exited {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.status-select {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+
+.status-select.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-select.suspended {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-select.training {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-select.pending {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-select.exited {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.search-input {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #cbd8d7;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  min-width: 220px;
+}
 .status-btn {
   padding: 0.35rem 0.6rem;
   border: 0;
@@ -816,6 +872,19 @@ code {
   font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.ilu-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #e4f2f1;
+  color: #1f7a72;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 
 @keyframes spin {

@@ -54,9 +54,9 @@ export function createZone(token, projectId, nom) {
   })
 }
 
-export function createPoste(token, zoneId, nom) {
+export function createPoste(token, zoneId, nom, niveauCibleIlu) {
   return request('/api/structure/postes', token, {
     method: 'POST',
-    body: JSON.stringify({ zoneId, nom }),
+    body: JSON.stringify({ zoneId, nom, niveauCibleIlu }),
   })
 }

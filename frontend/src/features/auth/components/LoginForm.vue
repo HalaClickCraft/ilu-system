@@ -65,17 +65,7 @@ async function submitLogin() {
       <span class="msg-text">{{ message }}</span>
     </div>
 
-    <div class="credentials-info">
-      <p>💡 <strong>Comptes de test (Mot de passe identique au matricule) :</strong></p>
-      <ul>
-        <li><code>admin</code> (Administrateur)</li>
-        <li><code>chef1</code> (Chef d'équipe - requiert changement MDP)</li>
-        <li><code>rh1</code> (Ressources Humaines)</li>
-        <li><code>qualite1</code> (Qualité)</li>
-        <li><code>hse1</code> (HSE)</li>
-        <li><code>super1</code> (Superviseur)</li>
-      </ul>
-    </div>
+
   </form>
 </template>
 

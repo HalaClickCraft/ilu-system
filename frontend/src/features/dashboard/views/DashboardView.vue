@@ -46,6 +46,7 @@ const newZoneName = ref('')
 const selectedProjectId = ref('')
 const newPosteName = ref('')
 const selectedZoneId = ref('')
+const newPosteNiveauCibleIlu = ref('I')
 const structureMsg = ref('')
 
 // State for project member assignment
@@ -255,8 +256,14 @@ async function handleCreatePoste() {
     return
   structureMsg.value = ''
   try {
-    await createPoste(authStore.token, Number(selectedZoneId.value), newPosteName.value.trim())
+    await createPoste(
+      authStore.token,
+      Number(selectedZoneId.value),
+      newPosteName.value.trim(),
+      newPosteNiveauCibleIlu.value,
+    )
     newPosteName.value = ''
+    newPosteNiveauCibleIlu.value = 'I'
     await fetchStructureData()
     structureMsg.value = 'Poste de travail créé avec succès.'
   } catch (error) {
@@ -557,9 +564,17 @@ onMounted(() => {
                       </template>
                     </select>
                   </div>
-                  <div class="input-group">
+       <div class="input-group">
                     <label>Nom du poste</label>
                     <input v-model="newPosteName" required placeholder="Ex: Poste 1" />
+                  </div>
+                  <div class="input-group">
+                    <label>Niveau cible (I / L / U)</label>
+                    <select v-model="newPosteNiveauCibleIlu">
+                      <option value="I">I</option>
+                      <option value="L">L</option>
+                      <option value="U">U</option>
+                    </select>
                   </div>
                   <button type="submit" class="submit-btn">Ajouter le poste</button>
                 </form>
@@ -626,8 +641,9 @@ onMounted(() => {
                     >
                   </div>
                   <ul>
-                    <li v-for="poste in zone.postes || []" :key="poste.idPoste">
+                     <li v-for="poste in zone.postes || []" :key="poste.idPoste">
                       <strong>🛠️ {{ poste.nom }}</strong>
+                      <span class="ilu-badge">Cible : {{ poste.niveauCibleIlu || 'I' }}</span>
                       <span class="creation-meta"
                         >Créé le {{ formatCreation(poste.dateCreation) }} par
                         {{ poste.creePar || 'Système' }}</span

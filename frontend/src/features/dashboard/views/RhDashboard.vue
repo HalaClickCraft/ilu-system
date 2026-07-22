@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   fetchAllOperators,
@@ -13,6 +13,36 @@ const operators = ref([])
 const loading = ref(false)
 const error = ref('')
 const showFormations = ref(false)
+const searchMatricule = ref('')
+
+// Statut réel du backend -> libellé lisible + couleur du badge.
+// (NOUVELLE_RECRUE existe côté backend dès la création d'un opérateur mais
+// n'était jamais géré ici : il tombait dans le "else" et s'affichait donc
+// comme "Suspendu", ce qui n'a aucun sens pour une nouvelle recrue.)
+const STATUS_META = {
+  NOUVELLE_RECRUE: { label: 'Nouvelle Recrue', class: 'pending' },
+  Actif: { label: 'Actif', class: 'active' },
+  'En Formation': { label: 'En Formation', class: 'training' },
+  Suspendu: { label: 'Suspendu', class: 'suspended' },
+  Sorti: { label: 'Sorti', class: 'exited' },
+}
+
+function statusMeta(statut) {
+  return STATUS_META[statut] || { label: statut || '—', class: 'pending' }
+}
+
+const filteredOperators = computed(() => {
+  const query = searchMatricule.value.trim().toLowerCase()
+  if (!query) return operators.value
+  return operators.value.filter((op) => op.matricule?.toLowerCase().includes(query))
+})
+
+function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('fr-FR')
+}
 
 async function loadOperators() {
   loading.value = true
@@ -63,7 +93,12 @@ onMounted(loadOperators)
       <div class="panel-card list-users-card">
         <div class="panel-header">
           <h3>Annuaire des Opérateurs</h3>
-          <button @click="loadOperators" class="refresh-btn">🔄 Actualiser</button>
+          <input
+            v-model="searchMatricule"
+            type="text"
+            class="search-input"
+            placeholder="🔎 Rechercher par matricule..."
+          />
         </div>
         <div v-if="loading" class="loading-state">
           <span class="spinner-blue"></span> Chargement des opérateurs...
@@ -78,39 +113,41 @@ onMounted(loadOperators)
                 <th>Date d'embauche</th>
                 <th>Date de sortie</th>
                 <th>Formation Rework</th>
-                <th>Équipe</th>
+                <th>Projet</th>
+                <th>Poste</th>
                 <th>Statut</th>
-                <th>Gérer cycle de vie</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="op in operators" :key="op.matricule">
+              <tr v-for="op in filteredOperators" :key="op.matricule">
                 <td>
                   <code>{{ op.matricule }}</code>
                 </td>
                 <td>
                   <strong>{{ op.nom }}</strong>
                 </td>
-                <td>{{ op.dateEmbauche }}</td>
-                <td>{{ op.dateSortie || '—' }}</td>
+                <td>{{ formatDate(op.dateEmbauche) }}</td>
+                <td>{{ formatDate(op.dateSortie) }}</td>
                 <td>{{ op.formationRework ? '✅ Oui' : '❌ Non' }}</td>
-                <td>{{ op.equipe ? op.equipe.nom : '—' }}</td>
-                <td>
-                  <span :class="['status-badge', op.statut === 'Actif' ? 'active' : 'suspended']">
-                    {{ op.statut }}
-                  </span>
-                </td>
+                <td>{{ op.posteAffecte?.zone?.projet?.nom || '—' }}</td>
+                <td>{{ op.posteAffecte?.nom || '—' }}</td>
                 <td>
                   <select
                     :value="op.statut"
+                    :class="['status-select', statusMeta(op.statut).class]"
                     @change="handleStatusChange(op, $event.target.value)"
-                    style="padding: 0.25rem 0.5rem; font-size: 0.85rem"
                   >
+                    <option value="NOUVELLE_RECRUE">Nouvelle Recrue</option>
                     <option value="Actif">Actif</option>
                     <option value="En Formation">En Formation</option>
                     <option value="Suspendu">Suspendu</option>
                     <option value="Sorti">Sorti</option>
                   </select>
+                </td>
+              </tr>
+              <tr v-if="filteredOperators.length === 0">
+                <td colspan="8" style="text-align: center; color: #547174">
+                  Aucun opérateur ne correspond à ce matricule.
                 </td>
               </tr>
             </tbody>

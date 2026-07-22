@@ -32,8 +32,11 @@ public class PosteTravail {
     @Column(name = "cadence_objectif", nullable = false)
     private int cadenceObjectif = 100;
 
-    @Column(name = "cible_polyvalence", nullable = false)
+     @Column(name = "cible_polyvalence", nullable = false)
     private int ciblePolyvalence = 3;
+
+    @Column(name = "niveau_cible_ilu", nullable = false, length = 1)
+    private String niveauCibleIlu = "I";
 
     @Column(name = "date_creation", nullable = false, updatable = false,
             columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
@@ -54,10 +57,19 @@ public class PosteTravail {
         this.zone = zone;
     }
 
-    public PosteTravail(String nom, Zone zone, String creePar) {
+  public PosteTravail(String nom, Zone zone, String creePar) {
         this.nom = nom;
         this.zone = zone;
         this.creePar = creePar;
+    }
+
+    public PosteTravail(String nom, Zone zone, String creePar, String niveauCibleIlu) {
+        this.nom = nom;
+        this.zone = zone;
+        this.creePar = creePar;
+        if (niveauCibleIlu != null && !niveauCibleIlu.isBlank()) {
+            this.niveauCibleIlu = niveauCibleIlu;
+        }
     }
 
     @PrePersist
@@ -75,6 +87,8 @@ public class PosteTravail {
     public void setCadenceObjectif(int cadenceObjectif) { this.cadenceObjectif = cadenceObjectif; }
     public int getCiblePolyvalence() { return ciblePolyvalence; }
     public void setCiblePolyvalence(int ciblePolyvalence) { this.ciblePolyvalence = ciblePolyvalence; }
+    public String getNiveauCibleIlu() { return niveauCibleIlu; }
+    public void setNiveauCibleIlu(String niveauCibleIlu) { this.niveauCibleIlu = niveauCibleIlu; }
     public Zone getZone() { return zone; }
     public void setZone(Zone zone) { this.zone = zone; }
     public LocalDateTime getDateCreation() { return dateCreation; }
