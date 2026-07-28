@@ -102,6 +102,28 @@
   background: #205d58;
 }
 
+.cancel-btn {
+  padding: 0.8rem;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .message-box {
   padding: 0.75rem 1rem;
   border-radius: 6px;

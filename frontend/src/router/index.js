@@ -40,11 +40,6 @@ const router = createRouter({
       component: () => import('../features/formations/views/FormationTemplatesView.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/about',
-      name: 'about',
-      component: () => import('../views/AboutView.vue'),
-    },
   ],
 })
 

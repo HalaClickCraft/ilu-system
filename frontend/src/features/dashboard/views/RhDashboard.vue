@@ -10,22 +10,20 @@ import {
 import StatisticsDashboard from '@/features/formations/components/StatisticsDashboard.vue'
 
 const authStore = useAuthStore()
-
 const operators = ref([])
 const loading = ref(false)
 const error = ref('')
 const showFormations = ref(false)
 const searchMatricule = ref('')
+const selectedProjet = ref('')
+const selectedStatut = ref('')
 
-// Statut réel du backend -> libellé lisible + couleur du badge.
-// (NOUVELLE_RECRUE existe côté backend dès la création d'un opérateur mais
-// n'était jamais géré ici : il tombait dans le "else" et s'affichait donc
-// comme "Suspendu", ce qui n'a aucun sens pour une nouvelle recrue.)
+
 const STATUS_META = {
   NOUVELLE_RECRUE: { label: 'Nouvelle Recrue', class: 'pending' },
   Actif: { label: 'Actif', class: 'active' },
   'En Formation': { label: 'En Formation', class: 'training' },
-  Suspendu: { label: 'Suspendu', class: 'suspended' },
+  
   Sorti: { label: 'Sorti', class: 'exited' },
   ABSENT: { label: 'Absent', class: 'suspended' },
 }
@@ -33,11 +31,27 @@ function statusMeta(statut) {
   return STATUS_META[statut] || { label: statut || '—', class: 'pending' }
 }
 
+// Projets présents dans la liste actuelle (pour peupler le filtre).
+const availableProjets = computed(() => {
+  const names = new Set()
+  for (const op of operators.value) {
+    const nom = op.posteAffecte?.zone?.projet?.nom
+    if (nom) names.add(nom)
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+})
+
 const filteredOperators = computed(() => {
   const query = searchMatricule.value.trim().toLowerCase()
-  if (!query) return operators.value
-  return operators.value.filter((op) => op.matricule?.toLowerCase().includes(query))
+  return operators.value.filter((op) => {
+    const matchesMatricule = !query || op.matricule?.toLowerCase().includes(query)
+    const matchesProjet =
+      !selectedProjet.value || op.posteAffecte?.zone?.projet?.nom === selectedProjet.value
+    const matchesStatut = !selectedStatut.value || op.statut === selectedStatut.value
+    return matchesMatricule && matchesProjet && matchesStatut
+  })
 })
+
 
 function formatDate(value) {
   if (!value) return '—'
@@ -111,15 +125,32 @@ onMounted(loadOperators)
     <!-- Operators View -->
     <div v-show="!showFormations" class="admin-grid" style="margin-top: 1.5rem">
       <!-- Operator directory -->
-      <div class="panel-card list-users-card">
+    <div class="panel-card list-users-card">
         <div class="panel-header">
           <h3>Annuaire des Opérateurs</h3>
-          <input
-            v-model="searchMatricule"
-            type="text"
-            class="search-input"
-            placeholder="🔎 Rechercher par matricule..."
-          />
+          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap">
+            <select v-model="selectedProjet" class="search-input" style="min-width: 160px">
+              <option value="">Tous les projets</option>
+              <option v-for="projet in availableProjets" :key="projet" :value="projet">
+                {{ projet }}
+              </option>
+            </select>
+            <select v-model="selectedStatut" class="search-input" style="min-width: 160px">
+              <option value="">Tous les statuts</option>
+              <option value="NOUVELLE_RECRUE">Nouvelle Recrue</option>
+              <option value="Actif">Actif</option>
+              <option value="En Formation">En Formation</option>
+              
+              <option value="Sorti">Sorti</option>
+              <option value="ABSENT">Absent</option>
+            </select>
+            <input
+              v-model="searchMatricule"
+              type="text"
+              class="search-input"
+              placeholder="🔎 Rechercher par matricule..."
+            />
+          </div>
         </div>
         <div v-if="loading" class="loading-state">
           <span class="spinner-blue"></span> Chargement des opérateurs...
@@ -135,7 +166,7 @@ onMounted(loadOperators)
                 <th>Date de sortie</th>
                 <th>Formation Rework</th>
                 <th>Projet</th>
-            <th>Poste</th>
+                <th>Poste</th>
                 <th>Statut</th>
                 <th>Arrêt maladie / Reprise</th>
               </tr>
@@ -150,7 +181,6 @@ onMounted(loadOperators)
                 </td>
                 <td>{{ formatDate(op.dateEmbauche) }}</td>
                 <td>{{ formatDate(op.dateSortie) }}</td>
-                <td>{{ op.formationRework ? '✅ Oui' : '❌ Non' }}</td>
                 <td>{{ op.posteAffecte?.zone?.projet?.nom || '—' }}</td>
                 <td>{{ op.posteAffecte?.nom || '—' }}</td>
                        <td>
@@ -162,16 +192,14 @@ onMounted(loadOperators)
                     <option value="NOUVELLE_RECRUE">Nouvelle Recrue</option>
                     <option value="Actif">Actif</option>
                     <option value="En Formation">En Formation</option>
-                    <option value="Suspendu">Suspendu</option>
+                    
                     <option value="Sorti">Sorti</option>
+                    <option value="ABSENT">Absent</option>
                   </select>
                 </td>
                 <td>
                   <template v-if="op.statut === 'ABSENT'">
-                    <span class="status-badge suspended" style="margin-right: 0.4rem">
-                      {{ op.motifAbsence === 'ACCOUCHEMENT' ? 'Accouchement' : 'Maladie' }}
-                      (retour prévu {{ formatDate(op.dateReprisePrevue) }})
-                    </span>
+                   
                     <button
                       class="submit-btn"
                       style="padding: 0.25rem 0.6rem; font-size: 0.8rem; height: auto"
@@ -199,55 +227,6 @@ onMounted(loadOperators)
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- Skills Matrix (Polyvalence View) -->
-      <div class="panel-card">
-        <div class="panel-header">
-          <h3>Matrice de Polyvalence (Postes / Compétences)</h3>
-        </div>
-        <div class="skills-matrix-sim">
-          <p class="subtitle" style="font-size: 0.9rem; color: #547174">
-            Indicateur de compétence d'après le diagramme de classe (SessionEvaluation ->
-            niveauObtenu)
-          </p>
-          <div class="matrix-grid">
-            <div class="matrix-row header-row">
-              <span class="header-cell">Opérateur</span>
-              <span class="header-cell">Poste Assemblage</span>
-              <span class="header-cell">Poste Vissage</span>
-              <span class="header-cell">Finition</span>
-            </div>
-            <div class="matrix-row">
-              <span class="cell-name">Amine Ben Ali</span>
-              <span class="cell-level lvl-4">Niveau 4 (Correct)</span>
-              <span class="cell-level lvl-3">Niveau 3</span>
-              <span class="cell-level lvl-1">Niveau 1</span>
-            </div>
-            <div class="matrix-row">
-              <span class="cell-name">Salma Mansour</span>
-              <span class="cell-level lvl-2">Niveau 2</span>
-              <span class="cell-level lvl-4">Niveau 4 (Correct)</span>
-              <span class="cell-level lvl-3">Niveau 3</span>
-            </div>
-            <div class="matrix-row">
-              <span class="cell-name">Youssef Trabelsi</span>
-              <span class="cell-level lvl-1">Niveau 1</span>
-              <span class="cell-level lvl-1">Niveau 1</span>
-              <span class="cell-level lvl-2">Niveau 2</span>
-            </div>
-          </div>
-          <div class="matrix-legend">
-            <span class="leg-item"><span class="color-box lvl-1"></span> Niveau 1 (Débutant)</span>
-            <span class="leg-item"
-              ><span class="color-box lvl-2"></span> Niveau 2 (Intermédiaire)</span
-            >
-            <span class="leg-item"><span class="color-box lvl-3"></span> Niveau 3 (Autonome)</span>
-            <span class="leg-item"
-              ><span class="color-box lvl-4"></span> Niveau 4 (Expert/Formateur)</span
-            >
-          </div>
         </div>
       </div>
     </div>

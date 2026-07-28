@@ -19,6 +19,9 @@ async function request(url, token, options = {}) {
 export function fetchStructure(token) {
   return request('/api/structure', token)
 }
+export function fetchUsersByRole(token, role) {
+  return request(`/api/utilisateurs/par-role?role=${role}`, token)
+}
 
 export function createProject(token, nom, membres = []) {
   return request('/api/structure/projects', token, {

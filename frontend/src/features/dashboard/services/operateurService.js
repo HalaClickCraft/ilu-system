@@ -65,3 +65,9 @@ export function markOperatorReprise(token, matricule) {
     method: 'PUT',
   })
 }
+
+export function markOperatorDepart(token, matricule) {
+  return request(`/api/operateurs/${matricule}/depart`, token, {
+    method: 'PUT',
+  })
+}

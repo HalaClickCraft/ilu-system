@@ -7,6 +7,7 @@ import {
   createOperator,
   updateOperatorStatus,
   markOperatorReprise,
+    markOperatorDepart,
 } from '@/features/dashboard/services/operateurService'
 import { fetchStructure } from '@/features/structure/services/structureService'
 import { initializeFormation } from '@/features/formations/services/formationService'
@@ -26,12 +27,36 @@ const operators = ref([])
 const structure = ref({ projects: [] })
 const opLoading = ref(false)
 const opError = ref('')
+const teamSearchMatricule = ref('')
+const teamSelectedStatut = ref('')
 
+// Même mapping que RhDashboard.vue pour un affichage cohérent du statut.
+const STATUS_META = {
+  NOUVELLE_RECRUE: { label: 'Nouvelle Recrue', class: 'pending' },
+  Actif: { label: 'Actif', class: 'active' },
+  'En Formation': { label: 'En Formation', class: 'training' },
+  
+  Sorti: { label: 'Sorti', class: 'exited' },
+  ABSENT: { label: 'Absent', class: 'suspended' },
+}
+function statusMeta(statut) {
+  return STATUS_META[statut] || { label: statut || '—', class: 'pending' }
+}
+
+const filteredTeamOperators = computed(() => {
+  const query = teamSearchMatricule.value.trim().toLowerCase()
+  return operators.value.filter((op) => {
+    const matchesMatricule = !query || op.matricule?.toLowerCase().includes(query)
+    const matchesStatut = !teamSelectedStatut.value || op.statut === teamSelectedStatut.value
+    return matchesMatricule && matchesStatut
+  })
+})
 const newOpMatricule = ref('')
 const newOpNom = ref('')
 const newOpPrenom = ref('')
 const newOpFonctionnalite = ref('')
 const newOpDateEmbauche = ref(new Date().toISOString().split('T')[0])
+const newOpDateSortie = ref('')
 const newOpPosteId = ref('')
 const createLoading = ref(false)
 const createMsg = ref('')
@@ -144,7 +169,7 @@ async function loadData() {
 async function handleMarkDeparture(op) {
   if (!confirm(`Confirmer le départ de ${op.nom} ?`)) return
   try {
-    await updateOperatorStatus(authStore.token, op.matricule, 'Sorti')
+    await markOperatorDepart(authStore.token, op.matricule)
     await loadData()
   } catch (err) {
     alert(`Erreur lors du marquage du départ: ${err.message}`)
@@ -165,17 +190,19 @@ async function handleCreateOperator() {
   createLoading.value = true
   try {
     await createOperator(authStore.token, {
-      matricule: newOpMatricule.value,
-      nom: newOpNom.value,
-      prenom: newOpPrenom.value,
-      fonctionnalite: newOpFonctionnalite.value,
-      dateEmbauche: newOpDateEmbauche.value,
-      posteId: Number(newOpPosteId.value),
-    })
+  matricule: newOpMatricule.value,
+  nom: newOpNom.value,
+  prenom: newOpPrenom.value,
+  fonctionnalite: newOpFonctionnalite.value,
+  dateEmbauche: newOpDateEmbauche.value,
+  dateSortie: newOpDateSortie.value || null,
+  posteId: Number(newOpPosteId.value),
+})
     newOpMatricule.value = ''
     newOpNom.value = ''
     newOpPrenom.value = ''
     newOpFonctionnalite.value = ''
+    newOpDateSortie.value = ''
     newOpPosteId.value = ''
     createMsg.value = 'Nouvelle recrue créée : formation de 12 jours démarrée sur le poste choisi.'
     await loadData()
@@ -184,6 +211,13 @@ async function handleCreateOperator() {
   } finally {
     createLoading.value = false
   }
+}
+// NEW — add this function
+function formatDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('fr-FR')
 }
 
 onMounted(loadData)
@@ -196,11 +230,28 @@ onMounted(loadData)
       v-if="activeSection === 'dashboard'"
       style="display: flex; flex-direction: column; gap: 1.5rem"
     >
-      <!-- Mon Equipe Table -->
+    <!-- Mon Equipe Table -->
       <div class="panel-card" style="width: 100%">
         <div class="panel-header">
           <h3>Mon Équipe (Opérateurs)</h3>
-          <button @click="loadData" class="refresh-btn">🔄 Actualiser</button>
+          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap">
+            <select v-model="teamSelectedStatut" class="search-input" style="min-width: 160px">
+              <option value="">Tous les statuts</option>
+              <option value="NOUVELLE_RECRUE">Nouvelle Recrue</option>
+              <option value="Actif">Actif</option>
+              <option value="En Formation">En Formation</option>
+             
+              <option value="Sorti">Sorti</option>
+              <option value="ABSENT">Absent</option>
+            </select>
+            <input
+              v-model="teamSearchMatricule"
+              type="text"
+              class="search-input"
+              placeholder="🔎 Rechercher par matricule..."
+            />
+            <button @click="loadData" class="refresh-btn">🔄 Actualiser</button>
+          </div>
         </div>
         <div v-if="opLoading" class="loading-state">
           <span class="spinner-blue"></span> Chargement des opérateurs...
@@ -213,14 +264,14 @@ onMounted(loadData)
                 <th>Matricule</th>
                 <th>Nom</th>
                 <th>Embauche</th>
-                <th>Formation Rework</th>
+               <th>Date de sortie</th>
                 <th>Affectation Poste</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="op in operators" :key="op.matricule">
+              <tr v-for="op in filteredTeamOperators" :key="op.matricule">
                 <td>
                   <code>{{ op.matricule }}</code>
                 </td>
@@ -228,7 +279,7 @@ onMounted(loadData)
                   <strong>{{ op.nom }}</strong>
                 </td>
                 <td>{{ op.dateEmbauche }}</td>
-                <td>{{ op.formationRework ? '✅ Oui' : '❌ Non' }}</td>
+                <td>{{ formatDate(op.dateSortie) }}</td>
                 <td>
                   <span v-if="op.posteAffecte" class="role-badge">
                     {{ op.posteAffecte.nom }}
@@ -236,8 +287,8 @@ onMounted(loadData)
                   <span v-else class="empty-hint">— Aucun —</span>
                 </td>
                 <td>
-                  <span :class="['status-badge', op.statut === 'Actif' ? 'active' : 'suspended']">
-                    {{ op.statut }}
+                  <span :class="['status-badge', statusMeta(op.statut).class]">
+                    {{ statusMeta(op.statut).label }}
                   </span>
                 </td>
                 <td>
@@ -259,9 +310,9 @@ onMounted(loadData)
                   </button>
                 </td>
               </tr>
-              <tr v-if="operators.length === 0">
+              <tr v-if="filteredTeamOperators.length === 0">
                 <td colspan="7" style="text-align: center; color: #547174">
-                  Aucun opérateur trouvé dans votre équipe.
+                  {{ operators.length === 0 ? 'Aucun opérateur trouvé dans votre équipe.' : 'Aucun opérateur ne correspond à ces critères.' }}
                 </td>
               </tr>
             </tbody>
@@ -296,7 +347,7 @@ onMounted(loadData)
             :style="operatorMode !== 'existant' ? 'opacity: 0.5' : ''"
             @click="operatorMode = 'existant'"
           >
-            🔍 Opérateur existe déjà
+            📚 Affecter à une nouvelle formation
           </button>
         </div>
 
@@ -318,9 +369,14 @@ onMounted(loadData)
             <label>Fonctionnalité</label>
             <input v-model="newOpFonctionnalite" placeholder="Ex: Assemblage" />
           </div>
+        <div class="input-group">
+  <label>Date d'embauche</label>
+  <input v-model="newOpDateEmbauche" type="date" required />
+</div>
+
           <div class="input-group">
-            <label>Date d'embauche</label>
-            <input v-model="newOpDateEmbauche" type="date" required />
+            <label>Date de sortie (optionnel)</label>
+            <input v-model="newOpDateSortie" type="date" />
           </div>
           <div class="input-group">
             <label>Premier poste d'affectation</label>
@@ -331,10 +387,7 @@ onMounted(loadData)
               </option>
             </select>
           </div>
-          <p class="subtitle">
-            Statut : <strong>NOUVELLE_RECRUE</strong>. Formation de 12 jours avant l'évaluation ;
-            l'équipe est déduite du projet du poste.
-          </p>
+          
           <button type="submit" :disabled="createLoading" class="submit-btn">
             {{ createLoading ? 'Création...' : "Créer l'opérateur" }}
           </button>
@@ -413,22 +466,6 @@ onMounted(loadData)
             <p v-if="addFormationMsg" class="form-msg">{{ addFormationMsg }}</p>
           </template>
         </div>
-      </div>
-    </div>
-
-    <!-- SUB-VIEW: Saisir Suivi -->
-    <div
-      v-else-if="activeSection === 'saisir-suivi'"
-      style="max-width: 600px; margin: 0 auto; width: 100%"
-    >
-      <div class="panel-card">
-        <div class="panel-header">
-          <h3>Saisir un Suivi d'Intégration Journalier</h3>
-        </div>
-        <p class="subtitle">
-          Cette section affichera uniquement les suivis venant de la base MySQL dès que l'API dédiée
-          sera branchée.
-        </p>
       </div>
     </div>
 

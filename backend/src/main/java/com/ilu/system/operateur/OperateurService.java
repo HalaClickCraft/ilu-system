@@ -179,6 +179,22 @@ public class OperateurService {
         return operateurRepository.save(operateur);
     }
 
+    /**
+     * Marque le départ (Sorti) d'un opérateur. Accessible au Chef d'équipe, contrairement
+     * à updateStatus() qui est réservé à la RH/ADMIN et permet n'importe quel statut :
+     * ici on ne peut aboutir qu'à "Sorti", ce qui reste sûr à ouvrir au chef.
+     */
+    @Transactional
+    public Operateur marquerDepart(String matricule) {
+        Operateur operateur = operateurRepository.findById(matricule)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Opérateur introuvable avec le matricule: " + matricule));
+
+        operateur.setStatut("Sorti");
+        if (operateur.getDateSortie() == null) {
+            operateur.setDateSortie(LocalDate.now());
+        }
+        return operateurRepository.save(operateur);
+    }
     @Transactional
     public Operateur assignToWorkstation(String matricule, Long posteId) {
         Operateur operateur = operateurRepository.findById(matricule)
@@ -457,7 +473,7 @@ public class OperateurService {
             map.put("operateurMatricule", t.getOperateur().getMatricule());
             map.put("posteNom", t.getPoste().getNom());
             map.put("projetNom", t.getProjet().getNom());
-            map.put("chefEquipeNom", "Chef Team"); // TODO: Get from project_member
+            map.put("chefEquipeNom", "Chef Team"); 
             map.put("statut", t.getStatut());
             map.put("dateDebut", t.getDateDebut());
             

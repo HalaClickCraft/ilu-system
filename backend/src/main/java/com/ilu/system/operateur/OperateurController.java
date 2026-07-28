@@ -75,9 +75,15 @@ public class OperateurController {
         return operateurService.marquerAbsence(matricule, motif);
     }
 
-    @PreAuthorize("hasAnyRole('CHEF_EQUIPE', 'RH', 'ADMIN')")
+@PreAuthorize("hasAnyRole('CHEF_EQUIPE', 'RH', 'ADMIN')")
     @PutMapping("/{matricule}/reprise")
     public Operateur markReprise(@PathVariable String matricule) {
         return operateurService.marquerReprise(matricule);
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF_EQUIPE', 'RH', 'ADMIN')")
+    @PutMapping("/{matricule}/depart")
+    public Operateur markDepart(@PathVariable String matricule) {
+        return operateurService.marquerDepart(matricule);
     }
 }
