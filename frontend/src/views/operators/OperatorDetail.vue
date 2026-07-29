@@ -1,0 +1,54 @@
+<template>
+  <div class="space-y-6">
+    <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+    <template v-else-if="operator">
+      <div class="flex items-center gap-4">
+        <button @click="$router.push('/operators')" class="text-gray-400 hover:text-gray-600 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+        <h1 class="text-2xl font-bold text-gray-900">{{ operator.lastName }} {{ operator.firstName }}</h1>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :class="operator.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ operator.active !== false ? 'Actif' : 'Inactif' }}</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 class="font-semibold text-gray-900 mb-4">Informations</h2>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between"><dt class="text-gray-500">Matricule</dt><dd class="font-medium">{{ operator.employeeId || '-' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Equipe</dt><dd class="font-medium">{{ operator.team?.name || '-' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Role</dt><dd class="font-medium">{{ operator.role || '-' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Date d'embauche</dt><dd class="font-medium">{{ formatDate(operator.hireDate) }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Date de sortie</dt><dd class="font-medium">{{ formatDate(operator.exitDate) }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Motif d'absence</dt><dd class="font-medium">{{ operator.absenceReason || '-' }}</dd></div>
+          </dl>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="p-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Formations</h2></div>
+        <div v-if="formationsLoading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+        <div v-else-if="formations.length" class="overflow-x-auto">
+          <table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Poste</th><th class="text-left py-3 px-4 font-medium text-gray-500">Atteint</th><th class="text-left py-3 px-4 font-medium text-gray-500">Cible</th><th class="text-left py-3 px-4 font-medium text-gray-500">Statut</th><th class="text-left py-3 px-4 font-medium text-gray-500">Debut</th><th class="text-right py-3 px-4 font-medium text-gray-500">Detail</th></tr></thead>
+          <tbody><tr v-for="f in formations" :key="f.id" class="border-b border-gray-50 hover:bg-gray-50"><td class="py-3 px-4">{{ f.workstationName }}</td><td class="py-3 px-4 font-medium">{{ f.achievedLevel ?? 0 }}</td><td class="py-3 px-4">{{ f.targetLevel }}</td><td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="statusClass(f.status)">{{ statusLabel(f.status) }}</span></td><td class="py-3 px-4 text-gray-500">{{ formatDate(f.startDate) }}</td><td class="py-3 px-4 text-right"><router-link :to="'/training/' + f.id" class="text-emerald-600 hover:underline text-sm">Voir</router-link></td></tr></tbody></table>
+        </div>
+        <div v-else class="text-center py-12 text-gray-400">Aucune formation</div>
+      </div>
+    </template>
+  </div>
+</template>
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { operatorsApi } from '@/api/endpoints'
+
+const route = useRoute()
+const operator = ref(null)
+const formations = ref([])
+const loading = ref(true)
+const formationsLoading = ref(true)
+
+const statusLabel = (s) => ({ IN_PROGRESS: 'En Cours', COMPLETED: 'Terminee', PLANNED: 'Planifiee' })[s] || s
+const statusClass = (s) => ({ IN_PROGRESS: 'bg-amber-100 text-amber-700', COMPLETED: 'bg-emerald-100 text-emerald-700', PLANNED: 'bg-gray-100 text-gray-600' })[s] || 'bg-gray-100 text-gray-600'
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
+
+onMounted(async () => {
+  try { const r = await operatorsApi.getById(route.params.id); operator.value = r.data } catch (e) { console.error(e) } finally { loading.value = false }
+  try { const r = await operatorsApi.getFormations(route.params.id); formations.value = r.data } catch (e) { console.error(e) } finally { formationsLoading.value = false }
+})
+</script>

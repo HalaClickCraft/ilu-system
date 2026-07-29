@@ -1,11 +1,7 @@
 package com.ilu.system.auth.dto;
-
 public class LoginRequest {
-    private String matricule;
-    private String motDePasse;
-
-    public String getMatricule() { return matricule; }
-    public void setMatricule(String matricule) { this.matricule = matricule; }
-    public String getMotDePasse() { return motDePasse; }
-    public void setMotDePasse(String motDePasse) { this.motDePasse = motDePasse; }
+    private String employeeId;
+    private String password;
+    public String getEmployeeId() { return employeeId; } public void setEmployeeId(String v) { this.employeeId = v; }
+    public String getPassword() { return password; } public void setPassword(String v) { this.password = v; }
 }

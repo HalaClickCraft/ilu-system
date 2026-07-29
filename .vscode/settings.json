@@ -3,5 +3,6 @@
     "backend/src/main/java",
     "backend/src/test/java"
   ],
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "liveServer.settings.port": 5501
 }

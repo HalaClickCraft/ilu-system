@@ -1,23 +1,14 @@
 package com.ilu.system.auth.dto;
-
+import java.util.Set;
 public class LoginResponse {
-    private final String token;
-    private final String matricule;
-    private final String nom;
-    private final String role;
-    private final boolean doitChangerMdp;
-
-    public LoginResponse(String token, String matricule, String nom, String role, boolean doitChangerMdp) {
-        this.token = token;
-        this.matricule = matricule;
-        this.nom = nom;
-        this.role = role;
-        this.doitChangerMdp = doitChangerMdp;
-    }
-
-    public String getToken() { return token; }
-    public String getMatricule() { return matricule; }
-    public String getNom() { return nom; }
-    public String getRole() { return role; }
-    public boolean isDoitChangerMdp() { return doitChangerMdp; }
+    private String token;
+    private String employeeId;
+    private String name;
+    private Boolean mustChangePassword;
+    private Set<String> roles;
+    public String getToken() { return token; } public void setToken(String v) { this.token = v; }
+    public String getEmployeeId() { return employeeId; } public void setEmployeeId(String v) { this.employeeId = v; }
+    public String getName() { return name; } public void setName(String v) { this.name = v; }
+    public Boolean getMustChangePassword() { return mustChangePassword; } public void setMustChangePassword(Boolean v) { this.mustChangePassword = v; }
+    public Set<String> getRoles() { return roles; } public void setRoles(Set<String> v) { this.roles = v; }
 }

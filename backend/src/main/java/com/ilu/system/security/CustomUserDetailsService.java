@@ -1,32 +1,22 @@
 package com.ilu.system.security;
 
-import com.ilu.system.auth.Utilisateur;
-import com.ilu.system.auth.UtilisateurRepository;
+import com.ilu.system.auth.entity.User;
+import com.ilu.system.auth.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
-
-    private final UtilisateurRepository utilisateurRepository;
-
-    public CustomUserDetailsService(UtilisateurRepository utilisateurRepository) {
-        this.utilisateurRepository = utilisateurRepository;
-    }
-
+    private final UserRepository userRepository;
+    public CustomUserDetailsService(UserRepository userRepository) { this.userRepository = userRepository; }
     @Override
-    public UserDetails loadUserByUsername(String matricule) throws UsernameNotFoundException {
-        Utilisateur user = utilisateurRepository.findByMatricule(matricule)
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable: " + matricule));
-
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getMatricule())
-                .password(user.getPassword())
-                .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().getLibelle().name())))
-                .disabled(!user.isActif())
-                .build();
+    public UserDetails loadUserByUsername(String employeeId) throws UsernameNotFoundException {
+        User user = userRepository.findByEmployeeId(employeeId).orElseThrow(() -> new UsernameNotFoundException("User not found: " + employeeId));
+        return new org.springframework.security.core.userdetails.User(user.getEmployeeId(), user.getPassword(), user.getActive(), true, true, true,
+                user.getRoles().stream().map(r -> new SimpleGrantedAuthority("ROLE_" + r.getLabel())).collect(Collectors.toList()));
     }
 }
