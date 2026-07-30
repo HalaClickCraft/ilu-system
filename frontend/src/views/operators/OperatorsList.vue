@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div><h1 class="text-2xl font-bold text-gray-900">Operateurs</h1><p class="text-gray-500 mt-1">Gestion des operateurs de l'usine</p></div>
-      <button @click="openCreateModal" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+      <button v-if="canCreateOperator" @click="openCreateModal" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Nouvel Operateur
       </button>
     </div>
@@ -17,21 +17,28 @@
       <div v-else class="text-center py-16 text-gray-400">Aucun operateur trouve</div>
     </div>
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCreateModal = false">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"><h2 class="text-lg font-semibold text-gray-900 mb-4">Nouvel Operateur</h2><form @submit.prevent="createOperator" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="form.lastName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Prenom</label><input v-model="form.firstName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Matricule</label><input v-model="form.employeeId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Role</label><input v-model="form.role" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Ex: Operateur" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label><input v-model="form.hireDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div><div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition">Creer</button></div></form></div>
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"><h2 class="text-lg font-semibold text-gray-900 mb-4">Nouvel Operateur</h2><form @submit.prevent="createOperator" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="form.lastName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Prenom</label><input v-model="form.firstName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Matricule</label><input v-model="form.employeeId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Role</label><input v-model="form.role" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Ex: Operateur" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label><input v-model="form.hireDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Equipe</label><select v-model="form.teamId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"><option value="">Selectionner</option><option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option></select></div><div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div><div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition">Creer</button></div></form></div>
     </div>
   </div>
 </template>
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { operatorsApi } from '@/api/endpoints'
+import { operatorsApi, structureApi } from '@/api/endpoints'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const operators = ref([])
+const teams = ref([])
 const loading = ref(true)
 const search = ref('')
 const showCreateModal = ref(false)
 const creating = ref(false)
 const error = ref('')
-const form = ref({ lastName: '', firstName: '', employeeId: '', role: '', hireDate: '' })
+const form = ref({ lastName: '', firstName: '', employeeId: '', role: '', hireDate: '', teamId: '' })
+
+const canCreateOperator = computed(() => {
+  return authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'])
+})
 
 const filteredOperators = computed(() => {
   const q = search.value.toLowerCase()
@@ -41,10 +48,11 @@ const filteredOperators = computed(() => {
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
 
 const fetchOperators = async () => { loading.value = true; try { const r = await operatorsApi.getAll(); operators.value = r.data } catch (e) { console.error(e) } finally { loading.value = false } }
-const openCreateModal = () => { form.value = { lastName: '', firstName: '', employeeId: '', role: '', hireDate: '' }; error.value = ''; showCreateModal.value = true }
+const fetchTeams = async () => { try { const r = await structureApi.getTeams(); teams.value = r.data } catch (e) { console.error(e) } }
+const openCreateModal = () => { form.value = { lastName: '', firstName: '', employeeId: '', role: '', hireDate: '', teamId: '' }; error.value = ''; showCreateModal.value = true }
 const createOperator = async () => { creating.value = true; error.value = ''; try { await operatorsApi.create(form.value); showCreateModal.value = false; fetchOperators() } catch (e) { error.value = e.response?.data?.message || 'Erreur' } finally { creating.value = false } }
 const deactivateOperator = async (id) => { try { await operatorsApi.deactivate(id); fetchOperators() } catch (e) { console.error(e) } }
 const activateOperator = async (id) => { try { await operatorsApi.activate(id); fetchOperators() } catch (e) { console.error(e) } }
 
-onMounted(fetchOperators)
+onMounted(() => { fetchOperators(); fetchTeams() })
 </script>

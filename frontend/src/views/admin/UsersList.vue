@@ -94,10 +94,11 @@ const availableRoles = [
   { value: 'RESP_QUALITE', label: 'Resp. Qualite' },
   { value: 'RESP_HSE', label: 'Resp. HSE' },
   { value: 'AGENT_QUALITE', label: 'Agent Qualite' },
+   { value: 'CHEF_EQUIPE', label: 'Chef d\'Equipe' },
   { value: 'SUPERVISEUR', label: 'Superviseur' },
 ]
 
-const roleLabel = (r) => ({ ADMIN: 'Admin', RH: 'RH', RESP_QUALITE: 'Resp. Qualite', RESP_HSE: 'Resp. HSE', AGENT_QUALITE: 'Agent Qualite', SUPERVISEUR: 'Superviseur' })[r] || r
+const roleLabel = (r) => ({ ADMIN: 'Admin', RH: 'RH', RESP_QUALITE: 'Resp. Qualite', RESP_HSE: 'Resp. HSE', AGENT_QUALITE: 'Agent Qualite', CHEF_EQUIPE: 'Chef d\'Equipe', SUPERVISEUR: 'Superviseur' })[r] || r
 
 const fetchUsers = async () => { loading.value = true; try { users.value = (await usersApi.getAll()).data } catch (e) { console.error(e) } finally { loading.value = false } }
 

@@ -46,17 +46,48 @@ public class TrainingService {
         }).collect(Collectors.toList());
     }
     public List<DailyFormationTracking> getFormationTracking(Long formationId) {
-        return trackingRepo.findByFormationIdOrderByTrackingDateDesc(formationId);
+        return trackingRepo.findByFormationIdOrderByTrackingDateAsc(formationId);
     }
     @Transactional
     public DailyFormationTracking addDailyTracking(Long formationId, DailyTrackingDto dto) {
         WorkstationFormation f = formationRepo.findById(formationId).orElseThrow(() -> new RuntimeException("Formation not found"));
         DailyFormationTracking t = new DailyFormationTracking();
         t.setFormation(f); t.setTrackingDate(dto.getTrackingDate()); t.setDailyLevel(dto.getDailyLevel());
+        t.setObjectif(dto.getObjectif());
         t.setComment(dto.getComment()); t.setSupervisor(dto.getSupervisor());
         if (dto.getDailyLevel() != null && dto.getDailyLevel() > f.getAchievedLevel()) {
             f.setAchievedLevel(dto.getDailyLevel()); formationRepo.save(f);
         }
+        return trackingRepo.save(t);
+    }
+    @Transactional
+    public DailyFormationTracking addCadence(Long formationId, DailyTrackingDto dto) {
+        WorkstationFormation f = formationRepo.findById(formationId).orElseThrow(() -> new RuntimeException("Formation not found"));
+        // Check if tracking already exists for this date
+        List<DailyFormationTracking> existing = trackingRepo.findByFormationIdAndTrackingDate(formationId, dto.getTrackingDate());
+        DailyFormationTracking t;
+        if (!existing.isEmpty()) {
+            t = existing.get(0);
+        } else {
+            t = new DailyFormationTracking();
+            t.setFormation(f); t.setTrackingDate(dto.getTrackingDate());
+        }
+        t.setCadence(dto.getCadence());
+        t.setObjectif(dto.getObjectif());
+        return trackingRepo.save(t);
+    }
+    @Transactional
+    public DailyFormationTracking addDefauts(Long formationId, DailyTrackingDto dto) {
+        WorkstationFormation f = formationRepo.findById(formationId).orElseThrow(() -> new RuntimeException("Formation not found"));
+        List<DailyFormationTracking> existing = trackingRepo.findByFormationIdAndTrackingDate(formationId, dto.getTrackingDate());
+        DailyFormationTracking t;
+        if (!existing.isEmpty()) {
+            t = existing.get(0);
+        } else {
+            t = new DailyFormationTracking();
+            t.setFormation(f); t.setTrackingDate(dto.getTrackingDate());
+        }
+        t.setDefauts(dto.getDefauts());
         return trackingRepo.save(t);
     }
     @Transactional

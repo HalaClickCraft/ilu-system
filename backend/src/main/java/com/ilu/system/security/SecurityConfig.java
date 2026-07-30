@@ -26,11 +26,24 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Public
                 .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/auth/**").authenticated()
+                // User management - ADMIN only
                 .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
+                // Operator creation - only RH, CHEF_EQUIPE, SUPERVISEUR
+                .requestMatchers(HttpMethod.POST, "/api/operators").hasAnyRole("RH", "CHEF_EQUIPE", "SUPERVISEUR")
+                // Project creation - only SUPERVISEUR, CHEF_EQUIPE
+                .requestMatchers(HttpMethod.POST, "/api/structure/projects").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE")
+                // Zone/Workstation creation - SUPERVISEUR, CHEF_EQUIPE, ADMIN
+                .requestMatchers(HttpMethod.POST, "/api/structure/projects/*/zones").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/structure/workstations").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE", "ADMIN")
+                // Cadence entry - CHEF_EQUIPE only
+                .requestMatchers(HttpMethod.POST, "/api/training/formations/*/tracking/cadence").hasRole("CHEF_EQUIPE")
+                // Defauts entry - AGENT_QUALITE only
+                .requestMatchers(HttpMethod.POST, "/api/training/formations/*/tracking/defauts").hasRole("AGENT_QUALITE")
+                // Everything else requires authentication
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )

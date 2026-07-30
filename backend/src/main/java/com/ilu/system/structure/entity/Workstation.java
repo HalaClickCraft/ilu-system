@@ -1,5 +1,6 @@
 package com.ilu.system.structure.entity;
 
+import com.ilu.system.auth.entity.User;
 import com.ilu.system.operator.entity.WorkstationFormation;
 import jakarta.persistence.*;
 import java.util.List;
@@ -31,6 +32,10 @@ public class Workstation {
     @JoinColumn(name = "zone_id")
     private Zone zone;
 
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
     @OneToMany(mappedBy = "workstation", cascade = CascadeType.ALL)
     private List<WorkstationFormation> formations;
 
@@ -48,6 +53,8 @@ public class Workstation {
     public void setTargetIluLevel(Integer targetIluLevel) { this.targetIluLevel = targetIluLevel; }
     public Zone getZone() { return zone; }
     public void setZone(Zone zone) { this.zone = zone; }
+    public User getCreatedBy() { return createdBy; }
+    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public List<WorkstationFormation> getFormations() { return formations; }
     public void setFormations(List<WorkstationFormation> formations) { this.formations = formations; }
 }

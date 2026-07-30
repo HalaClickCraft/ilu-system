@@ -107,7 +107,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { trainingApi, structureApi } from '../../api/endpoints.js'
+import { trainingApi, structureApi } from '@/api/endpoints.js'
 
 const loading = ref(true)
 const formations = ref([])

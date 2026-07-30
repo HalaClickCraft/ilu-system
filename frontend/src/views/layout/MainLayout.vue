@@ -80,6 +80,7 @@ const roleLabels = {
   AGENT_QUALITE: 'Agent Qualite',
   RESP_HSE: 'Resp. HSE',
   RESP_QUALITE: 'Resp. Qualite',
+  CHEF_EQUIPE: "Chef d'Equipe",
   SUPERVISEUR: 'Superviseur',
 }
 
@@ -89,6 +90,7 @@ const dashboardLabels = {
   AGENT_QUALITE: 'Qualite',
   RESP_HSE: 'HSE',
   RESP_QUALITE: 'Qualite',
+  CHEF_EQUIPE: 'Mon Equipe',
   SUPERVISEUR: 'Mon Equipe',
 }
 

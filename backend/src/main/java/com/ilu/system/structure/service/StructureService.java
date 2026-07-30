@@ -1,11 +1,17 @@
 package com.ilu.system.structure.service;
 
+import com.ilu.system.auth.entity.User;
+import com.ilu.system.auth.repository.UserRepository;
 import com.ilu.system.structure.dto.*;
 import com.ilu.system.structure.entity.*;
 import com.ilu.system.structure.repository.*;
+import com.ilu.system.operator.repository.TeamRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -14,15 +20,32 @@ public class StructureService {
     private final ZoneRepository zoneRepo;
     private final WorkstationRepository wsRepo;
     private final ProjectMemberRepository memberRepo;
+    private final UserRepository userRepo;
+    private final TeamRepository teamRepo;
 
-    public StructureService(ProjectRepository projectRepo, ZoneRepository zoneRepo, WorkstationRepository wsRepo, ProjectMemberRepository memberRepo) {
+    public StructureService(ProjectRepository projectRepo, ZoneRepository zoneRepo, WorkstationRepository wsRepo, ProjectMemberRepository memberRepo, UserRepository userRepo, TeamRepository teamRepo) {
         this.projectRepo = projectRepo; this.zoneRepo = zoneRepo; this.wsRepo = wsRepo; this.memberRepo = memberRepo;
+        this.userRepo = userRepo; this.teamRepo = teamRepo;
+    }
+
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        return userRepo.findByEmployeeId(auth.getName()).orElse(null);
     }
 
     @Transactional
     public ProjectDto createProject(CreateProjectRequest req) {
         if (projectRepo.existsByName(req.getName())) throw new RuntimeException("Project already exists");
-        Project p = new Project(); p.setName(req.getName()); p = projectRepo.save(p);
+        Project p = new Project(); p.setName(req.getName());
+        p.setCreatedBy(getCurrentUser());
+        p = projectRepo.save(p);
+        // Link teams if provided
+        if (req.getTeamIds() != null) {
+            Set<com.ilu.system.operator.entity.Team> teams = teamRepo.findAllById(req.getTeamIds()).stream().collect(Collectors.toSet());
+            p.setTeams(teams);
+            p = projectRepo.save(p);
+        }
         if (req.getMembers() != null) {
             for (CreateProjectRequest.MemberAssignment m : req.getMembers()) {
                 ProjectMember member = new ProjectMember(); member.setProject(p);
@@ -46,7 +69,8 @@ public class StructureService {
     @Transactional
     public ZoneDto createZone(String name, Long projectId) {
         Project p = projectRepo.findById(projectId).orElseThrow(() -> new RuntimeException("Project not found"));
-        Zone z = new Zone(); z.setName(name); z.setProject(p); return toZoneDto(zoneRepo.save(z));
+        Zone z = new Zone(); z.setName(name); z.setProject(p); z.setCreatedBy(getCurrentUser());
+        return toZoneDto(zoneRepo.save(z));
     }
     public List<ZoneDto> listZones(Long projectId) { return zoneRepo.findByProjectId(projectId).stream().map(this::toZoneDto).collect(Collectors.toList()); }
     @Transactional public void deleteZone(Long id) { zoneRepo.deleteById(id); }
@@ -55,6 +79,7 @@ public class StructureService {
     public WorkstationDto createWorkstation(WorkstationDto dto) {
         Workstation w = new Workstation(); w.setName(dto.getName()); w.setType(dto.getType());
         w.setTargetCadence(dto.getTargetCadence()); w.setVersatilityTarget(dto.getVersatilityTarget()); w.setTargetIluLevel(dto.getTargetIluLevel());
+        w.setCreatedBy(getCurrentUser());
         if (dto.getZoneId() != null) w.setZone(zoneRepo.findById(dto.getZoneId()).orElseThrow(() -> new RuntimeException("Zone not found")));
         return toWsDto(wsRepo.save(w));
     }
@@ -90,6 +115,7 @@ public class StructureService {
 
     private ProjectDto toDto(Project p) {
         ProjectDto d = new ProjectDto(); d.setId(p.getId()); d.setName(p.getName());
+        if (p.getCreatedBy() != null) d.setCreatedByName(p.getCreatedBy().getName());
         d.setZones(p.getZones() != null ? p.getZones().stream().map(this::toZoneDto).collect(Collectors.toList()) : List.of());
         d.setMembers(p.getMembers() != null ? p.getMembers().stream().map(this::toMemberDto).collect(Collectors.toList()) : List.of());
         return d;
@@ -97,6 +123,7 @@ public class StructureService {
     private ZoneDto toZoneDto(Zone z) {
         ZoneDto d = new ZoneDto(); d.setId(z.getId()); d.setName(z.getName());
         if (z.getProject() != null) { d.setProjectId(z.getProject().getId()); d.setProjectName(z.getProject().getName()); }
+        if (z.getCreatedBy() != null) d.setCreatedByName(z.getCreatedBy().getName());
         d.setWorkstations(z.getWorkstations() != null ? z.getWorkstations().stream().map(this::toWsDto).collect(Collectors.toList()) : List.of());
         return d;
     }
@@ -104,6 +131,7 @@ public class StructureService {
         WorkstationDto d = new WorkstationDto(); d.setId(w.getId()); d.setName(w.getName()); d.setType(w.getType());
         d.setTargetCadence(w.getTargetCadence()); d.setVersatilityTarget(w.getVersatilityTarget()); d.setTargetIluLevel(w.getTargetIluLevel());
         if (w.getZone() != null) { d.setZoneId(w.getZone().getId()); d.setZoneName(w.getZone().getName()); }
+        if (w.getCreatedBy() != null) d.setCreatedByName(w.getCreatedBy().getName());
         return d;
     }
     private ProjectMemberDto toMemberDto(ProjectMember m) {

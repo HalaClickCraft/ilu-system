@@ -22,6 +22,15 @@ public class DailyFormationTracking {
     private Integer dailyLevel;
 
     @Column
+    private Integer objectif;
+
+    @Column
+    private Integer cadence;
+
+    @Column
+    private Integer defauts;
+
+    @Column
     private String comment;
 
     @Column
@@ -35,6 +44,12 @@ public class DailyFormationTracking {
     public void setTrackingDate(LocalDate trackingDate) { this.trackingDate = trackingDate; }
     public Integer getDailyLevel() { return dailyLevel; }
     public void setDailyLevel(Integer dailyLevel) { this.dailyLevel = dailyLevel; }
+    public Integer getObjectif() { return objectif; }
+    public void setObjectif(Integer objectif) { this.objectif = objectif; }
+    public Integer getCadence() { return cadence; }
+    public void setCadence(Integer cadence) { this.cadence = cadence; }
+    public Integer getDefauts() { return defauts; }
+    public void setDefauts(Integer defauts) { this.defauts = defauts; }
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
     public String getSupervisor() { return supervisor; }

@@ -1,11 +1,12 @@
 package com.ilu.system.structure.dto;
 public class WorkstationDto {
-    private Long id; private String name; private String type;
+    private Long id; private String name; private String type; private String createdByName;
     private Integer targetCadence; private Integer versatilityTarget; private Integer targetIluLevel;
     private Long zoneId; private String zoneName;
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
     public String getName() { return name; } public void setName(String v) { this.name = v; }
     public String getType() { return type; } public void setType(String v) { this.type = v; }
+    public String getCreatedByName() { return createdByName; } public void setCreatedByName(String v) { this.createdByName = v; }
     public Integer getTargetCadence() { return targetCadence; } public void setTargetCadence(Integer v) { this.targetCadence = v; }
     public Integer getVersatilityTarget() { return versatilityTarget; } public void setVersatilityTarget(Integer v) { this.versatilityTarget = v; }
     public Integer getTargetIluLevel() { return targetIluLevel; } public void setTargetIluLevel(Integer v) { this.targetIluLevel = v; }

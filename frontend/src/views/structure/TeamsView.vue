@@ -29,7 +29,7 @@
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
-import { operatorsApi } from '../../api/endpoints.js'
+import { operatorsApi } from '@/api/endpoints.js'
 
 const loading = ref(true)
 const teams = ref([])

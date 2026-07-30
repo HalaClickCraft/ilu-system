@@ -1,5 +1,6 @@
 package com.ilu.system.structure.entity;
 
+import com.ilu.system.auth.entity.User;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -18,6 +19,10 @@ public class Zone {
     @JoinColumn(name = "project_id")
     private Project project;
 
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
     private List<Workstation> workstations;
 
@@ -27,6 +32,8 @@ public class Zone {
     public void setName(String name) { this.name = name; }
     public Project getProject() { return project; }
     public void setProject(Project project) { this.project = project; }
+    public User getCreatedBy() { return createdBy; }
+    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public List<Workstation> getWorkstations() { return workstations; }
     public void setWorkstations(List<Workstation> workstations) { this.workstations = workstations; }
 }

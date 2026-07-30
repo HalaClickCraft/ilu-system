@@ -13,7 +13,7 @@ export const useAuthStore = defineStore('auth', {
     fullName: (state) => state.user?.name || 'Utilisateur',
     primaryRole: (state) => {
       if (!state.user?.roles || state.user.roles.size === 0) return ''
-      const priority = ['ADMIN', 'RH', 'RESP_QUALITE', 'RESP_HSE', 'AGENT_QUALITE', 'SUPERVISEUR']
+      const priority = ['ADMIN', 'RH', 'RESP_QUALITE', 'RESP_HSE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'SUPERVISEUR']
       for (const r of priority) {
         if (state.user.roles.has(r)) return r
       }
@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', {
     isRespHse: (state) => state.user?.roles?.has('RESP_HSE') || false,
     isAgentQualite: (state) => state.user?.roles?.has('AGENT_QUALITE') || false,
     isSuperviseur: (state) => state.user?.roles?.has('SUPERVISEUR') || false,
+    isChefEquipe: (state) => state.user?.roles?.has('CHEF_EQUIPE') || false,
     hasRole: (state) => {
       return (role) => state.user?.roles?.has(role) || false
     },

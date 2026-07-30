@@ -27,6 +27,14 @@ public class TrainingController {
     public ResponseEntity<DailyFormationTracking> addTracking(@PathVariable Long id, @RequestBody DailyTrackingDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(trainingService.addDailyTracking(id, dto));
     }
+    @PostMapping("/formations/{id}/tracking/cadence")
+    public ResponseEntity<DailyFormationTracking> addCadence(@PathVariable Long id, @RequestBody DailyTrackingDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(trainingService.addCadence(id, dto));
+    }
+    @PostMapping("/formations/{id}/tracking/defauts")
+    public ResponseEntity<DailyFormationTracking> addDefauts(@PathVariable Long id, @RequestBody DailyTrackingDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(trainingService.addDefauts(id, dto));
+    }
     @PutMapping("/formations/{id}/complete")
     public ResponseEntity<Void> complete(@PathVariable Long id) { trainingService.completeFormation(id); return ResponseEntity.ok().build(); }
     @PostMapping("/assignments")
