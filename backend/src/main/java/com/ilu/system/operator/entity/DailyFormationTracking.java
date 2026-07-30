@@ -19,7 +19,7 @@ public class DailyFormationTracking {
     private LocalDate trackingDate;
 
     @Column(name = "daily_level")
-    private Integer dailyLevel;
+    private String dailyLevel;
 
     @Column
     private Integer objectif;
@@ -42,8 +42,8 @@ public class DailyFormationTracking {
     public void setFormation(WorkstationFormation formation) { this.formation = formation; }
     public LocalDate getTrackingDate() { return trackingDate; }
     public void setTrackingDate(LocalDate trackingDate) { this.trackingDate = trackingDate; }
-    public Integer getDailyLevel() { return dailyLevel; }
-    public void setDailyLevel(Integer dailyLevel) { this.dailyLevel = dailyLevel; }
+    public String getDailyLevel() { return dailyLevel; }
+    public void setDailyLevel(String dailyLevel) { this.dailyLevel = dailyLevel; }
     public Integer getObjectif() { return objectif; }
     public void setObjectif(Integer objectif) { this.objectif = objectif; }
     public Integer getCadence() { return cadence; }

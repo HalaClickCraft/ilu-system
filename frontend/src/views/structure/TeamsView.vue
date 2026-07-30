@@ -12,8 +12,12 @@
           <h3 class="font-semibold text-gray-900">{{ team.name }}</h3>
           <span class="text-sm text-gray-500">{{ team.operatorCount || 0 }} operateurs</span>
         </div>
-        <p v-if="team.teamLeader" class="text-sm text-gray-500 mb-3">Chef d'equipe: <span class="font-medium text-gray-700">{{ team.teamLeader }}</span></p>
-        <div v-if="team.operators?.length" class="space-y-1.5">
+       <p v-if="team.teamLeader" class="text-sm text-gray-500 mb-3">Chef d'equipe: <span class="font-medium text-gray-700">{{ team.teamLeader }}</span></p>
+<div v-if="team.projects?.length" class="flex flex-wrap gap-1 mb-3">
+  <span v-for="p in team.projects" :key="p.id" class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{{ p.name }}</span>
+</div>
+<div v-else class="text-xs text-gray-400 mb-3">Aucun projet associe</div>
+<div v-if="team.operators?.length" class="space-y-1.5">
           <div v-for="op in team.operators.slice(0, 5)" :key="op.id" class="flex items-center justify-between py-1.5 px-2 rounded bg-gray-50 text-sm">
             <router-link :to="'/operators/' + op.id" class="text-emerald-600 hover:underline font-medium">{{ op.lastName }} {{ op.firstName }}</router-link>
             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs" :class="op.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ op.active !== false ? 'Actif' : 'Inactif' }}</span>
@@ -29,7 +33,7 @@
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
-import { operatorsApi } from '@/api/endpoints.js'
+import { structureApi } from '@/api/endpoints.js'
 
 const loading = ref(true)
 const teams = ref([])
@@ -37,16 +41,8 @@ const teams = ref([])
 const fetchTeams = async () => {
   loading.value = true
   try {
-    const r = await operatorsApi.getAll()
-    const operators = r.data
-    const teamMap = {}
-    operators.forEach(op => {
-      const teamId = op.team?.id
-      if (!teamId) return
-      if (!teamMap[teamId]) teamMap[teamId] = { id: teamId, name: op.team.name, teamLeader: op.team.teamLeader, operators: [] }
-      teamMap[teamId].operators.push(op)
-    })
-    teams.value = Object.values(teamMap).map(t => ({ ...t, operatorCount: t.operators.length }))
+    const r = await structureApi.getTeams()
+    teams.value = r.data.map(t => ({ ...t, operatorCount: t.operators?.length || 0 }))
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 

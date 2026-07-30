@@ -29,11 +29,11 @@ public class WorkstationFormation {
     @Column(nullable = false)
     private String status;
 
-    @Column(name = "achieved_level")
-    private Integer achievedLevel;
+   @Column(name = "achieved_level")
+    private String achievedLevel;
 
     @Column(name = "target_level")
-    private Integer targetLevel;
+    private String targetLevel;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -47,8 +47,8 @@ public class WorkstationFormation {
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public Integer getAchievedLevel() { return achievedLevel; }
-    public void setAchievedLevel(Integer achievedLevel) { this.achievedLevel = achievedLevel; }
-    public Integer getTargetLevel() { return targetLevel; }
-    public void setTargetLevel(Integer targetLevel) { this.targetLevel = targetLevel; }
+      public String getAchievedLevel() { return achievedLevel; }
+    public void setAchievedLevel(String achievedLevel) { this.achievedLevel = achievedLevel; }
+    public String getTargetLevel() { return targetLevel; }
+    public void setTargetLevel(String targetLevel) { this.targetLevel = targetLevel; }
 }

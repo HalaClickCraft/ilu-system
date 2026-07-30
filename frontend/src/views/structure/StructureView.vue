@@ -15,7 +15,7 @@
         <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition" @click="toggleProject(project.id)">
           <div class="flex items-center gap-3">
             <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedProjects.has(project.id) }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <div><h2 class="font-semibold text-gray-900">{{ project.name }}</h2><p class="text-xs text-gray-500">{{ project.zones?.length || 0 }} zones, {{ project.members?.length || 0 }} membres</p></div>
+            <div><h2 class="font-semibold text-gray-900">{{ project.name }}</h2><p class="text-xs text-gray-500">{{ project.zones?.length || 0 }} zones, {{ project.members?.length || 0 }} membres · Cree par {{ project.createdByName || 'Systeme' }}</p></div>
           </div>
           <div class="flex items-center gap-2">
             <button @click.stop="showAddZone(project.id)" class="text-sm text-emerald-600 hover:underline">+ Zone</button>
@@ -39,7 +39,7 @@
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedZones.has(zone.id) }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 <span class="font-medium text-gray-800">{{ zone.name }}</span>
-                <span class="text-xs text-gray-400">({{ zone.workstations?.length || 0 }} postes)</span>
+                <span class="text-xs text-gray-400">({{ zone.workstations?.length || 0 }} postes) · Cree par {{ zone.createdByName || 'Systeme' }}</span>
               </div>
               <button @click.stop="deleteZone(zone.id)" class="text-gray-400 hover:text-red-600 transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
@@ -47,7 +47,7 @@
               <div v-if="zone.workstations?.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div v-for="ws in zone.workstations" :key="ws.id" class="p-3 rounded-lg border border-gray-200 hover:border-emerald-300 transition">
                   <div class="flex items-center justify-between">
-                    <div><p class="text-sm font-medium text-gray-900">{{ ws.name }}</p><p class="text-xs text-gray-500">{{ ws.type || 'Non defini' }}</p></div>
+                    <div><p class="text-sm font-medium text-gray-900">{{ ws.name }}</p><p class="text-xs text-gray-500">{{ ws.type || 'Non defini' }} · Cree par {{ ws.createdByName || 'Systeme' }}</p></div>
                     <button @click="deleteWorkstation(ws.id)" class="text-gray-400 hover:text-red-600 transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                   </div>
                   <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
@@ -92,13 +92,20 @@
     <div v-if="showWorkstationModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showWorkstationModal = false">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Nouveau Poste de Travail</h2>
+        <div v-if="wsError" class="text-sm text-red-600 mb-3">{{ wsError }}</div>
         <form @submit.prevent="createWorkstation" class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="wsForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><input v-model="wsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Cadence cible</label><input v-model.number="wsForm.targetCadence" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Versatilite</label><input v-model.number="wsForm.versatilityTarget" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
-            <div><label class="block text-sm font-medium text-gray-700 mb-1">Niveau ILU cible</label><input v-model.number="wsForm.targetIluLevel" type="number" min="1" max="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Niveau ILU cible</label>
+              <select v-model="wsForm.targetIluLevel" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="I">I</option>
+                <option value="L">L</option>
+                <option value="U">U</option>
+              </select>
+            </div>
           </div>
           <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showWorkstationModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg">Ajouter</button></div>
         </form>
@@ -120,7 +127,8 @@ const showZoneModal = ref(false)
 const showWorkstationModal = ref(false)
 const projectForm = ref({ name: '' })
 const zoneForm = ref({ name: '', projectId: null })
-const wsForm = ref({ name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 3, zoneId: null })
+const wsForm = ref({ name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId: null })
+const wsError = ref('')
 
 const toggleProject = (id) => { if (expandedProjects.value.has(id)) expandedProjects.value.delete(id); else expandedProjects.value.add(id); expandedProjects.value = new Set(expandedProjects.value) }
 const toggleZone = (id) => { if (expandedZones.value.has(id)) expandedZones.value.delete(id); else expandedZones.value.add(id); expandedZones.value = new Set(expandedZones.value) }
@@ -134,8 +142,21 @@ const showAddZone = (projectId) => { zoneForm.value = { name: '', projectId }; s
 const createZone = async () => { creating.value = true; try { await structureApi.createZone(zoneForm.value.projectId, { name: zoneForm.value.name }); showZoneModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 const deleteZone = async (id) => { if (!confirm('Supprimer cette zone ?')) return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
 
-const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 3, zoneId }; showWorkstationModal.value = true }
-const createWorkstation = async () => { creating.value = true; try { await structureApi.createWorkstation(wsForm.value); showWorkstationModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
+const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; wsError.value = ''; showWorkstationModal.value = true }
+const createWorkstation = async () => {
+  creating.value = true
+  wsError.value = ''
+  try {
+    await structureApi.createWorkstation(wsForm.value)
+    showWorkstationModal.value = false
+    fetchProjects()
+  } catch (e) {
+    console.error(e)
+    wsError.value = e.response?.data?.message || e.message || 'Erreur lors de la creation du poste.'
+  } finally {
+    creating.value = false
+  }
+}
 const deleteWorkstation = async (id) => { if (!confirm('Supprimer ce poste ?')) return; try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
 
 onMounted(fetchProjects)

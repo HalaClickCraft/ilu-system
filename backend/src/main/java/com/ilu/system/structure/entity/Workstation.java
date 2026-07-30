@@ -26,7 +26,7 @@ public class Workstation {
     private Integer versatilityTarget;
 
     @Column(name = "target_ilu_level")
-    private Integer targetIluLevel;
+    private String targetIluLevel;
 
     @ManyToOne
     @JoinColumn(name = "zone_id")
@@ -49,8 +49,8 @@ public class Workstation {
     public void setTargetCadence(Integer targetCadence) { this.targetCadence = targetCadence; }
     public Integer getVersatilityTarget() { return versatilityTarget; }
     public void setVersatilityTarget(Integer versatilityTarget) { this.versatilityTarget = versatilityTarget; }
-    public Integer getTargetIluLevel() { return targetIluLevel; }
-    public void setTargetIluLevel(Integer targetIluLevel) { this.targetIluLevel = targetIluLevel; }
+    public String getTargetIluLevel() { return targetIluLevel; }
+    public void setTargetIluLevel(String targetIluLevel) { this.targetIluLevel = targetIluLevel; }
     public Zone getZone() { return zone; }
     public void setZone(Zone zone) { this.zone = zone; }
     public User getCreatedBy() { return createdBy; }

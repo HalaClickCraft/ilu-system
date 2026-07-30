@@ -1,5 +1,6 @@
 package com.ilu.system.operator.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.ilu.system.structure.entity.Project;
 import jakarta.persistence.*;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "teams")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Team {
 
     @Id
@@ -22,7 +24,7 @@ public class Team {
     @Column(name = "team_leader_employee_id")
     private String teamLeaderEmployeeId;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "team_projects",
         joinColumns = @JoinColumn(name = "team_id"),
@@ -30,9 +32,8 @@ public class Team {
     )
     private Set<Project> projects;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Operator> operators;
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }

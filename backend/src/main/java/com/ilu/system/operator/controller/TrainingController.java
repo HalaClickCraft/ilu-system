@@ -16,7 +16,7 @@ public class TrainingController {
     private final TrainingService trainingService;
     public TrainingController(TrainingService trainingService) { this.trainingService = trainingService; }
     @PostMapping("/formations")
-    public ResponseEntity<WorkstationFormation> createFormation(@RequestParam Long operatorId, @RequestParam Long workstationId, @RequestParam(required = false) Integer targetLevel) {
+    public ResponseEntity<WorkstationFormation> createFormation(@RequestParam Long operatorId, @RequestParam Long workstationId, @RequestParam(required = false) String targetLevel) {
         return ResponseEntity.status(HttpStatus.CREATED).body(trainingService.createFormation(operatorId, workstationId, targetLevel));
     }
     @GetMapping("/formations")

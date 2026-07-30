@@ -23,14 +23,14 @@ public class TrainingService {
         this.operatorRepo = operatorRepo; this.workstationRepo = workstationRepo; this.teamRepo = teamRepo;
     }
     @Transactional
-    public WorkstationFormation createFormation(Long operatorId, Long workstationId, Integer targetLevel) {
+    public WorkstationFormation createFormation(Long operatorId, Long workstationId, String targetLevel) {
         Operator operator = operatorRepo.findById(operatorId).orElseThrow(() -> new RuntimeException("Operator not found"));
         Workstation ws = workstationRepo.findById(workstationId).orElseThrow(() -> new RuntimeException("Workstation not found"));
         List<WorkstationFormation> existing = formationRepo.findActiveByOperatorAndWorkstation(operatorId, workstationId);
         if (!existing.isEmpty()) throw new RuntimeException("Operator already has an active formation for this workstation");
         WorkstationFormation f = new WorkstationFormation();
         f.setOperator(operator); f.setWorkstation(ws); f.setStartDate(LocalDate.now());
-        f.setStatus("IN_PROGRESS"); f.setAchievedLevel(0);
+        f.setStatus("IN_PROGRESS"); f.setAchievedLevel("I");
         f.setTargetLevel(targetLevel != null ? targetLevel : ws.getTargetIluLevel());
         return formationRepo.save(f);
     }
@@ -55,10 +55,15 @@ public class TrainingService {
         t.setFormation(f); t.setTrackingDate(dto.getTrackingDate()); t.setDailyLevel(dto.getDailyLevel());
         t.setObjectif(dto.getObjectif());
         t.setComment(dto.getComment()); t.setSupervisor(dto.getSupervisor());
-        if (dto.getDailyLevel() != null && dto.getDailyLevel() > f.getAchievedLevel()) {
+        if (dto.getDailyLevel() != null && levelRank(dto.getDailyLevel()) > levelRank(f.getAchievedLevel())) {
             f.setAchievedLevel(dto.getDailyLevel()); formationRepo.save(f);
         }
         return trackingRepo.save(t);
+    }
+
+    private int levelRank(String level) {
+        if (level == null) return 0;
+        return switch (level) { case "I" -> 1; case "L" -> 2; case "U" -> 3; default -> 0; };
     }
     @Transactional
     public DailyFormationTracking addCadence(Long formationId, DailyTrackingDto dto) {

@@ -9,8 +9,8 @@ public class FormationDetailsDto {
     private LocalDate startDate;
     private LocalDate endDate;
     private String status;
-    private Integer achievedLevel;
-    private Integer targetLevel;
+    private String achievedLevel;
+    private String targetLevel;
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
     public Long getOperatorId() { return operatorId; } public void setOperatorId(Long v) { this.operatorId = v; }
     public String getOperatorName() { return operatorName; } public void setOperatorName(String v) { this.operatorName = v; }
@@ -19,6 +19,6 @@ public class FormationDetailsDto {
     public LocalDate getStartDate() { return startDate; } public void setStartDate(LocalDate v) { this.startDate = v; }
     public LocalDate getEndDate() { return endDate; } public void setEndDate(LocalDate v) { this.endDate = v; }
     public String getStatus() { return status; } public void setStatus(String v) { this.status = v; }
-    public Integer getAchievedLevel() { return achievedLevel; } public void setAchievedLevel(Integer v) { this.achievedLevel = v; }
-    public Integer getTargetLevel() { return targetLevel; } public void setTargetLevel(Integer v) { this.targetLevel = v; }
+    public String getAchievedLevel() { return achievedLevel; } public void setAchievedLevel(String v) { this.achievedLevel = v; }
+    public String getTargetLevel() { return targetLevel; } public void setTargetLevel(String v) { this.targetLevel = v; }
 }
