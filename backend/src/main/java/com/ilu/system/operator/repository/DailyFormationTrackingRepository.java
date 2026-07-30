@@ -4,10 +4,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 @Repository
 public interface DailyFormationTrackingRepository extends JpaRepository<DailyFormationTracking, Long> {
     List<DailyFormationTracking> findByFormationId(Long formationId);
     List<DailyFormationTracking> findByFormationIdOrderByTrackingDateDesc(Long formationId);
-    List<DailyFormationTracking> findByFormationIdOrderByTrackingDateAsc(Long formationId);
-    List<DailyFormationTracking> findByFormationIdAndTrackingDate(Long formationId, LocalDate trackingDate);
+    Optional<DailyFormationTracking> findByFormationIdAndTrackingDate(Long formationId, LocalDate trackingDate);
 }

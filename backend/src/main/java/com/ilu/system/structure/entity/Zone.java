@@ -19,12 +19,12 @@ public class Zone {
     @JoinColumn(name = "project_id")
     private Project project;
 
+    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
+    private List<Workstation> workstations;
+
     @ManyToOne
     @JoinColumn(name = "created_by")
     private User createdBy;
-
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
-    private List<Workstation> workstations;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -32,8 +32,8 @@ public class Zone {
     public void setName(String name) { this.name = name; }
     public Project getProject() { return project; }
     public void setProject(Project project) { this.project = project; }
-    public User getCreatedBy() { return createdBy; }
-    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public List<Workstation> getWorkstations() { return workstations; }
     public void setWorkstations(List<Workstation> workstations) { this.workstations = workstations; }
+    public User getCreatedBy() { return createdBy; }
+    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
 }

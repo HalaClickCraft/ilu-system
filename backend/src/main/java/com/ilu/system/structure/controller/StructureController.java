@@ -29,4 +29,8 @@ public class StructureController {
     @PostMapping("/projects/{projectId}/members") public ResponseEntity<ProjectMemberDto> addMember(@PathVariable Long projectId, @RequestParam String employeeId, @RequestParam String employeeName, @RequestParam(required = false) String role) { return ResponseEntity.status(HttpStatus.CREATED).body(structureService.addMember(projectId, employeeId, employeeName, role)); }
     @PutMapping("/members/{memberId}") public ResponseEntity<ProjectMemberDto> updateMember(@PathVariable Long memberId, @RequestParam String role) { return ResponseEntity.ok(structureService.updateMember(memberId, role)); }
     @DeleteMapping("/members/{memberId}") public ResponseEntity<Void> removeMember(@PathVariable Long memberId) { structureService.removeMember(memberId); return ResponseEntity.noContent().build(); }
+        @GetMapping("/users-available")
+    public ResponseEntity<List<java.util.Map<String, Object>>> listAvailableUsers() {
+        return ResponseEntity.ok(structureService.listAvailableUsers());
+    }
 }

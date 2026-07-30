@@ -25,25 +25,20 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .cors(cors -> cors.configurationSource(request -> {
+                var config = new org.springframework.web.cors.CorsConfiguration();
+                config.setAllowedOrigins(java.util.Arrays.asList("http://localhost:5173", "http://localhost:3000"));
+                config.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(java.util.List.of("*"));
+                config.setAllowCredentials(true);
+                return config;
+            }))
             .authorizeHttpRequests(auth -> auth
-                // Public
                 .requestMatchers("/api/auth/login").permitAll()
-                // User management - ADMIN only
+                .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
-                // Operator creation - only RH, CHEF_EQUIPE, SUPERVISEUR
-                .requestMatchers(HttpMethod.POST, "/api/operators").hasAnyRole("RH", "CHEF_EQUIPE", "SUPERVISEUR")
-                // Project creation - only SUPERVISEUR, CHEF_EQUIPE
-                .requestMatchers(HttpMethod.POST, "/api/structure/projects").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE")
-                // Zone/Workstation creation - SUPERVISEUR, CHEF_EQUIPE, ADMIN
-                .requestMatchers(HttpMethod.POST, "/api/structure/projects/*/zones").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE", "ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/structure/workstations").hasAnyRole("SUPERVISEUR", "CHEF_EQUIPE", "ADMIN")
-                // Cadence entry - CHEF_EQUIPE only
-                .requestMatchers(HttpMethod.POST, "/api/training/formations/*/tracking/cadence").hasRole("CHEF_EQUIPE")
-                // Defauts entry - AGENT_QUALITE only
-                .requestMatchers(HttpMethod.POST, "/api/training/formations/*/tracking/defauts").hasRole("AGENT_QUALITE")
-                // Everything else requires authentication
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )

@@ -52,5 +52,6 @@ export const structureApi = {
   addMember: (projectId, data) => api.post(`/structure/projects/${projectId}/members`, null, { params: data }),
   updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
   deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
+    getAvailableUsers: () => api.get('/structure/users-available'),
   getTeams: () => api.get('/teams'),
 }

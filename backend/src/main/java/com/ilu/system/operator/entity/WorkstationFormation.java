@@ -29,7 +29,7 @@ public class WorkstationFormation {
     @Column(nullable = false)
     private String status;
 
-   @Column(name = "achieved_level")
+    @Column(name = "achieved_level")
     private String achievedLevel;
 
     @Column(name = "target_level")
@@ -47,7 +47,7 @@ public class WorkstationFormation {
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-      public String getAchievedLevel() { return achievedLevel; }
+    public String getAchievedLevel() { return achievedLevel; }
     public void setAchievedLevel(String achievedLevel) { this.achievedLevel = achievedLevel; }
     public String getTargetLevel() { return targetLevel; }
     public void setTargetLevel(String targetLevel) { this.targetLevel = targetLevel; }
