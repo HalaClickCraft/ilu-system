@@ -26,13 +26,14 @@ export const operatorsApi = {
 
 export const trainingApi = {
   getFormations: () => api.get('/training/formations'),
-  createFormation: (params) => api.post('/training/formations', null, { params }),
+  getFormationDetail: (id) => api.get(`/training/formations/${id}`),
+  createFormations: (workstationId, operatorIds) => api.post('/training/formations', null, { params: { workstationId, operatorIds: operatorIds.join(',') } }),
   getTracking: (formationId) => api.get(`/training/formations/${formationId}/tracking`),
   addTracking: (formationId, data) => api.post(`/training/formations/${formationId}/tracking`, data),
-  addCadence: (formationId, data) => api.post(`/training/formations/${formationId}/tracking/cadence`, data),
-  addDefauts: (formationId, data) => api.post(`/training/formations/${formationId}/tracking/defauts`, data),
-  completeFormation: (formationId) => api.put(`/training/formations/${formationId}/complete`),
-  assignOperator: (params) => api.post('/training/assignments', null, { params }),
+  batchSave: (formationId, days) => api.post(`/training/formations/${formationId}/batch-save`, { days }),
+  autoEvaluate: (formationId) => api.post(`/training/formations/${formationId}/auto-evaluate`),
+  getChartData: (formationId) => api.get(`/training/formations/${formationId}/chart-data`),
+  resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
   getStatistics: () => api.get('/training/statistics'),
 }
 
@@ -52,6 +53,4 @@ export const structureApi = {
   addMember: (projectId, data) => api.post(`/structure/projects/${projectId}/members`, null, { params: data }),
   updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
   deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
-    getAvailableUsers: () => api.get('/structure/users-available'),
-  getTeams: () => api.get('/teams'),
 }
