@@ -28,12 +28,16 @@ export const trainingApi = {
   getFormations: () => api.get('/training/formations'),
   getFormationDetail: (id) => api.get(`/training/formations/${id}`),
   createFormations: (workstationId, operatorIds) => api.post('/training/formations', null, { params: { workstationId, operatorIds: operatorIds.join(',') } }),
+  getAvailableStructure: () => api.get('/training/available-structure'),
   getTracking: (formationId) => api.get(`/training/formations/${formationId}/tracking`),
   addTracking: (formationId, data) => api.post(`/training/formations/${formationId}/tracking`, data),
   batchSave: (formationId, days) => api.post(`/training/formations/${formationId}/batch-save`, { days }),
+  saveDailyBatch: (entries) => api.post('/training/daily-batch', { entries }),
   autoEvaluate: (formationId) => api.post(`/training/formations/${formationId}/auto-evaluate`),
   getChartData: (formationId) => api.get(`/training/formations/${formationId}/chart-data`),
-  resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
+    resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
+  setQualityObjective: (formationId, qualityObjective) => api.put(`/training/formations/${formationId}/quality-objective`, { qualityObjective }),
+  setWorkstationQualityObjective: (workstationId, qualityObjective) => api.put(`/training/workstations/${workstationId}/quality-objective`, { qualityObjective }),
   getStatistics: () => api.get('/training/statistics'),
 }
 

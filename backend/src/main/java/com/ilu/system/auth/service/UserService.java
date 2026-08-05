@@ -35,6 +35,7 @@ public class UserService {
         user.setNationalId(request.getNationalId());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setMustChangePassword(true);
+        user.setDepartment(request.getDepartment());
         user.setActive(true);
         Set<Role> roles = new HashSet<>();
         if (request.getRoles() != null) {
@@ -78,4 +79,49 @@ public class UserService {
         dto.setRoles(user.getRoles().stream().map(Role::getLabel).collect(Collectors.toSet()));
         return dto;
     }
+    @Transactional
+public void seedRoles() {
+    String[] existingRoles = {
+        "ADMIN", "CHEF_EQUIPE", "RH", "AGENT_QUALITE", "RESP_QUALITE", "RESP_HSE", "SUPERVISEUR"
+    };
+    for (String label : existingRoles) {
+        if (!roleRepository.findByLabel(label).isPresent()) {
+            Role role = new Role();
+            role.setLabel(label);
+            roleRepository.save(role);
+        }
+    }
+
+    String[] newDeptRoles = {
+        "DEPT_PROCESS", "DEPT_MAINTENANCE", "DEPT_DGT_MANUFACTURING"
+    };
+    for (String label : newDeptRoles) {
+        if (!roleRepository.findByLabel(label).isPresent()) {
+            Role role = new Role();
+            role.setLabel(label);
+            roleRepository.save(role);
+        }
+    }
+}
+
+@Transactional
+public UserDto updateUserRoles(Long userId, Set<String> newRoles, String department) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    Set<Role> roles = new HashSet<>();
+    for (String roleLabel : newRoles) {
+        Role role = roleRepository.findByLabel(roleLabel)
+                .orElseThrow(() -> new RuntimeException("Role '" + roleLabel + "' not found"));
+        roles.add(role);
+    }
+    user.setRoles(roles);
+
+    if (department != null) {
+        user.setDepartment(department);
+    }
+
+    User saved = userRepository.save(user);
+    return toDto(saved);
+}
 }

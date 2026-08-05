@@ -1,254 +1,151 @@
 <template>
   <div class="space-y-6">
-    <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+    <div v-if="loading" class="py-20 text-center text-gray-400">Chargement…</div>
     <template v-else-if="formation">
-      <!-- HEADER -->
       <div class="flex items-center gap-4">
-        <button @click="$router.push('/training')" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-        <h1 class="text-2xl font-bold text-gray-900">Evaluation Formation</h1>
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :class="statusClass(formation.status)">{{ statusLabel(formation.status) }}</span>
+        <button @click="$router.push('/training')" class="text-gray-400 hover:text-gray-600">←</button>
+        <h1 class="text-2xl font-bold text-gray-900">Évaluation formation</h1>
+        <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusClass(formation.status)">{{ statusLabel(formation.status) }}</span>
       </div>
-      <!-- INFO CARDS -->
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><p class="text-xs text-gray-500">Operateur</p><p class="font-semibold mt-1 text-sm">{{ formation.operatorName }}</p></div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><p class="text-xs text-gray-500">Poste</p><p class="font-semibold mt-1 text-sm">{{ formation.workstationName }}</p></div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><p class="text-xs text-gray-500">Cadence Objectif</p><p class="font-semibold mt-1 text-sm">{{ formation.targetCadence ?? '-' }} /j</p></div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><p class="text-xs text-gray-500">Moy. Cadence</p><p class="font-semibold mt-1 text-sm" :class="cadenceColor">{{ avgCadence }}</p></div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><p class="text-xs text-gray-500">Defauts Total</p><p class="font-semibold mt-1 text-sm" :class="defectsColor">{{ totalDefects }} / {{ formation.qualityObjective ?? 7 }}</p></div>
+      <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><p class="text-xs text-gray-500">Opérateur</p><p class="mt-1 text-sm font-semibold">{{ formation.operatorName }}</p></div>
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><p class="text-xs text-gray-500">Poste</p><p class="mt-1 text-sm font-semibold">{{ formation.workstationName }}</p></div>
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><p class="text-xs text-gray-500">Cadence objectif</p><p class="mt-1 text-sm font-semibold">{{ formation.targetCadence ?? '-' }} /j</p></div>
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><p class="text-xs text-gray-500">Moy. cadence</p><p class="mt-1 text-sm font-semibold" :class="cadenceColor">{{ averageCadence }}</p></div>
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><p class="text-xs text-gray-500">Défauts total</p><p class="mt-1 text-sm font-semibold" :class="defectsColor">{{ totalDefects }} / {{ formation.qualityObjective ?? 7 }}</p></div>
+        <div class="rounded-xl border border-purple-200 bg-purple-50 p-4 shadow-sm"><p class="text-xs font-medium text-purple-600">Objectif qualité</p><div v-if="canEditQuality && editingQO" class="mt-1 flex gap-1"><input v-model.number="editQOValue" min="1" type="number" class="w-14 rounded border border-purple-300 px-1 text-sm"><button @click="saveQualityObjective" class="text-xs text-purple-700">OK</button></div><div v-else class="mt-1 flex gap-2"><p class="text-sm font-semibold text-purple-700">{{ formation.qualityObjective ?? 7 }}</p><button v-if="canEditQuality" @click="editingQO = true; editQOValue = formation.qualityObjective ?? 7" class="text-xs text-purple-600">Modifier</button></div></div>
       </div>
 
-      <!-- CHART -->
-      <div v-if="chartReady" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <h2 class="font-semibold text-gray-900 mb-3 text-sm">Diagramme de Suivi</h2>
-        <div style="position:relative; height:300px;">
-          <Line :data="chartJsData" :options="chartJsOptions" />
-        </div>
-      </div>
+      <div v-if="chartReady" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><h2 class="mb-3 text-sm font-semibold">Diagramme de suivi</h2><div class="h-[300px]"><Line :data="chartData" :options="chartOptions" /></div></div>
 
-      <!-- 12-DAY TABLE -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 class="font-semibold text-gray-900 text-sm">Saisie des donnees (J1 - J12)</h2>
-          <div class="flex gap-2">
-            <span class="text-xs text-gray-400">{{ savedDaysCount }} / 12 jours saisis</span>
-            <button v-if="canEdit && hasDirty" @click="saveAll" :disabled="saving" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg disabled:opacity-50">
-              <span v-if="saving" class="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
-              Enregistrer Tout
-            </button>
-            <button v-if="canEdit" @click="evaluate" :disabled="evaluating" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs rounded-lg disabled:opacity-50">
-              <span v-if="evaluating" class="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
-              Auto-Evaluer
-            </button>
-          </div>
+      <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
+          <div><h2 class="text-sm font-semibold">Saisie des données (J1–J12)</h2><p class="mt-1 text-xs text-gray-500">Chef d’équipe : cadence · Agent qualité : défauts</p></div>
+          <div class="flex items-center gap-2"><span class="text-xs text-gray-400">{{ completeDays }} / 12 jours complets</span><button v-if="canContribute && hasDirty" @click="saveAll" :disabled="saving" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">Enregistrer</button><button v-if="canContribute" @click="evaluate" :disabled="evaluating || !readyToEvaluate" class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs text-white disabled:opacity-50">Auto-évaluer</button></div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-50"><tr>
-              <th class="text-left py-2 px-3 font-medium text-gray-500 text-xs w-48">Indicateur</th>
-              <th v-for="i in 12" :key="i" class="text-center py-2 px-1 font-medium text-xs w-16" :class="dayData[i]?.saved ? 'bg-gray-50' : 'bg-teal-50'">J{{ i }}</th>
-              <th class="text-center py-2 px-3 font-medium text-xs bg-gray-100 w-20">Moyenne</th>
-              <th class="text-center py-2 px-3 font-medium text-xs bg-gray-100 w-16">Total</th>
-            </tr></thead>
+            <thead class="bg-gray-50"><tr><th class="w-48 px-3 py-2 text-left text-xs font-medium text-gray-500">Indicateur</th><th v-for="day in 12" :key="day" class="w-16 px-1 py-2 text-center text-xs font-medium">J{{ day }}</th><th class="w-20 bg-gray-100 px-3 py-2 text-center text-xs">Moy.</th><th class="w-16 bg-gray-100 px-3 py-2 text-center text-xs">Total</th></tr></thead>
             <tbody>
-              <tr class="bg-teal-50/50">
-                <td class="py-2 px-3 text-xs font-medium text-teal-700">Cadence objectif du poste</td>
-                <td v-for="i in 12" :key="'tc'+i" class="text-center py-2 px-1 text-xs text-teal-700">{{ formation.targetCadence ?? '-' }}</td>
-                <td class="text-center py-2 px-3 text-xs font-bold bg-gray-100">{{ formation.targetCadence ?? '-' }}</td>
-                <td class="text-center py-2 px-3 text-xs bg-gray-100">-</td>
-              </tr>
-              <tr>
-                <td class="py-2 px-3 text-xs font-medium text-gray-700">Cadence realisee</td>
-                <td v-for="i in 12" :key="'ac'+i" class="text-center py-2 px-1">
-                  <span v-if="dayData[i]?.saved && !dirtyDays.has(i)" class="text-xs font-semibold" :class="getCadenceColor(dayData[i].cadence)">{{ dayData[i].cadence }}</span>
-                  <input v-else v-model.number="dayData[i].cadence" type="number" min="0" class="w-14 text-center text-xs border border-emerald-300 rounded py-1 focus:ring-2 focus:ring-emerald-500 outline-none bg-white" @input="dirtyDays.add(i)" />
-                </td>
-                <td class="text-center py-2 px-3 text-xs font-bold bg-gray-100" :class="cadenceColor">{{ avgCadence }}</td>
-                <td class="text-center py-2 px-3 text-xs bg-gray-100">-</td>
-              </tr>
-              <tr>
-                <td class="py-2 px-3 text-xs font-medium text-gray-700">Nbr de defauts</td>
-                <td v-for="i in 12" :key="'df'+i" class="text-center py-2 px-1">
-                  <span v-if="dayData[i]?.saved && !dirtyDays.has(i)" class="text-xs font-medium" :class="(dayData[i].defects || 0) > 0 ? 'text-red-600' : 'text-emerald-600'">{{ dayData[i].defects }}</span>
-                  <input v-else v-model.number="dayData[i].defects" type="number" min="0" class="w-14 text-center text-xs border border-emerald-300 rounded py-1 focus:ring-2 focus:ring-emerald-500 outline-none bg-white" @input="dirtyDays.add(i)" />
-                </td>
-                <td class="text-center py-2 px-3 text-xs bg-gray-100">-</td>
-                <td class="text-center py-2 px-3 text-xs font-bold bg-gray-100" :class="defectsColor">{{ totalDefects }}</td>
-              </tr>
-              <tr>
-                <td colspan="14" class="py-2 px-3 text-xs text-blue-700 bg-blue-50/30">
-                  Objectif qualite: nombre de defauts &lt; {{ formation.qualityObjective ?? 7 }} sur une periode de 12 jours
-                </td>
-              </tr>
+              <tr class="bg-teal-50/50"><td class="px-3 py-2 text-xs font-medium text-teal-700">Cadence objectif</td><td v-for="day in 12" :key="'target' + day" class="px-1 py-2 text-center text-xs text-teal-700">{{ formation.targetCadence ?? '-' }}</td><td class="bg-gray-100 px-3 py-2 text-center text-xs font-bold">{{ formation.targetCadence ?? '-' }}</td><td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td></tr>
+              <tr><td class="px-3 py-2 text-xs font-medium">Cadence réalisée</td><td v-for="day in 12" :key="'cadence' + day" class="px-1 py-2 text-center"><input v-if="canEditCadence && canEdit" v-model.number="dayData[day].cadence" min="0" type="number" class="w-14 rounded border border-emerald-300 py-1 text-center text-xs" @input="dirtyDays.add(day)"><span v-else :title="dayData[day].cadenceSubmittedBy ? `Saisi par ${dayData[day].cadenceSubmittedBy}` : ''" class="text-xs font-semibold" :class="getCadenceColor(dayData[day].cadence)">{{ dayData[day].cadence ?? '-' }}</span></td><td class="bg-gray-100 px-3 py-2 text-center text-xs font-bold" :class="cadenceColor">{{ averageCadence }}</td><td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td></tr>
+              <tr><td class="px-3 py-2 text-xs font-medium">Nombre de défauts</td><td v-for="day in 12" :key="'defects' + day" class="px-1 py-2 text-center"><input v-if="canEditDefects && canEdit" v-model.number="dayData[day].defects" min="0" type="number" class="w-14 rounded border border-purple-300 py-1 text-center text-xs" @input="dirtyDays.add(day)"><span v-else :title="dayData[day].defectsSubmittedBy ? `Saisi par ${dayData[day].defectsSubmittedBy}` : ''" class="text-xs font-semibold" :class="(dayData[day].defects ?? 0) > 0 ? 'text-red-600' : 'text-emerald-600'">{{ dayData[day].defects ?? '-' }}</span></td><td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td><td class="bg-gray-100 px-3 py-2 text-center text-xs font-bold" :class="defectsColor">{{ totalDefects }}</td></tr>
+              <tr><td colspan="14" class="bg-blue-50/30 px-3 py-2 text-xs text-blue-700">L’évaluation est automatique uniquement lorsque les deux mesures sont présentes pour les 12 jours.</td></tr>
             </tbody>
           </table>
         </div>
-        <!-- EVAL RESULT -->
-        <div v-if="evalResult" class="p-4 border-t" :class="evalResult.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'">
-          <div class="text-center">
-            <h3 :class="evalResult.passed ? 'text-emerald-700' : 'text-red-700'" class="text-lg font-bold">
-              {{ evalResult.passed ? 'FORMATION VALIDEE' : 'FORMATION ECHOUEE' }}
-            </h3>
-            <div class="flex justify-center gap-8 mt-3">
-              <div>
-                <div class="text-xs text-gray-500">Moyenne Cadence</div>
-                <div class="font-bold" :class="evalResult.passedCadence ? 'text-emerald-600' : 'text-red-600'">
-                  {{ evalResult.averageCadence }} / {{ evalResult.targetCadence }}
-                </div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Total Defauts</div>
-                <div class="font-bold" :class="evalResult.passedQuality ? 'text-emerald-600' : 'text-red-600'">
-                  {{ evalResult.totalDefects }} / {{ evalResult.qualityObjective }}
-                </div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-500">Jours Saisis</div>
-                <div class="font-bold">{{ evalResult.daysWithData }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- RESET for FAILED -->
-        <div v-if="formation.status === 'FAILED'" class="p-4 border-t border-red-100 flex justify-between items-center bg-red-50/50">
-          <span class="text-sm text-red-700 font-medium">Formation echouee. Moy. cadence ou defauts insuffisants.</span>
-          <button @click="resetFormation" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg">Recommencer la formation</button>
-        </div>
+        <div v-if="evalResult" class="border-t p-4 text-center" :class="evalResult.passed ? 'bg-emerald-50' : 'bg-red-50'"><h3 class="font-bold" :class="evalResult.passed ? 'text-emerald-700' : 'text-red-700'">{{ evalResult.passed ? 'FORMATION VALIDÉE' : 'FORMATION ÉCHOUÉE' }}</h3><p class="mt-2 text-sm">Cadence moyenne : {{ evalResult.averageCadence }} / {{ evalResult.targetCadence }} · Défauts : {{ evalResult.totalDefects }} / {{ evalResult.qualityObjective }}</p></div>
+        <div v-if="formation.status === 'FAILED'" class="flex items-center justify-between border-t border-red-100 bg-red-50/50 p-4"><span class="text-sm font-medium text-red-700">Formation échouée. La période de 12 jours peut être recommencée.</span><button @click="resetFormation" class="rounded-lg bg-amber-500 px-4 py-2 text-sm text-white hover:bg-amber-600">Recommencer</button></div>
       </div>
     </template>
   </div>
 </template>
+
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { trainingApi } from '@/api/endpoints'
 import { Line } from 'vue-chartjs'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js'
+import { BarElement } from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
+import { trainingApi } from '@/api/endpoints'
+import { useAuthStore } from '@/stores/auth'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend)
 
 const route = useRoute()
+const authStore = useAuthStore()
 const formation = ref(null)
-const tracking = ref([])
 const loading = ref(true)
 const saving = ref(false)
 const evaluating = ref(false)
-const evalResult = ref(null)
+const editingQO = ref(false)
+const editQOValue = ref(7)
 const chartReady = ref(false)
-const chartJsData = ref(null)
+const chartData = ref(null)
+const evalResult = ref(null)
+const error = ref('')
 const dirtyDays = reactive(new Set())
-
-// 1-indexed: dayData[1] through dayData[12]
 const dayData = reactive({})
-for (let i = 1; i <= 12; i++) {
-  dayData[i] = { cadence: null, defects: 0, saved: false }
-}
+for (let day = 1; day <= 12; day++) dayData[day] = { cadence: null, defects: null, cadenceSubmittedBy: null, defectsSubmittedBy: null }
 
-const statusLabel = (s) => ({ IN_PROGRESS: 'En Cours', COMPLETED: 'Reussie', FAILED: 'Echouee' })[s] || s
-const statusClass = (s) => ({ IN_PROGRESS: 'bg-amber-100 text-amber-700', COMPLETED: 'bg-emerald-100 text-emerald-700', FAILED: 'bg-red-100 text-red-700' })[s] || 'bg-gray-100 text-gray-600'
-
+const canEditCadence = computed(() => authStore.isChefEquipe)
+const canEditDefects = computed(() => authStore.isAgentQualite)
+const canEditQuality = computed(() => authStore.isAgentQualite)
+const canContribute = computed(() => canEditCadence.value || canEditDefects.value)
 const canEdit = computed(() => formation.value?.status === 'IN_PROGRESS')
 const hasDirty = computed(() => dirtyDays.size > 0)
-
-const savedDaysCount = computed(() => {
-  let c = 0
-  for (let i = 1; i <= 12; i++) { if (dayData[i]?.saved) c++ }
-  return c
+const completeDays = computed(() => Object.values(dayData).filter(day => day.cadence !== null && day.defects !== null).length)
+const readyToEvaluate = computed(() => completeDays.value === 12)
+const averageCadence = computed(() => {
+  const values = Object.values(dayData).map(day => day.cadence).filter(value => value !== null)
+  return values.length ? (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1) : '-'
 })
+const totalDefects = computed(() => Object.values(dayData).reduce((sum, day) => sum + (day.defects ?? 0), 0))
+const cadenceColor = computed(() => averageCadence.value !== '-' && Number(averageCadence.value) >= formation.value?.targetCadence ? 'text-emerald-600' : 'text-red-600')
+const defectsColor = computed(() => totalDefects.value < (formation.value?.qualityObjective ?? 7) ? 'text-emerald-600' : 'text-red-600')
+const statusLabel = status => ({ IN_PROGRESS: 'En cours', COMPLETED: 'Réussie', FAILED: 'Échouée' })[status] || status
+const statusClass = status => ({ IN_PROGRESS: 'bg-amber-100 text-amber-700', COMPLETED: 'bg-emerald-100 text-emerald-700', FAILED: 'bg-red-100 text-red-700' })[status] || 'bg-gray-100 text-gray-600'
+const getCadenceColor = value => value !== null && formation.value?.targetCadence && value >= formation.value.targetCadence ? 'text-emerald-600' : 'text-red-600'
+const chartOptions = { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Cadence' } }, y1: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Défauts' }, grid: { drawOnChartArea: false } } } }
 
-const getCadenceColor = (val) => {
-  if (val == null || !formation.value?.targetCadence) return ''
-  return val >= formation.value.targetCadence ? 'text-emerald-600' : 'text-red-600'
-}
-
-const avgCadence = computed(() => {
-  let sum = 0, count = 0
-  for (let i = 1; i <= 12; i++) {
-    const v = dayData[i]?.cadence
-    if (v != null && v > 0) { sum += v; count++ }
-  }
-  return count > 0 ? (sum / count).toFixed(1) : '-'
-})
-
-const totalDefects = computed(() => {
-  let t = 0
-  for (let i = 1; i <= 12; i++) { t += (dayData[i]?.defects || 0) }
-  return t
-})
-
-const cadenceColor = computed(() => {
-  if (!formation.value?.targetCadence || avgCadence.value === '-') return ''
-  return parseFloat(avgCadence.value) >= formation.value.targetCadence ? 'text-emerald-600' : 'text-red-600'
-})
-
-const defectsColor = computed(() => totalDefects.value >= (formation.value?.qualityObjective ?? 7) ? 'text-red-600' : 'text-emerald-600')
-
-// Chart
-const chartJsOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { mode: 'index', intersect: false },
-  plugins: { legend: { position: 'top' } },
-  scales: {
-    y: { beginAtZero: true, title: { display: true, text: 'Cadence (pieces/jour)' } },
-    y1: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Defauts' }, grid: { drawOnChartArea: false } },
-    x: { title: { display: true, text: 'Jour' } },
-  },
-}
-
-const buildChart = async () => {
-  try {
-    const res = await trainingApi.getChartData(route.params.id)
-    const raw = res.data
-    chartJsData.value = {
-      labels: raw.labels,
-      datasets: [
-        { ...raw.targetCadenceDataset },
-        { ...raw.achievedCadenceDataset, fill: true },
-        { ...raw.defectsDataset, type: 'bar', yAxisID: 'y1' },
-      ],
+const load = async () => {
+  const [detailResponse, trackingResponse, chartResponse] = await Promise.all([trainingApi.getFormationDetail(route.params.id), trainingApi.getTracking(route.params.id), trainingApi.getChartData(route.params.id)])
+  formation.value = detailResponse.data
+  for (let day = 1; day <= 12; day++) dayData[day] = { cadence: null, defects: null, cadenceSubmittedBy: null, defectsSubmittedBy: null }
+  for (const tracking of trackingResponse.data) {
+    if (tracking.dayNumber >= 1 && tracking.dayNumber <= 12) {
+      dayData[tracking.dayNumber] = { cadence: tracking.actualCadence, defects: tracking.defects, cadenceSubmittedBy: tracking.cadenceSubmittedBy, defectsSubmittedBy: tracking.defectsSubmittedBy }
     }
-    chartReady.value = true
-  } catch (e) { console.error('Chart error', e) }
+  }
+  const raw = chartResponse.data
+  chartData.value = { labels: raw.labels, datasets: [raw.targetCadenceDataset, raw.achievedCadenceDataset, raw.defectsDataset] }
+  chartReady.value = true
 }
 
 const saveAll = async () => {
   saving.value = true
+  error.value = ''
   try {
-    const days = []
-    for (const dayNum of dirtyDays) {
-      days.push({
-        dayNumber: dayNum,
-        actualCadence: dayData[dayNum].cadence,
-        defects: dayData[dayNum].defects || 0,
-        trackingDate: new Date().toISOString().split('T')[0],
-      })
-    }
-    if (days.length === 0) return
+    const days = [...dirtyDays].map(dayNumber => ({
+      dayNumber,
+      trackingDate: new Date().toISOString().slice(0, 10),
+      ...(canEditCadence.value ? { actualCadence: dayData[dayNumber].cadence } : {}),
+      ...(canEditDefects.value ? { defects: dayData[dayNumber].defects } : {}),
+    }))
     await trainingApi.batchSave(route.params.id, days)
     dirtyDays.clear()
-    await fetchData()
-  } catch (e) { console.error(e) } finally { saving.value = false }
+    await load()
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Impossible d’enregistrer le suivi.'
+  } finally {
+    saving.value = false
+  }
 }
 
 const evaluate = async () => {
   evaluating.value = true
+  error.value = ''
   try {
-    // Save dirty days first
     if (hasDirty.value) await saveAll()
-    const res = await trainingApi.autoEvaluate(route.params.id)
-    evalResult.value = res.data
-    await fetchData()
-  } catch (e) { console.error(e) } finally { evaluating.value = false }
+    evalResult.value = (await trainingApi.autoEvaluate(route.params.id)).data
+    await load()
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Impossible d’évaluer la formation.'
+  } finally {
+    evaluating.value = false
+  }
+}
+
+const saveQualityObjective = async () => {
+  try {
+    await trainingApi.setQualityObjective(route.params.id, editQOValue.value)
+    editingQO.value = false
+    await load()
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Impossible de mettre à jour l’objectif qualité.'
+  }
 }
 
 const resetFormation = async () => {
@@ -256,33 +153,19 @@ const resetFormation = async () => {
     await trainingApi.resetFormation(route.params.id)
     evalResult.value = null
     dirtyDays.clear()
-    for (let i = 1; i <= 12; i++) { dayData[i] = { cadence: null, defects: 0, saved: false } }
-    await fetchData()
-  } catch (e) { console.error(e) }
+    await load()
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Impossible de réinitialiser la formation.'
+  }
 }
 
-const fetchData = async () => {
+onMounted(async () => {
   try {
-    const [detail, track] = await Promise.all([
-      trainingApi.getFormationDetail(route.params.id),
-      trainingApi.getTracking(route.params.id),
-    ])
-    formation.value = detail.data
-    tracking.value = track.data
-    evalResult.value = null
-
-    // Populate dayData from tracking
-    for (let i = 1; i <= 12; i++) { dayData[i] = { cadence: null, defects: 0, saved: false } }
-    for (const t of tracking.value) {
-      if (t.dayNumber >= 1 && t.dayNumber <= 12) {
-        dayData[t.dayNumber] = { cadence: t.actualCadence, defects: t.defects || 0, saved: true }
-      }
-    }
-
-    // Build chart
-    await buildChart()
-  } catch (e) { console.error(e) }
-}
-
-onMounted(async () => { await fetchData(); loading.value = false })
+    await load()
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Impossible de charger la formation.'
+  } finally {
+    loading.value = false
+  }
+})
 </script>

@@ -96,6 +96,9 @@ const availableRoles = [
   { value: 'AGENT_QUALITE', label: 'Agent Qualite' },
    { value: 'CHEF_EQUIPE', label: 'Chef d\'Equipe' },
   { value: 'SUPERVISEUR', label: 'Superviseur' },
+  { value: 'DEPT_PROCESS', label: 'Dept Process' },
+{ value: 'DEPT_MAINTENANCE', label: 'Dept Maintenance' },
+{ value: 'DEPT_DGT_MANUFACTURING', label: 'Dept DGT Manufacturing' },
 ]
 
 const roleLabel = (r) => ({ ADMIN: 'Admin', RH: 'RH', RESP_QUALITE: 'Resp. Qualite', RESP_HSE: 'Resp. HSE', AGENT_QUALITE: 'Agent Qualite', CHEF_EQUIPE: 'Chef d\'Equipe', SUPERVISEUR: 'Superviseur' })[r] || r

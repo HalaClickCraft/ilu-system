@@ -36,6 +36,9 @@ const routes = [
       { path: 'rh/recrutement', name: 'rh-recrutement', component: () => import('@/views/operators/OperatorsList.vue'), meta: { roles: ['ADMIN', 'RH'] } },
       // Teams route
       { path: 'teams', name: 'teams', component: () => import('@/views/structure/TeamsView.vue') },
+           
+      { path: 'onboarding', name: 'onboarding', component: () => import('@/views/onboarding/OnboardingView.vue') },
+    
     ],
   },
 ]

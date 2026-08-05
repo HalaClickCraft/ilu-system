@@ -6,7 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -29,4 +33,19 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) { userService.deleteUser(id); return ResponseEntity.noContent().build(); }
+    @PutMapping("/{id}/roles")
+public ResponseEntity<UserDto> updateUserRoles(
+        @PathVariable Long id,
+        @RequestBody Map<String, Object> body) {
+    @SuppressWarnings("unchecked")
+    Set<String> roles = new HashSet<>((List<String>) body.get("roles"));
+    String department = (String) body.get("department");
+    return ResponseEntity.ok(userService.updateUserRoles(id, roles, department));
+}
+
+@PostMapping("/seed-roles")
+public ResponseEntity<String> seedRoles() {
+    userService.seedRoles();
+    return ResponseEntity.ok("Roles seeded successfully");
+}
 }

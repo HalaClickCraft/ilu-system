@@ -34,6 +34,8 @@ public class WorkstationFormation {
 
     @Column(name = "target_level")
     private String targetLevel;
+        @Column(name = "quality_objective")
+    private Integer qualityObjective;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -51,4 +53,6 @@ public class WorkstationFormation {
     public void setAchievedLevel(String achievedLevel) { this.achievedLevel = achievedLevel; }
     public String getTargetLevel() { return targetLevel; }
     public void setTargetLevel(String targetLevel) { this.targetLevel = targetLevel; }
+        public Integer getQualityObjective() { return qualityObjective; }
+    public void setQualityObjective(Integer qualityObjective) { this.qualityObjective = qualityObjective; }
 }

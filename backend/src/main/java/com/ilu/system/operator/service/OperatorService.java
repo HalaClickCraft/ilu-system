@@ -88,8 +88,8 @@ public class OperatorService {
             dto.setStartDate(f.getStartDate());
             dto.setEndDate(f.getEndDate());
             dto.setStatus(f.getStatus());
-            dto.setAchievedLevel(f.getAchievedLevel());
-            dto.setTargetLevel(f.getTargetLevel());
+           try { dto.setAchievedLevel(Integer.parseInt(f.getAchievedLevel())); } catch (Exception e) { dto.setAchievedLevel(0); }
+try { dto.setTargetLevel(Integer.parseInt(f.getTargetLevel())); } catch (Exception e) { dto.setTargetLevel(0); }
             return dto;
         }).collect(Collectors.toList());
     }

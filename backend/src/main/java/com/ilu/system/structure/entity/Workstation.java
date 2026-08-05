@@ -27,6 +27,9 @@ public class Workstation {
     @Column(name = "target_ilu_level")
     private String targetIluLevel;
 
+        @Column(name = "quality_objective")
+    private Integer qualityObjective;
+
     @ManyToOne
     @JoinColumn(name = "zone_id")
     private Zone zone;
@@ -50,4 +53,6 @@ public class Workstation {
     public void setZone(Zone zone) { this.zone = zone; }
     public List<WorkstationFormation> getFormations() { return formations; }
     public void setFormations(List<WorkstationFormation> formations) { this.formations = formations; }
+        public Integer getQualityObjective() { return qualityObjective; }
+    public void setQualityObjective(Integer qualityObjective) { this.qualityObjective = qualityObjective; }
 }
