@@ -59,30 +59,47 @@ public class TrainingController {
     }
 
     @GetMapping("/formations/{id}/tracking")
-    public ResponseEntity<List<DailyFormationTracking>> getTracking(@PathVariable Long id) {
-        return ResponseEntity.ok(trainingService.getFormationTracking(id));
+    public ResponseEntity<List<Map<String, Object>>> getTracking(@PathVariable Long id) {
+        List<DailyFormationTracking> tracking = trainingService.getFormationTracking(id);
+        List<Map<String, Object>> result = tracking.stream().map(t -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", t.getId());
+            m.put("trackingDate", t.getTrackingDate() != null ? t.getTrackingDate().toString() : null);
+            m.put("dayNumber", t.getDayNumber());
+            m.put("actualCadence", t.getActualCadence());
+            m.put("defects", t.getDefects());
+            m.put("cadenceSubmittedBy", t.getCadenceSubmittedBy());
+            m.put("defectsSubmittedBy", t.getDefectsSubmittedBy());
+            m.put("dailyLevel", t.getDailyLevel());
+            m.put("comment", t.getComment());
+            m.put("supervisor", t.getSupervisor());
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/formations/{id}/tracking")
-    public ResponseEntity<DailyFormationTracking> addTracking(@PathVariable Long id, @RequestBody DailyTrackingDto dto,
+    public ResponseEntity<Map<String, Object>> addTracking(@PathVariable Long id, @RequestBody DailyTrackingDto dto,
                                                                Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(trainingService.addDailyTracking(id, dto, authentication.getName(), roles(authentication)));
+        DailyFormationTracking saved = trainingService.addDailyTracking(id, dto, authentication.getName(), roles(authentication));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toTrackingMap(saved));
     }
 
     @PostMapping("/formations/{id}/batch-save")
-    public ResponseEntity<List<DailyFormationTracking>> batchSave(@PathVariable Long id,
+    public ResponseEntity<List<Map<String, Object>>> batchSave(@PathVariable Long id,
                                                                     @RequestBody Map<String, List<DailyTrackingDto>> payload,
                                                                     Authentication authentication) {
-        return ResponseEntity.ok(trainingService.batchSaveDaily(id, payload.get("days"),
-                authentication.getName(), roles(authentication)));
+        List<DailyFormationTracking> saved = trainingService.batchSaveDaily(id, payload.get("days"),
+                authentication.getName(), roles(authentication));
+        return ResponseEntity.ok(saved.stream().map(this::toTrackingMap).collect(Collectors.toList()));
     }
 
     @PostMapping("/daily-batch")
-    public ResponseEntity<List<DailyFormationTracking>> dailyBatch(
+    public ResponseEntity<List<Map<String, Object>>> dailyBatch(
             @RequestBody Map<String, List<DailyBatchEntryDto>> payload, Authentication authentication) {
-        return ResponseEntity.ok(trainingService.saveDailyBatch(payload.get("entries"),
-                authentication.getName(), roles(authentication)));
+        List<DailyFormationTracking> saved = trainingService.saveDailyBatch(payload.get("entries"),
+                authentication.getName(), roles(authentication));
+        return ResponseEntity.ok(saved.stream().map(this::toTrackingMap).collect(Collectors.toList()));
     }
 
     @PostMapping("/formations/{id}/auto-evaluate")
@@ -124,6 +141,21 @@ public class TrainingController {
     @GetMapping("/statistics")
     public ResponseEntity<FormationStatisticsDto> getStatistics() {
         return ResponseEntity.ok(trainingService.getStatistics());
+    }
+
+    private Map<String, Object> toTrackingMap(DailyFormationTracking t) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id", t.getId());
+        m.put("trackingDate", t.getTrackingDate() != null ? t.getTrackingDate().toString() : null);
+        m.put("dayNumber", t.getDayNumber());
+        m.put("actualCadence", t.getActualCadence());
+        m.put("defects", t.getDefects());
+        m.put("cadenceSubmittedBy", t.getCadenceSubmittedBy());
+        m.put("defectsSubmittedBy", t.getDefectsSubmittedBy());
+        m.put("dailyLevel", t.getDailyLevel());
+        m.put("comment", t.getComment());
+        m.put("supervisor", t.getSupervisor());
+        return m;
     }
 
     private Set<String> roles(Authentication authentication) {

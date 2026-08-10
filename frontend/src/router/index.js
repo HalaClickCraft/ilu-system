@@ -38,6 +38,11 @@ const routes = [
       { path: 'teams', name: 'teams', component: () => import('@/views/structure/TeamsView.vue') },
            
       { path: 'onboarding', name: 'onboarding', component: () => import('@/views/onboarding/OnboardingView.vue') },
+      { path: 'evaluation/templates', name: 'evaluation-templates', component: () => import('@/views/evaluation/EvaluationTemplates.vue') },
+      { path: 'evaluation/sessions', name: 'evaluation-sessions', component: () => import('@/views/evaluation/EvaluationSession.vue') },
+      { path: 'evaluation/questions', name: 'evaluation-questions', component: () => import('@/views/evaluation/QuestionValidation.vue') },
+      { path: 'evaluation/matrix', name: 'evaluation-matrix', component: () => import('@/views/evaluation/PolyvalenceMatrix.vue') },
+      { path: 'evaluation/session/:id', name: 'evaluation-session', component: () => import('@/views/evaluation/EvaluationSession.vue') },
     
     ],
   },

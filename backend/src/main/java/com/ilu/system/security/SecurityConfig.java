@@ -45,7 +45,7 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     log.error("AUTH FAILED on {} {} - Reason: {}", request.getMethod(), request.getRequestURI(), authException.getMessage());
                     response.setContentType("application/json");
-                    response.setStatus(403);
+                    response.setStatus(401);
                     response.getWriter().write("{\"error\":\"Not authenticated\",\"message\":\"" + authException.getMessage() + "\",\"authHeader\":\"" + (request.getHeader("Authorization") != null ? "PRESENT" : "MISSING") + "\"}");
                 })
             );

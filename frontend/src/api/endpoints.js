@@ -57,4 +57,37 @@ export const structureApi = {
   addMember: (projectId, data) => api.post(`/structure/projects/${projectId}/members`, null, { params: data }),
   updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
   deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
+  getAvailableUsers: () => api.get('/structure/users-available'),
+
+}
+export const evaluationApi = {
+  // Templates
+  getTemplates: () => api.get('/evaluation/templates'),
+  getTemplateDetail: (id) => api.get(`/evaluation/templates/${id}`),
+  createTemplate: (data) => api.post('/evaluation/templates', data),
+  validateTemplate: (id) => api.post(`/evaluation/templates/${id}/validate`),
+
+  // Sections
+  addSection: (templateId, data) => api.post(`/evaluation/templates/${templateId}/sections`, data),
+
+  // Questions
+  addQuestion: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions`, data),
+
+  // Question Validation (Responsable)
+  getPendingQuestions: () => api.get('/evaluation/questions/pending'),
+  validateQuestion: (id) => api.post(`/evaluation/questions/${id}/validate`),
+  rejectQuestion: (id, reason) => api.post(`/evaluation/questions/${id}/reject`, { reason }),
+
+  // Sessions
+  startEvaluation: (data) => api.post('/evaluation/sessions/start', data),
+  submitAnswers: (sessionId, answers) => api.post(`/evaluation/sessions/${sessionId}/answers`, { answers }),
+  completeEvaluation: (sessionId) => api.post(`/evaluation/sessions/${sessionId}/complete`),
+  getSessionDetail: (id) => api.get(`/evaluation/sessions/${id}`),
+
+  // Auto-trigger: operators who passed 12j suivi
+  getPendingForOperator: (operatorId) => api.get(`/evaluation/pending/operator/${operatorId}`),
+  getAllPendingEvaluations: () => api.get('/evaluation/pending/all'),
+
+  // Polyvalence Matrix
+  getMatrix: () => api.get('/evaluation/matrix'),
 }
