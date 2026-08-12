@@ -2,22 +2,26 @@ package com.ilu.system.evaluation.service;
 
 import com.ilu.system.auth.entity.User;
 import com.ilu.system.auth.repository.UserRepository;
-import com.ilu.system.evaluation.entity.EvaluationAnswer;
-import com.ilu.system.evaluation.entity.EvaluationQuestion;
-import com.ilu.system.evaluation.entity.EvaluationSection;
-import com.ilu.system.evaluation.entity.EvaluationSession;
-import com.ilu.system.evaluation.entity.EvaluationTemplate;
-import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
-import com.ilu.system.evaluation.repository.EvaluationQuestionRepository;
-import com.ilu.system.evaluation.repository.EvaluationSectionRepository;
-import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
-import com.ilu.system.evaluation.repository.EvaluationTemplateRepository;
+import com.ilu.system.evaluation.entity.*;
+import com.ilu.system.evaluation.repository.*;
+import com.ilu.system.operator.entity.FormationAssignment;
 import com.ilu.system.operator.entity.Operator;
 import com.ilu.system.operator.entity.WorkstationFormation;
+import com.ilu.system.operator.repository.FormationAssignmentRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.repository.WorkstationRepository;
+
+import com.ilu.system.evaluation.entity.EvaluationSession;
+import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
+
+import com.ilu.system.evaluation.entity.EvaluationAnswer;
+import com.ilu.system.evaluation.entity.EvaluationTemplate;
+import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
+import com.ilu.system.evaluation.repository.EvaluationQuestionRepository;
+import com.ilu.system.evaluation.repository.EvaluationSectionRepository;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +30,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class EvaluationService {
+
     private final EvaluationTemplateRepository templateRepo;
     private final EvaluationSectionRepository sectionRepo;
     private final EvaluationQuestionRepository questionRepo;
@@ -45,6 +43,7 @@ public class EvaluationService {
     private final EvaluationAnswerRepository answerRepo;
     private final OperatorRepository operatorRepo;
     private final WorkstationRepository workstationRepo;
+    private final FormationAssignmentRepository assignmentRepo;
     private final WorkstationFormationRepository formationRepo;
     private final UserRepository userRepo;
 
@@ -55,6 +54,7 @@ public class EvaluationService {
                              EvaluationAnswerRepository answerRepo,
                              OperatorRepository operatorRepo,
                              WorkstationRepository workstationRepo,
+                             FormationAssignmentRepository assignmentRepo,
                              WorkstationFormationRepository formationRepo,
                              UserRepository userRepo) {
         this.templateRepo = templateRepo;
@@ -64,594 +64,729 @@ public class EvaluationService {
         this.answerRepo = answerRepo;
         this.operatorRepo = operatorRepo;
         this.workstationRepo = workstationRepo;
+        this.assignmentRepo = assignmentRepo;
         this.formationRepo = formationRepo;
         this.userRepo = userRepo;
     }
 
+    // ======================== TEMPLATE CRUD ========================
+
     @Transactional
-    public Map<String, Object> createTemplate(String name, String description, String typeName,
-                                               Collection<Long> workstationIds, String targetNiveau,
-                                               Long createdById, Set<String> roles) {
-        EvaluationTemplate.TemplateType type = enumValue(EvaluationTemplate.TemplateType.class, typeName, "Type invalide");
-        requireTemplateOwner(type, roles);
+    public Map<String, Object> createTemplate(String name, String description, String typeStr,
+                                               Long workstationId, String targetNiveau, Long createdById) {
+        EvaluationTemplate.TemplateType type;
+        try {
+            type = EvaluationTemplate.TemplateType.valueOf(typeStr);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type invalide: " + typeStr);
+        }
+
         EvaluationTemplate template = new EvaluationTemplate();
-        template.setName(required(name, "Le nom est obligatoire"));
+        template.setName(name);
         template.setDescription(description);
         template.setType(type);
         template.setTargetNiveau(targetNiveau);
         template.setCreatedById(createdById);
-        if (workstationIds != null) {
-            for (Long workstationId : workstationIds) {
-                Workstation workstation = workstationRepo.findById(workstationId)
-                        .orElseThrow(() -> notFound("Poste introuvable"));
-                template.getWorkstations().add(workstation);
-            }
+
+        if (workstationId != null && type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION) {
+            Workstation ws = workstationRepo.findById(workstationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Poste introuvable"));
+            template.setWorkstation(ws);
         }
-        if (type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION && template.getWorkstations().isEmpty()) {
-            throw badRequest("Un template Production doit etre assigne a au moins un poste");
-        }
+
         templateRepo.save(template);
-        return templateSummary(template, "Template cree avec succes");
-    }
 
-    @Transactional
-    public Map<String, Object> addSection(Long templateId, String title, String description, Integer displayOrder,
-                                          String domainName, Set<String> roles) {
-        EvaluationTemplate template = findTemplate(templateId);
-        requireTemplateOwner(template.getType(), roles);
-        EvaluationSection.SectionDomain domain = sectionDomainForTemplate(template.getType(), domainName);
-        requireRole(domain.getResponsibleRole(), roles);
-        EvaluationSection section = new EvaluationSection();
-        section.setTemplate(template);
-        section.setTitle(required(title, "Le titre est obligatoire"));
-        section.setDescription(description);
-        section.setDisplayOrder(displayOrder != null ? displayOrder : sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId).size() + 1);
-        section.setDomain(domain);
-        section.setResponsibleRole(domain.getResponsibleRole());
-        sectionRepo.save(section);
-        return sectionMap(section);
-    }
-
-    @Transactional
-    public Map<String, Object> addQuestion(Long templateId, Long sectionId, String questionText, String expectedAnswer,
-                                            Integer questionNumber, String responseTypeName, Long createdById, Set<String> roles) {
-        EvaluationTemplate template = findTemplate(templateId);
-        if (sectionId == null) {
-            throw badRequest("Une section est obligatoire pour ajouter une question");
-        }
-        EvaluationSection section = sectionRepo.findById(sectionId).orElseThrow(() -> notFound("Section introuvable"));
-        if (section.getTemplate() == null || !section.getTemplate().getId().equals(templateId)) {
-            throw badRequest("La section n'appartient pas au template");
-        }
-        EvaluationSection.SectionDomain domain = effectiveSectionDomain(section);
-        requireTemplateDomain(template, domain);
-        requireRole(domain.getResponsibleRole(), roles);
-        EvaluationQuestion question = new EvaluationQuestion();
-        question.setTemplate(template);
-        question.setSection(section);
-        question.setQuestionText(required(questionText, "La question est obligatoire"));
-        question.setExpectedAnswer(expectedAnswer);
-        question.setQuestionNumber(questionNumber != null ? questionNumber : nextQuestionNumber(templateId));
-        // Kept persisted for existing questionnaire and gating queries; its value is section-owned.
-        question.setCategory(domain.getQuestionCategory());
-        question.setValidatorRole(domain.getResponsibleRole());
-        EvaluationQuestion.ResponseType responseType = responseTypeName == null ? EvaluationQuestion.ResponseType.BINARY
-                : enumValue(EvaluationQuestion.ResponseType.class, responseTypeName, "Type de reponse invalide");
-        if (responseType != EvaluationQuestion.ResponseType.BINARY) {
-            throw badRequest("Les questions d'evaluation doivent utiliser le controle binaire 0/1");
-        }
-        question.setResponseType(responseType);
-        question.setCreatedById(createdById);
-        // Quality questions authored by AGENT_QUALITE require the explicit RESP_QUALITE approval.
-        question.setStatus(domain == EvaluationSection.SectionDomain.QUALITY
-                ? EvaluationQuestion.QuestionStatus.PENDING : EvaluationQuestion.QuestionStatus.VALIDATED);
-        questionRepo.save(question);
-        Map<String, Object> result = questionMap(question);
-        result.put("message", question.getStatus() == EvaluationQuestion.QuestionStatus.PENDING
-                ? "Question creee en attente de validation Qualite" : "Question publiee");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", template.getId());
+        result.put("name", template.getName());
+        result.put("type", template.getType().name());
+        result.put("status", template.getStatus().name());
+        result.put("message", "Template cree avec succes");
         return result;
     }
 
     @Transactional
-    public Map<String, Object> validateQuestion(Long questionId, Long validatedById, Set<String> roles) {
-        EvaluationQuestion question = findQuestion(questionId);
-        requireQualityApproval(question, roles);
-        if (question.getStatus() != EvaluationQuestion.QuestionStatus.PENDING) throw badRequest("Cette question n'est plus en attente");
-        question.setStatus(EvaluationQuestion.QuestionStatus.VALIDATED);
-        question.setValidatedById(validatedById);
-        return questionMap(question);
+    public Map<String, Object> addSection(Long templateId, String title, Integer displayOrder) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        EvaluationSection section = new EvaluationSection();
+        section.setTemplate(template);
+        section.setTitle(title);
+        section.setDisplayOrder(displayOrder != null ? displayOrder : (template.getSections() != null ? template.getSections().size() : 0) + 1);
+        sectionRepo.save(section);
+
+        if (template.getSections() == null) {
+            template.setSections(new ArrayList<>());
+        }
+        template.getSections().add(section);
+        templateRepo.save(template);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", section.getId());
+        result.put("title", section.getTitle());
+        result.put("displayOrder", section.getDisplayOrder());
+        result.put("templateId", templateId);
+        return result;
     }
 
     @Transactional
-    public Map<String, Object> rejectQuestion(Long questionId, Long validatedById, String reason, Set<String> roles) {
-        EvaluationQuestion question = findQuestion(questionId);
-        requireQualityApproval(question, roles);
-        if (question.getStatus() != EvaluationQuestion.QuestionStatus.PENDING) throw badRequest("Cette question n'est plus en attente");
+   public Map<String, Object> addQuestion(Long templateId, Long sectionId, String questionText,
+                                        String expectedAnswer, Integer questionNumber,
+                                        Set<String> userRoles, Long createdById) {
+    EvaluationTemplate template = templateRepo.findById(templateId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+    // Derive validatorRole from authenticated user's roles — no impersonation possible
+    EvaluationQuestion.ValidatorRole validatorRole = deriveValidatorRole(userRoles);
+
+    EvaluationQuestion question = new EvaluationQuestion();
+    question.setTemplate(template);
+    question.setQuestionText(questionText);
+    question.setExpectedAnswer(expectedAnswer);
+    question.setQuestionNumber(questionNumber);
+    question.setValidatorRole(validatorRole);
+    question.setCreatedById(createdById);
+
+    if (sectionId != null) {
+        EvaluationSection section = sectionRepo.findById(sectionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
+        question.setSection(section);
+    }
+
+    questionRepo.save(question);
+    // questionRepo.save(question); // Duplicate save removed
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("id", question.getId());
+    result.put("questionText", question.getQuestionText());
+    result.put("validatorRole", question.getValidatorRole().name());
+    result.put("status", question.getStatus().name());
+    result.put("createdById", question.getCreatedById());
+    return result;
+}
+
+/**
+ * Maps the authenticated user's real roles to a ValidatorRole.
+ * Prevents impersonation — the role comes from the JWT, not the request body.
+ */
+private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRoles) {
+    if (userRoles.contains("RESP_HSE")) return EvaluationQuestion.ValidatorRole.RESP_HSE;
+    if (userRoles.contains("RESP_QUALITE")) return EvaluationQuestion.ValidatorRole.RESP_QUALITE;
+    if (userRoles.contains("AGENT_QUALITE")) return EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
+    if (userRoles.contains("CHEF_EQUIPE")) return EvaluationQuestion.ValidatorRole.CHEF_EQUIPE;
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Role non autorise a creer des questions");
+}
+
+    // ======================== QUESTION VALIDATION ========================
+
+    @Transactional
+    public Map<String, Object> validateQuestion(Long questionId, Long validatedById) {
+        EvaluationQuestion question = questionRepo.findById(questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+
+        if (question.getStatus() != EvaluationQuestion.QuestionStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cette question n'est plus en attente");
+        }
+
+        question.setStatus(EvaluationQuestion.QuestionStatus.VALIDATED);
+        question.setValidatedById(validatedById);
+        questionRepo.save(question);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", question.getId());
+        result.put("status", "VALIDATED");
+        result.put("message", "Question validee avec succes");
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> rejectQuestion(Long questionId, Long validatedById, String reason) {
+        EvaluationQuestion question = questionRepo.findById(questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+
+        if (question.getStatus() != EvaluationQuestion.QuestionStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cette question n'est plus en attente");
+        }
+
         question.setStatus(EvaluationQuestion.QuestionStatus.REJECTED);
         question.setValidatedById(validatedById);
         question.setRejectionReason(reason);
-        return questionMap(question);
+        questionRepo.save(question);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", question.getId());
+        result.put("status", "REJECTED");
+        result.put("message", "Question rejetee");
+        return result;
     }
 
+    // ======================== TEMPLATE VALIDATION ========================
+
     @Transactional
-    public Map<String, Object> validateTemplate(Long templateId, Set<String> roles) {
-        EvaluationTemplate template = findTemplate(templateId);
-        requireTemplateOwner(template.getType(), roles);
-        if (questionRepo.findByTemplateId(templateId).stream().noneMatch(this::isPublished)) {
-            throw badRequest("Le template doit avoir au moins une question publiee");
+    public Map<String, Object> validateTemplate(Long templateId, Long validatedById) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        long validatedCount = questionRepo.findByTemplateId(templateId).stream()
+                .filter(q -> q.getStatus() == EvaluationQuestion.QuestionStatus.VALIDATED).count();
+        if (validatedCount == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template doit avoir au moins une question validee");
         }
+
         template.setStatus(EvaluationTemplate.TemplateStatus.VALIDATED);
-        return templateSummary(template, "Template valide avec succes");
+        templateRepo.save(template);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", template.getId());
+        result.put("status", "VALIDATED");
+        result.put("validatedQuestions", validatedCount);
+        result.put("message", "Template valide avec succes");
+        return result;
     }
 
+    // ======================== EVALUATION SESSION ========================
+
     @Transactional
-    public Map<String, Object> startEvaluation(Long operatorId, Long practicalFormationId, Long evaluatorId, Set<String> roles) {
-        requireEvaluator(roles);
-        Operator operator = operatorRepo.findById(operatorId).orElseThrow(() -> notFound("Operateur introuvable"));
-        WorkstationFormation formation = resolveFormation(operatorId, practicalFormationId);
-        if (sessionRepo.existsByOperatorIdAndPracticalFormationId(operatorId, formation.getId())) {
-            throw badRequest("Une evaluation existe deja pour cette formation");
+    public Map<String, Object> startEvaluation(Long operatorId, Long templateId,
+                                                Long formationId, Long evaluatorId) {
+        Operator operator = operatorRepo.findById(operatorId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
+
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        if (template.getStatus() != EvaluationTemplate.TemplateStatus.VALIDATED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le template doit etre valide");
         }
-        EvaluationTemplate productionTemplate = selectProductionTemplate(formation.getWorkstation().getId());
-        List<EvaluationQuestion> questions = questionnaireQuestions(productionTemplate);
-        if (questions.stream().noneMatch(q -> isGeneric(questionCategory(q))) || questions.stream().noneMatch(q -> questionCategory(q) == EvaluationQuestion.QuestionCategory.PRODUCTION)) {
-            throw badRequest("Le questionnaire doit contenir des questions communes et Production publiees");
+
+        FormationAssignment formation = null;
+        if (formationId != null) {
+            formation = assignmentRepo.findById(formationId).orElse(null);
         }
+
+        long seniorityMonths = 0;
+        if (operator.getHireDate() != null) {
+            seniorityMonths = Period.between(operator.getHireDate(), LocalDate.now()).toTotalMonths();
+        }
+
         EvaluationSession session = new EvaluationSession();
         session.setOperator(operator);
-        session.setPracticalFormation(formation);
-        session.setTemplate(productionTemplate);
+        session.setTemplate(template);
+        session.setFormation(formation);
         session.setEvaluatorId(evaluatorId);
-        session.setEvaluatorName(userRepo.findById(evaluatorId).map(User::getName).orElse("Inconnu"));
-        session.setOperatorSeniorityMonths(operator.getHireDate() == null ? 0
-                : Period.between(operator.getHireDate(), LocalDate.now()).toTotalMonths());
+        session.setOperatorSeniorityMonths(seniorityMonths);
         session.setStatus(EvaluationSession.SessionStatus.IN_PROGRESS);
         sessionRepo.save(session);
+
+        List<EvaluationQuestion> questions = questionRepo.findValidatedQuestionsByTemplate(templateId);
+
+        String evaluatorName = userRepo.findById(evaluatorId)
+                .map(User::getName).orElse("Inconnu");
+        session.setEvaluatorName(evaluatorName);
+        sessionRepo.save(session);
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sessionId", session.getId());
         result.put("operatorName", operator.getLastName() + " " + operator.getFirstName());
-        result.put("workstationName", formation.getWorkstation().getName());
-        result.put("templateName", productionTemplate.getName());
+        result.put("templateName", template.getName());
         result.put("totalQuestions", questions.size());
-        result.put("status", session.getStatus().name());
+        result.put("seniorityMonths", seniorityMonths);
+        result.put("status", "IN_PROGRESS");
+        result.put("message", "Evaluation demarree");
         return result;
     }
 
     @Transactional
-    public Map<String, Object> submitAnswers(Long sessionId, List<Map<String, Object>> answersData, Long answeredById, Set<String> roles) {
-        requireEvaluator(roles);
-        EvaluationSession session = findSession(sessionId);
-        if (session.getStatus() != EvaluationSession.SessionStatus.IN_PROGRESS) throw badRequest("La session n'est plus en cours");
-        List<EvaluationQuestion> questionnaire = questionnaireQuestions(session.getTemplate());
-        Map<Long, EvaluationQuestion> allowedQuestions = questionnaire.stream()
-                .collect(Collectors.toMap(EvaluationQuestion::getId, q -> q));
-        boolean productionEnabled = genericPassed(sessionId, questionnaire);
-        int saved = 0;
-        for (Map<String, Object> data : answersData == null ? List.<Map<String, Object>>of() : answersData) {
-            Long questionId = Long.valueOf(data.get("questionId").toString());
-            EvaluationQuestion question = allowedQuestions.get(questionId);
-            if (question == null) throw badRequest("Question absente de ce questionnaire");
-            EvaluationQuestion.QuestionCategory category = questionCategory(question);
-            if (!canAnswer(category, roles)) throw forbidden("Vous ne pouvez pas modifier cette question");
-            if (category == EvaluationQuestion.QuestionCategory.PRODUCTION && !productionEnabled) {
-                throw badRequest("Les questions Production sont verrouillees tant que les questions communes ne sont pas toutes reussies");
-            }
-            Integer answer = integerAnswer(data.get("answer"));
-            Optional<EvaluationAnswer> existing = answerRepo.findBySessionIdAndQuestionId(sessionId, questionId);
-            EvaluationAnswer evaluationAnswer = existing.orElseGet(EvaluationAnswer::new);
-            evaluationAnswer.setSession(session);
-            evaluationAnswer.setQuestion(question);
-            evaluationAnswer.setAnswer(answer);
-            evaluationAnswer.setComment(data.get("comment") == null ? null : data.get("comment").toString());
-            evaluationAnswer.setAnsweredById(answeredById);
-            answerRepo.save(evaluationAnswer);
-            saved++;
-            productionEnabled = genericPassed(sessionId, questionnaire);
+    public Map<String, Object> submitAnswers(Long sessionId, List<Map<String, Object>> answersData,
+                                              Long answeredById) {
+        EvaluationSession session = sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session introuvable"));
+
+        if (session.getStatus() != EvaluationSession.SessionStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La session n'est plus en cours");
         }
+
+        int savedCount = 0;
+        for (Map<String, Object> answerData : answersData) {
+            Long questionId = Long.valueOf(answerData.get("questionId").toString());
+            Integer answer = Integer.valueOf(answerData.get("answer").toString());
+            String comment = answerData.get("comment") != null ? answerData.get("comment").toString() : null;
+
+            if (answer != 0 && answer != 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La reponse doit etre 0 (incorrect) ou 1 (correct)");
+            }
+
+            EvaluationQuestion question = questionRepo.findById(questionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable: " + questionId));
+
+            Optional<EvaluationAnswer> existing = answerRepo.findBySessionIdAndQuestionId(sessionId, questionId);
+            EvaluationAnswer evalAnswer;
+            if (existing.isPresent()) {
+                evalAnswer = existing.get();
+            } else {
+                evalAnswer = new EvaluationAnswer();
+                evalAnswer.setSession(session);
+                evalAnswer.setQuestion(question);
+            }
+            evalAnswer.setAnswer(answer);
+            evalAnswer.setComment(comment);
+            evalAnswer.setAnsweredById(answeredById);
+            answerRepo.save(evalAnswer);
+            savedCount++;
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sessionId", sessionId);
-        result.put("savedAnswers", saved);
-        result.put("productionEnabled", genericPassed(sessionId, questionnaire));
+        result.put("savedAnswers", savedCount);
+        result.put("message", "Reponses enregistrees");
         return result;
     }
 
     @Transactional
-    public Map<String, Object> completeEvaluation(Long sessionId, Set<String> roles) {
-        requireEvaluator(roles);
-        EvaluationSession session = findSession(sessionId);
-        if (session.getStatus() != EvaluationSession.SessionStatus.IN_PROGRESS) throw badRequest("La session n'est plus en cours");
-        List<EvaluationQuestion> questions = questionnaireQuestions(session.getTemplate());
-        Map<Long, EvaluationAnswer> answers = answerRepo.findBySessionId(sessionId).stream()
-                .collect(Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
-        if (!questions.stream().allMatch(question -> answers.containsKey(question.getId()))) {
-            throw badRequest("Toutes les questions actuellement publiees doivent etre renseignees");
+    public Map<String, Object> completeEvaluation(Long sessionId) {
+        EvaluationSession session = sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session introuvable"));
+
+        if (session.getStatus() != EvaluationSession.SessionStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La session n'est plus en cours");
         }
-        if (!genericPassed(sessionId, questions)) {
-            throw badRequest("La partie commune doit etre completee et reussie a 100% avant la Production");
+
+        List<EvaluationAnswer> answers = answerRepo.findBySessionId(sessionId);
+        if (answers.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Aucune reponse enregistree");
         }
-        int genericTotal = 0, genericCorrect = 0, productionTotal = 0, productionCorrect = 0;
-        for (EvaluationQuestion question : questions) {
-            int score = answers.get(question.getId()).getAnswer();
-            if (isGeneric(questionCategory(question))) {
+
+        int genericTotal = 0, genericCorrect = 0;
+        int productionTotal = 0, productionCorrect = 0;
+
+        for (EvaluationAnswer ans : answers) {
+            EvaluationQuestion q = ans.getQuestion();
+            int score = ans.getAnswer();
+
+            boolean isGeneric = q.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON;
+            if (isGeneric) {
                 genericTotal++;
                 genericCorrect += score;
-            } else if (questionCategory(question) == EvaluationQuestion.QuestionCategory.PRODUCTION) {
+            } else {
                 productionTotal++;
                 productionCorrect += score;
             }
         }
-        double genericPct = percentage(genericCorrect, genericTotal);
-        double productionPct = percentage(productionCorrect, productionTotal);
+
+        int totalQuestions = genericTotal + productionTotal;
+        int correctAnswers = genericCorrect + productionCorrect;
+
+        double genericPct = genericTotal > 0 ? (double) genericCorrect / genericTotal * 100.0 : 0.0;
+        double productionPct = productionTotal > 0 ? (double) productionCorrect / productionTotal * 100.0 : 0.0;
+        double overallPct = totalQuestions > 0 ? (double) correctAnswers / totalQuestions * 100.0 : 0.0;
+
         session.setGenericTotal(genericTotal);
         session.setGenericCorrect(genericCorrect);
-        session.setGenericPercentage(genericPct);
+        session.setGenericPercentage(Math.round(genericPct * 10.0) / 10.0);
         session.setProductionTotal(productionTotal);
         session.setProductionCorrect(productionCorrect);
-        session.setProductionPercentage(productionPct);
-        session.setTotalQuestions(genericTotal + productionTotal);
-        session.setCorrectAnswers(genericCorrect + productionCorrect);
-        session.setScorePercentage(percentage(genericCorrect + productionCorrect, genericTotal + productionTotal));
+        session.setProductionPercentage(Math.round(productionPct * 10.0) / 10.0);
+        session.setTotalQuestions(totalQuestions);
+        session.setCorrectAnswers(correctAnswers);
+        session.setScorePercentage(Math.round(overallPct * 10.0) / 10.0);
+
+        // Rule: Generic part MUST be 100%
+        if (genericPct < 100.0) {
+            session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
+            session.setDecision("BLOCKED_GENERIC");
+            session.setCompletedAt(LocalDateTime.now());
+            sessionRepo.save(session);
+            return buildResult(session, "BLOQUE: La partie generique (HSE + Qualite) doit etre 100%");
+        }
+
+        // Determine niveau based on seniority + production percentage
         String niveau = determineNiveau(session.getOperatorSeniorityMonths(), productionPct);
         session.setNiveau(niveau);
-        session.setStatus("NON_VALIDE".equals(niveau) ? EvaluationSession.SessionStatus.FAILED : EvaluationSession.SessionStatus.PASSED);
-        session.setDecision("NON_VALIDE".equals(niveau) ? "FAILED" : "PASSED_" + niveau);
+
+        if ("NON_VALIDE".equals(niveau)) {
+            session.setStatus(EvaluationSession.SessionStatus.FAILED);
+            session.setDecision("FAILED");
+            session.setCompletedAt(LocalDateTime.now());
+            sessionRepo.save(session);
+            return buildResult(session, "Echec: Score insuffisant pour le niveau correspondant a l'anciennete");
+        }
+
+        session.setStatus(EvaluationSession.SessionStatus.PASSED);
+        session.setDecision("PASSED_" + niveau);
         session.setCompletedAt(LocalDateTime.now());
-        return buildResult(session);
+        sessionRepo.save(session);
+
+        return buildResult(session, "Reussite: Niveau " + niveau + " atteint");
     }
 
-    public List<Map<String, Object>> getAllTemplates(Set<String> roles) {
-        requireEvaluator(roles);
-        return templateRepo.findAll().stream().map(t -> templateSummary(t, null)).collect(Collectors.toList());
+    // ======================== AUTO-TRIGGER ========================
+
+    /**
+     * Finds operators who completed their 12-day suivi (COMPLETED) but don't have
+     * an evaluation session yet for that formation.
+     */
+    public List<Map<String, Object>> getPendingEvaluationsForOperator(Long operatorId) {
+        Operator operator = operatorRepo.findById(operatorId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
+
+        List<WorkstationFormation> completedFormations = formationRepo.findAll().stream()
+                .filter(f -> f.getOperator().getId().equals(operatorId)
+                        && "COMPLETED".equals(f.getStatus()))
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> pending = new ArrayList<>();
+        for (WorkstationFormation f : completedFormations) {
+            if (sessionRepo.existsByOperatorIdAndFormationId(operatorId, f.getId())) {
+                continue;
+            }
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("formationId", f.getId());
+            item.put("workstationId", f.getWorkstation().getId());
+            item.put("workstationName", f.getWorkstation().getName());
+            item.put("formationStartDate", f.getStartDate().toString());
+            item.put("formationEndDate", f.getEndDate() != null ? f.getEndDate().toString() : null);
+            item.put("hasEvaluation", false);
+            item.put("seniorityMonths", operator.getHireDate() != null
+                    ? Period.between(operator.getHireDate(), LocalDate.now()).toTotalMonths() : 0);
+            pending.add(item);
+        }
+
+        return pending;
     }
 
-    public Map<String, Object> getTemplateWithQuestions(Long templateId, Set<String> roles) {
-        requireEvaluator(roles);
-        EvaluationTemplate template = findTemplate(templateId);
-        Map<String, Object> map = templateSummary(template, null);
-        map.put("sections", sectionsForTemplates(List.of(template), false));
-        return map;
+    /**
+     * Checks all operators and returns those with pending evaluations (global view).
+     */
+    public List<Map<String, Object>> getAllPendingEvaluations() {
+        List<Operator> operators = operatorRepo.findAll();
+        List<Map<String, Object>> allPending = new ArrayList<>();
+
+        for (Operator op : operators) {
+            List<WorkstationFormation> completed = formationRepo.findAll().stream()
+                    .filter(f -> f.getOperator().getId().equals(op.getId())
+                            && "COMPLETED".equals(f.getStatus()))
+                    .collect(Collectors.toList());
+
+            for (WorkstationFormation f : completed) {
+                if (sessionRepo.existsByOperatorIdAndFormationId(op.getId(), f.getId())) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("operatorId", op.getId());
+                item.put("operatorName", op.getLastName() + " " + op.getFirstName());
+                item.put("operatorEmployeeId", op.getEmployeeId());
+                item.put("formationId", f.getId());
+                item.put("workstationName", f.getWorkstation().getName());
+                item.put("formationEndDate", f.getEndDate() != null ? f.getEndDate().toString() : null);
+                allPending.add(item);
+            }
+        }
+        return allPending;
     }
 
-    public List<Map<String, Object>> getPendingQuestions(Set<String> roles) {
-        if (!has(roles, "RESP_QUALITE")) throw forbidden("Seul le responsable qualite peut consulter ces questions");
-        return questionRepo.findPendingQuestions().stream()
-                .filter(q -> questionCategory(q) == EvaluationQuestion.QuestionCategory.QUALITY)
-                .map(this::questionMap).collect(Collectors.toList());
-    }
+    // ======================== POLYVALENCE MATRIX ========================
 
-    public Map<String, Object> getSessionDetail(Long sessionId, Set<String> roles) {
-        requireEvaluator(roles);
-        EvaluationSession session = findSession(sessionId);
-        List<EvaluationQuestion> questions = questionnaireQuestions(session.getTemplate());
-        Map<String, Object> map = sessionMap(session);
-        map.put("productionEnabled", genericPassed(sessionId, questions));
-        map.put("sections", sectionsForQuestionnaire(session.getTemplate(), questions));
-        map.put("answers", answerRepo.findBySessionId(sessionId).stream().map(a -> {
-            Map<String, Object> answer = new LinkedHashMap<>();
-            answer.put("questionId", a.getQuestion().getId());
-            answer.put("answer", a.getAnswer());
-            answer.put("comment", a.getComment());
-            return answer;
-        }).collect(Collectors.toList()));
-        return map;
-    }
+    public Map<String, Object> getPolyvalenceMatrix() {
+        List<Operator> operators = operatorRepo.findAll();
+        List<Workstation> workstations = workstationRepo.findAll();
 
-    public List<Map<String, Object>> getPendingEvaluationsForOperator(Long operatorId, Set<String> roles) {
-        requireEvaluator(roles);
-        return completedFormations(operatorId).stream()
-                .filter(f -> !sessionRepo.existsByOperatorIdAndPracticalFormationId(operatorId, f.getId()))
-                .map(this::pendingMap).collect(Collectors.toList());
-    }
-
-    public List<Map<String, Object>> getAllPendingEvaluations(Set<String> roles) {
-        requireEvaluator(roles);
-        return formationRepo.findAll().stream()
-                .filter(f -> "COMPLETED".equals(f.getStatus()))
-                .filter(f -> !sessionRepo.existsByOperatorIdAndPracticalFormationId(f.getOperator().getId(), f.getId()))
-                .map(this::pendingMap).collect(Collectors.toList());
-    }
-
-    public Map<String, Object> getPolyvalenceMatrix(Set<String> roles) {
-        requireEvaluator(roles);
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (Operator operator : operatorRepo.findAll()) {
+        for (Operator op : operators) {
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("operatorId", operator.getId());
-            row.put("operatorName", operator.getLastName() + " " + operator.getFirstName());
-            Map<String, String> levels = new LinkedHashMap<>();
-            for (Workstation workstation : workstationRepo.findAll()) levels.put(workstation.getName(), latestLevel(operator.getId(), workstation.getId()));
-            row.put("workstations", levels);
+            row.put("operatorId", op.getId());
+            row.put("operatorName", op.getLastName() + " " + op.getFirstName());
+            row.put("employeeId", op.getEmployeeId());
+            row.put("seniorityMonths", op.getHireDate() != null
+                    ? Period.between(op.getHireDate(), LocalDate.now()).toTotalMonths() : 0);
+
+            Map<String, String> niveauMap = new LinkedHashMap<>();
+            for (Workstation ws : workstations) {
+                String niveau = getNiveauForOperatorWorkstation(op.getId(), ws.getId());
+                niveauMap.put(ws.getName(), niveau);
+            }
+            row.put("workstations", niveauMap);
+
+            row.put("genericPassed", hasPassedGeneric(op.getId()));
+
             rows.add(row);
         }
-        return Map.of("workstations", workstationRepo.findAll().stream().map(w -> Map.of("id", w.getId(), "name", w.getName())).collect(Collectors.toList()),
-                "operators", rows);
-    }
 
-    private List<EvaluationQuestion> questionnaireQuestions(EvaluationTemplate productionTemplate) {
-        List<EvaluationTemplate> templates = new ArrayList<>(templateRepo.findValidatedGenericTemplates(List.of(
-                EvaluationTemplate.TemplateType.GENERIC_HSE, EvaluationTemplate.TemplateType.GENERIC_QUALITY,
-                EvaluationTemplate.TemplateType.GENERIC_COMMON)));
-        templates.add(productionTemplate);
-        return templates.stream().flatMap(t -> publishedQuestions(t.getId()).stream())
-                .filter(q -> questionCategory(q) != EvaluationQuestion.QuestionCategory.ANIMATION)
-                .filter(q -> isGeneric(questionCategory(q)) || questionCategory(q) == EvaluationQuestion.QuestionCategory.PRODUCTION)
-                .sorted(Comparator.comparing((EvaluationQuestion q) -> isGeneric(questionCategory(q)) ? 0 : 1)
-                        .thenComparing(q -> q.getSection() == null ? 0 : q.getSection().getDisplayOrder(), Comparator.nullsLast(Integer::compareTo))
-                        .thenComparing(EvaluationQuestion::getQuestionNumber, Comparator.nullsLast(Integer::compareTo)))
-                .collect(Collectors.toList());
-    }
+        List<Map<String, String>> niveauRules = new ArrayList<>();
+        Map<String, String> rule1 = new LinkedHashMap<>();
+        rule1.put("niveau", "I");
+        rule1.put("description", "< 6 mois anciennete, score 70-80%");
+        niveauRules.add(rule1);
+        Map<String, String> rule2 = new LinkedHashMap<>();
+        rule2.put("niveau", "L");
+        rule2.put("description", ">= 6 mois anciennete, score 81-90%");
+        niveauRules.add(rule2);
+        Map<String, String> rule3 = new LinkedHashMap<>();
+        rule3.put("niveau", "U");
+        rule3.put("description", ">= 12 mois anciennete, score 91-100%");
+        niveauRules.add(rule3);
 
-    private List<Map<String, Object>> sectionsForQuestionnaire(EvaluationTemplate production, List<EvaluationQuestion> questions) {
-        List<EvaluationTemplate> templates = new ArrayList<>(templateRepo.findValidatedGenericTemplates(List.of(
-                EvaluationTemplate.TemplateType.GENERIC_HSE, EvaluationTemplate.TemplateType.GENERIC_QUALITY,
-                EvaluationTemplate.TemplateType.GENERIC_COMMON)));
-        templates.add(production);
-        return sectionMaps(templates, questions);
-    }
-
-    private List<Map<String, Object>> sectionsForTemplates(List<EvaluationTemplate> templates, boolean validatedOnly) {
-        List<EvaluationQuestion> questions = templates.stream().flatMap(t -> (validatedOnly
-                ? publishedQuestions(t.getId()) : questionRepo.findByTemplateId(t.getId())).stream()).collect(Collectors.toList());
-        return sectionMaps(templates, questions);
-    }
-
-    private List<Map<String, Object>> sectionMaps(List<EvaluationTemplate> templates, List<EvaluationQuestion> questions) {
-        List<EvaluationSection> sections = templates.stream()
-                .flatMap(t -> sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(t.getId()).stream())
-                .sorted(Comparator.comparing(EvaluationSection::getDisplayOrder, Comparator.nullsLast(Integer::compareTo)))
-                .collect(Collectors.toList());
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (EvaluationSection section : sections) {
-            Map<String, Object> map = sectionMap(section);
-            map.put("questions", questions.stream().filter(q -> q.getSection() != null && q.getSection().getId().equals(section.getId()))
-                    .map(this::questionMap).collect(Collectors.toList()));
-            result.add(map);
-        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("workstations", workstations.stream()
+                .map(ws -> Map.of("id", ws.getId(), "name", ws.getName()))
+                .collect(Collectors.toList()));
+        result.put("operators", rows);
+        result.put("niveauRules", niveauRules);
         return result;
     }
 
-    private WorkstationFormation resolveFormation(Long operatorId, Long formationId) {
-        if (formationId != null) {
-            WorkstationFormation formation = formationRepo.findById(formationId).orElseThrow(() -> notFound("Formation pratique introuvable"));
-            if (!formation.getOperator().getId().equals(operatorId) || !"COMPLETED".equals(formation.getStatus())) {
-                throw badRequest("La formation pratique doit etre terminee et appartenir a cet operateur");
+    // ======================== GETTERS ========================
+
+    public List<Map<String, Object>> getAllTemplates() {
+        return templateRepo.findAll().stream().map(t -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", t.getId());
+            map.put("name", t.getName());
+            map.put("description", t.getDescription());
+            map.put("type", t.getType().name());
+            map.put("status", t.getStatus().name());
+            map.put("targetNiveau", t.getTargetNiveau());
+            map.put("workstationId", t.getWorkstation() != null ? t.getWorkstation().getId() : null);
+            map.put("workstationName", t.getWorkstation() != null ? t.getWorkstation().getName() : null);
+            map.put("createdAt", t.getCreatedAt());
+            long qCount = questionRepo.findByTemplateId(t.getId()).stream()
+                    .filter(q -> q.getStatus() == EvaluationQuestion.QuestionStatus.VALIDATED).count();
+            map.put("validatedQuestionCount", qCount);
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> getPendingQuestions() {
+        return questionRepo.findPendingQuestions().stream().map(q -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", q.getId());
+            map.put("questionText", q.getQuestionText());
+            map.put("expectedAnswer", q.getExpectedAnswer());
+            map.put("validatorRole", q.getValidatorRole().name());
+            map.put("templateId", q.getTemplate().getId());
+            map.put("templateName", q.getTemplate().getName());
+            map.put("createdById", q.getCreatedById());
+            map.put("createdAt", q.getCreatedAt());
+            String creatorName = q.getCreatedById() != null
+                    ? userRepo.findById(q.getCreatedById()).map(User::getName).orElse("Inconnu") : "Inconnu";
+            map.put("createdByName", creatorName);
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    public Map<String, Object> getSessionDetail(Long sessionId) {
+        EvaluationSession session = sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session introuvable"));
+
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", session.getId());
+        map.put("operatorId", session.getOperator().getId());
+        map.put("operatorName", session.getOperator().getLastName() + " " + session.getOperator().getFirstName());
+        map.put("templateId", session.getTemplate().getId());
+        map.put("templateName", session.getTemplate().getName());
+        map.put("formationId", session.getFormation() != null ? session.getFormation().getId() : null);
+        map.put("evaluatorName", session.getEvaluatorName());
+        map.put("status", session.getStatus().name());
+        map.put("genericTotal", session.getGenericTotal());
+        map.put("genericCorrect", session.getGenericCorrect());
+        map.put("genericPercentage", session.getGenericPercentage());
+        map.put("productionTotal", session.getProductionTotal());
+        map.put("productionCorrect", session.getProductionCorrect());
+        map.put("productionPercentage", session.getProductionPercentage());
+        map.put("totalQuestions", session.getTotalQuestions());
+        map.put("correctAnswers", session.getCorrectAnswers());
+        map.put("scorePercentage", session.getScorePercentage());
+        map.put("decision", session.getDecision());
+        map.put("niveau", session.getNiveau());
+        map.put("seniorityMonths", session.getOperatorSeniorityMonths());
+        map.put("createdAt", session.getCreatedAt());
+        map.put("completedAt", session.getCompletedAt());
+
+        List<Map<String, Object>> answersList = answerRepo.findBySessionId(sessionId).stream().map(a -> {
+            Map<String, Object> aMap = new LinkedHashMap<>();
+            aMap.put("questionId", a.getQuestion().getId());
+            aMap.put("questionText", a.getQuestion().getQuestionText());
+            aMap.put("answer", a.getAnswer());
+            aMap.put("comment", a.getComment());
+            return aMap;
+        }).collect(Collectors.toList());
+        map.put("answers", answersList);
+
+        return map;
+    }
+
+    public Map<String, Object> getTemplateWithQuestions(Long templateId) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", template.getId());
+        map.put("name", template.getName());
+        map.put("description", template.getDescription());
+        map.put("type", template.getType().name());
+        map.put("status", template.getStatus().name());
+        map.put("targetNiveau", template.getTargetNiveau());
+        map.put("workstationId", template.getWorkstation() != null ? template.getWorkstation().getId() : null);
+        map.put("workstationName", template.getWorkstation() != null ? template.getWorkstation().getName() : null);
+
+        List<Map<String, Object>> sectionsList = sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId).stream()
+                .map(s -> {
+                    Map<String, Object> sMap = new LinkedHashMap<>();
+                    sMap.put("id", s.getId());
+                    sMap.put("title", s.getTitle());
+                    sMap.put("displayOrder", s.getDisplayOrder());
+
+                    List<Map<String, Object>> qs = questionRepo.findValidatedQuestionsByTemplate(templateId).stream()
+                            .filter(q -> q.getSection() != null && q.getSection().getId().equals(s.getId()))
+                            .map(q -> {
+                                Map<String, Object> qMap = new LinkedHashMap<>();
+                                qMap.put("id", q.getId());
+                                qMap.put("questionText", q.getQuestionText());
+                                qMap.put("expectedAnswer", q.getExpectedAnswer());
+                                qMap.put("questionNumber", q.getQuestionNumber());
+                                qMap.put("validatorRole", q.getValidatorRole().name());
+                                return qMap;
+                            }).collect(Collectors.toList());
+                    sMap.put("questions", qs);
+                    return sMap;
+                }).collect(Collectors.toList());
+        map.put("sections", sectionsList);
+
+        return map;
+    }
+
+    // ======================== PRIVATE HELPERS ========================
+
+    private String determineNiveau(Long seniorityMonths, double productionPercentage) {
+        if (seniorityMonths < 6) {
+            if (productionPercentage >= 70 && productionPercentage <= 100) {
+                return "I";
             }
-            return formation;
-        }
-        return completedFormations(operatorId).stream().max(Comparator.comparing(WorkstationFormation::getEndDate,
-                Comparator.nullsLast(Comparator.naturalOrder()))).orElseThrow(() -> badRequest("Aucune formation pratique terminee"));
-    }
-
-    private EvaluationTemplate selectProductionTemplate(Long workstationId) {
-        List<EvaluationTemplate> templates = templateRepo.findValidatedProductionForWorkstation(workstationId);
-        if (templates.isEmpty()) throw badRequest("Aucun questionnaire Production valide pour ce poste");
-        if (templates.size() > 1) throw badRequest("Plusieurs questionnaires Production sont assignes a ce poste");
-        return templates.get(0);
-    }
-
-    private List<WorkstationFormation> completedFormations(Long operatorId) {
-        return formationRepo.findAll().stream().filter(f -> f.getOperator().getId().equals(operatorId) && "COMPLETED".equals(f.getStatus())).collect(Collectors.toList());
-    }
-
-    private boolean genericPassed(Long sessionId, List<EvaluationQuestion> questions) {
-        List<EvaluationQuestion> generic = questions.stream().filter(q -> isGeneric(questionCategory(q))).collect(Collectors.toList());
-        Map<Long, EvaluationAnswer> answers = answerRepo.findBySessionId(sessionId).stream()
-                .collect(Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
-        return !generic.isEmpty() && generic.stream().allMatch(q -> answers.containsKey(q.getId()) && answers.get(q.getId()).getAnswer() == 1);
-    }
-
-    private boolean isGeneric(EvaluationQuestion.QuestionCategory category) {
-        return category != EvaluationQuestion.QuestionCategory.PRODUCTION && category != EvaluationQuestion.QuestionCategory.ANIMATION;
-    }
-
-    private EvaluationQuestion.QuestionCategory questionCategory(EvaluationQuestion question) {
-        if (question.getSection() != null && question.getSection().getDomain() != null) {
-            return question.getSection().getDomain().getQuestionCategory();
-        }
-        if (question.getCategory() != null) return question.getCategory();
-        return question.getSection() == null
-                ? sectionDomainForTemplate(question.getTemplate().getType(), null).getQuestionCategory()
-                : effectiveSectionDomain(question.getSection()).getQuestionCategory();
-    }
-
-    private EvaluationSection.SectionDomain effectiveSectionDomain(EvaluationSection section) {
-        if (section.getDomain() != null) return section.getDomain();
-        EvaluationTemplate.TemplateType type = section.getTemplate().getType();
-        if (type != EvaluationTemplate.TemplateType.GENERIC_COMMON) {
-            return sectionDomainForTemplate(type, null);
-        }
-        List<EvaluationQuestion> existing = questionRepo.findByTemplateId(section.getTemplate().getId()).stream()
-                .filter(question -> question.getSection() != null && section.getId().equals(question.getSection().getId()))
-                .filter(question -> question.getCategory() != null)
-                .toList();
-        if (!existing.isEmpty()) {
-            return domainForCategory(existing.get(0).getCategory());
-        }
-        return EvaluationSection.SectionDomain.FIVE_S;
-    }
-
-    private EvaluationSection.SectionDomain sectionDomainForTemplate(EvaluationTemplate.TemplateType type, String domainName) {
-        List<EvaluationSection.SectionDomain> permitted = sectionDomainsForTemplate(type);
-        if (permitted.size() == 1) {
-            EvaluationSection.SectionDomain domain = permitted.get(0);
-            if (domainName != null && !domain.name().equals(domainName)) {
-                throw badRequest("Domaine incompatible avec le template");
+            return "NON_VALIDE";
+        } else if (seniorityMonths < 12) {
+            if (productionPercentage >= 81) {
+                return "L";
             }
-            return domain;
-        }
-        EvaluationSection.SectionDomain domain = enumValue(EvaluationSection.SectionDomain.class, domainName, "Domaine de section invalide");
-        if (!permitted.contains(domain)) throw badRequest("Domaine incompatible avec le template");
-        return domain;
-    }
-
-    private List<EvaluationSection.SectionDomain> sectionDomainsForTemplate(EvaluationTemplate.TemplateType type) {
-        return switch (type) {
-            case GENERIC_HSE -> List.of(EvaluationSection.SectionDomain.SECURITY_ENVIRONMENT);
-            case GENERIC_QUALITY -> List.of(EvaluationSection.SectionDomain.QUALITY);
-            case GENERIC_COMMON -> List.of(EvaluationSection.SectionDomain.SECURITY_ENVIRONMENT,
-                    EvaluationSection.SectionDomain.QUALITY, EvaluationSection.SectionDomain.FIVE_S,
-                    EvaluationSection.SectionDomain.TRACEABILITY, EvaluationSection.SectionDomain.PRODUCTION_ALARMS);
-            case POSTE_PRODUCTION -> List.of(EvaluationSection.SectionDomain.PRODUCTION);
-            case ANIMATION -> List.of(EvaluationSection.SectionDomain.ANIMATION);
-        };
-    }
-
-    private EvaluationSection.SectionDomain domainForCategory(EvaluationQuestion.QuestionCategory category) {
-        return switch (category) {
-            case HSE, SECURITY_ENVIRONMENT -> EvaluationSection.SectionDomain.SECURITY_ENVIRONMENT;
-            case QUALITY -> EvaluationSection.SectionDomain.QUALITY;
-            case FIVE_S -> EvaluationSection.SectionDomain.FIVE_S;
-            case TRACEABILITY -> EvaluationSection.SectionDomain.TRACEABILITY;
-            case PRODUCTION_ALARMS -> EvaluationSection.SectionDomain.PRODUCTION_ALARMS;
-            case PRODUCTION -> EvaluationSection.SectionDomain.PRODUCTION;
-            case ANIMATION -> EvaluationSection.SectionDomain.ANIMATION;
-        };
-    }
-
-    private boolean canAnswer(EvaluationQuestion.QuestionCategory category, Set<String> roles) {
-        return has(roles, "ADMIN") || has(roles, domainForCategory(category).getResponsibleRole().name());
-    }
-
-    private void requireQualityApproval(EvaluationQuestion question, Set<String> roles) {
-        if (questionCategory(question) != EvaluationQuestion.QuestionCategory.QUALITY || !has(roles, "RESP_QUALITE")) {
-            throw forbidden("Seul RESP_QUALITE peut valider une question Qualite");
+            return "NON_VALIDE";
+        } else {
+            if (productionPercentage >= 91) {
+                return "U";
+            }
+            return "NON_VALIDE";
         }
     }
 
-    private void requireTemplateOwner(EvaluationTemplate.TemplateType type, Set<String> roles) {
-        if (type == EvaluationTemplate.TemplateType.GENERIC_HSE && !has(roles, "RESP_HSE") && !has(roles, "ADMIN")) throw forbidden("RESP_HSE gere les questions Securite/Environnement");
-        if (type == EvaluationTemplate.TemplateType.GENERIC_QUALITY && !has(roles, "AGENT_QUALITE") && !has(roles, "ADMIN")) throw forbidden("AGENT_QUALITE gere les questions Qualite");
-        if (type == EvaluationTemplate.TemplateType.GENERIC_COMMON
-                && !has(roles, "CHEF_EQUIPE") && !has(roles, "RESP_HSE") && !has(roles, "AGENT_QUALITE") && !has(roles, "ADMIN")) {
-            throw forbidden("Un responsable de domaine gere les sections de la partie generique");
-        }
-        if ((type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION || type == EvaluationTemplate.TemplateType.ANIMATION)
-                && !has(roles, "CHEF_EQUIPE") && !has(roles, "ADMIN")) throw forbidden("CHEF_EQUIPE gere ce template");
+    private String getNiveauForOperatorWorkstation(Long operatorId, Long workstationId) {
+        Optional<EvaluationSession> latest = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
+                .filter(s -> s.getTemplate().getWorkstation() != null
+                        && s.getTemplate().getWorkstation().getId().equals(workstationId)
+                        && (s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                            || s.getStatus() == EvaluationSession.SessionStatus.BLOCKED))
+                .findFirst();
+        return latest.map(EvaluationSession::getNiveau).orElse("-");
     }
 
-    private void requireTemplateDomain(EvaluationTemplate template, EvaluationSection.SectionDomain domain) {
-        if (!sectionDomainsForTemplate(template.getType()).contains(domain)) {
-            throw badRequest("Domaine de section incompatible avec le template");
-        }
-    }
-
-    private void requireRole(EvaluationQuestion.ValidatorRole role, Set<String> roles) {
-        if (!has(roles, role.name()) && !has(roles, "ADMIN")) throw forbidden("Role fonctionnel insuffisant");
-    }
-
-    private void requireEvaluator(Set<String> roles) {
-        if (!has(roles, "ADMIN") && !has(roles, "RESP_HSE") && !has(roles, "AGENT_QUALITE")
-                && !has(roles, "RESP_QUALITE") && !has(roles, "CHEF_EQUIPE")) throw forbidden("Role evaluateur requis");
-    }
-
-    private boolean has(Set<String> roles, String role) { return roles != null && roles.contains(role); }
-    // Existing non-quality questions were created as PENDING by the former workflow.
-    // They are treated as published so the migration does not hide live templates.
-    private boolean isPublished(EvaluationQuestion question) {
-        return question.getStatus() == EvaluationQuestion.QuestionStatus.VALIDATED
-                || (question.getStatus() == EvaluationQuestion.QuestionStatus.PENDING
-                && questionCategory(question) != EvaluationQuestion.QuestionCategory.QUALITY);
-    }
-    private List<EvaluationQuestion> publishedQuestions(Long templateId) {
-        return questionRepo.findByTemplateId(templateId).stream().filter(this::isPublished).collect(Collectors.toList());
-    }
-    private int nextQuestionNumber(Long templateId) { return questionRepo.findByTemplateId(templateId).stream().map(EvaluationQuestion::getQuestionNumber).filter(n -> n != null).max(Integer::compareTo).orElse(0) + 1; }
-    private Integer integerAnswer(Object value) { try { int answer = Integer.parseInt(value.toString()); if (answer == 0 || answer == 1) return answer; } catch (Exception ignored) { } throw badRequest("La reponse doit etre 0 ou 1"); }
-    private double percentage(int value, int total) { return total == 0 ? 0.0 : Math.round((value * 1000.0 / total)) / 10.0; }
-    private String determineNiveau(Long seniorityMonths, double production) { if (seniorityMonths < 6) return production >= 70 && production <= 80 ? "I" : "NON_VALIDE"; if (seniorityMonths < 12) return production >= 81 ? "L" : "NON_VALIDE"; return production >= 91 ? "U" : "NON_VALIDE"; }
-    private EvaluationTemplate findTemplate(Long id) { return templateRepo.findById(id).orElseThrow(() -> notFound("Template introuvable")); }
-    private EvaluationQuestion findQuestion(Long id) { return questionRepo.findById(id).orElseThrow(() -> notFound("Question introuvable")); }
-    private EvaluationSession findSession(Long id) { return sessionRepo.findById(id).orElseThrow(() -> notFound("Session introuvable")); }
-    private ResponseStatusException notFound(String message) { return new ResponseStatusException(HttpStatus.NOT_FOUND, message); }
-    private ResponseStatusException badRequest(String message) { return new ResponseStatusException(HttpStatus.BAD_REQUEST, message); }
-    private ResponseStatusException forbidden(String message) { return new ResponseStatusException(HttpStatus.FORBIDDEN, message); }
-    private String required(String value, String message) { if (value == null || value.isBlank()) throw badRequest(message); return value; }
-    private <T extends Enum<T>> T enumValue(Class<T> type, String value, String message) { try { return Enum.valueOf(type, value); } catch (Exception e) { throw badRequest(message); } }
-
-    private Map<String, Object> templateSummary(EvaluationTemplate template, String message) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("id", template.getId()); map.put("name", template.getName()); map.put("description", template.getDescription());
-        map.put("type", template.getType().name()); map.put("status", template.getStatus().name()); map.put("targetNiveau", template.getTargetNiveau());
-        List<Long> ids = template.getWorkstations().stream().map(Workstation::getId).collect(Collectors.toList());
-        if (ids.isEmpty() && template.getWorkstation() != null) ids = List.of(template.getWorkstation().getId());
-        map.put("workstationIds", ids); map.put("workstationId", ids.isEmpty() ? null : ids.get(0));
-        map.put("workstationName", template.getWorkstation() == null ? null : template.getWorkstation().getName());
-        map.put("validatedQuestionCount", publishedQuestions(template.getId()).size());
-        if (message != null) map.put("message", message);
-        return map;
-    }
-
-    private Map<String, Object> sectionMap(EvaluationSection section) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        EvaluationSection.SectionDomain domain = effectiveSectionDomain(section);
-        map.put("id", section.getId()); map.put("title", section.getTitle()); map.put("description", section.getDescription());
-        map.put("displayOrder", section.getDisplayOrder()); map.put("domain", domain.name());
-        map.put("responsibleRole", domain.getResponsibleRole().name());
-        return map;
-    }
-
-    private Map<String, Object> questionMap(EvaluationQuestion question) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        EvaluationQuestion.QuestionCategory category = questionCategory(question);
-        EvaluationQuestion.ValidatorRole role = question.getSection() != null && question.getSection().getDomain() != null
-                ? question.getSection().getDomain().getResponsibleRole()
-                : domainForCategory(category).getResponsibleRole();
-        map.put("id", question.getId()); map.put("questionText", question.getQuestionText()); map.put("expectedAnswer", question.getExpectedAnswer());
-        map.put("questionNumber", question.getQuestionNumber()); map.put("responseType", (question.getResponseType() == null ? EvaluationQuestion.ResponseType.BINARY : question.getResponseType()).name());
-        map.put("category", category.name()); map.put("responsibleRole", role.name()); map.put("validatorRole", role.name());
-        map.put("status", question.getStatus().name()); map.put("templateId", question.getTemplate().getId()); map.put("sectionId", question.getSection() == null ? null : question.getSection().getId());
-        map.put("sectionTitle", question.getSection() == null ? null : question.getSection().getTitle());
-        map.put("sectionDomain", question.getSection() == null ? null : effectiveSectionDomain(question.getSection()).name());
-        map.put("templateName", question.getTemplate().getName());
-        map.put("createdAt", question.getCreatedAt());
-        map.put("createdByName", question.getCreatedById() == null ? null : userRepo.findById(question.getCreatedById()).map(User::getName).orElse(null));
-        return map;
-    }
-
-    private Map<String, Object> sessionMap(EvaluationSession session) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("id", session.getId()); map.put("operatorId", session.getOperator().getId()); map.put("operatorName", session.getOperator().getLastName() + " " + session.getOperator().getFirstName());
-        map.put("templateId", session.getTemplate().getId()); map.put("templateName", session.getTemplate().getName());
-        map.put("formationId", session.getPracticalFormation() != null ? session.getPracticalFormation().getId()
-                : session.getFormation() == null ? null : session.getFormation().getId());
-        map.put("workstationName", session.getPracticalFormation() != null ? session.getPracticalFormation().getWorkstation().getName()
-                : session.getFormation() == null ? null : session.getFormation().getWorkstation().getName());
-        if (session.getPracticalFormation() != null && session.getPracticalFormation().getWorkstation().getZone() != null
-                && session.getPracticalFormation().getWorkstation().getZone().getProject() != null) {
-            map.put("projectId", session.getPracticalFormation().getWorkstation().getZone().getProject().getId());
-            map.put("projectName", session.getPracticalFormation().getWorkstation().getZone().getProject().getName());
-        }
-        map.put("evaluatorName", session.getEvaluatorName()); map.put("status", session.getStatus().name()); map.put("genericTotal", session.getGenericTotal()); map.put("genericCorrect", session.getGenericCorrect()); map.put("genericPercentage", session.getGenericPercentage());
-        map.put("productionTotal", session.getProductionTotal()); map.put("productionCorrect", session.getProductionCorrect()); map.put("productionPercentage", session.getProductionPercentage());
-        map.put("totalQuestions", session.getTotalQuestions()); map.put("correctAnswers", session.getCorrectAnswers()); map.put("scorePercentage", session.getScorePercentage());
-        map.put("decision", session.getDecision()); map.put("niveau", session.getNiveau()); map.put("seniorityMonths", session.getOperatorSeniorityMonths());
-        return map;
-    }
-
-    private Map<String, Object> pendingMap(WorkstationFormation formation) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("operatorId", formation.getOperator().getId()); item.put("operatorName", formation.getOperator().getLastName() + " " + formation.getOperator().getFirstName());
-        item.put("operatorEmployeeId", formation.getOperator().getEmployeeId()); item.put("formationId", formation.getId());
-        item.put("workstationId", formation.getWorkstation().getId()); item.put("workstationName", formation.getWorkstation().getName());
-        if (formation.getWorkstation().getZone() != null && formation.getWorkstation().getZone().getProject() != null) {
-            item.put("projectId", formation.getWorkstation().getZone().getProject().getId());
-            item.put("projectName", formation.getWorkstation().getZone().getProject().getName());
-        }
-        item.put("seniorityMonths", formation.getOperator().getHireDate() == null ? 0 : Period.between(formation.getOperator().getHireDate(), LocalDate.now()).toTotalMonths());
-        return item;
-    }
-
-    private Map<String, Object> buildResult(EvaluationSession session) {
-        Map<String, Object> result = sessionMap(session);
-        result.put("sessionId", session.getId());
-        return result;
-    }
-
-    private String latestLevel(Long operatorId, Long workstationId) {
+    private boolean hasPassedGeneric(Long operatorId) {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
-                .filter(s -> (s.getPracticalFormation() != null && s.getPracticalFormation().getWorkstation().getId().equals(workstationId))
-                        || (s.getPracticalFormation() == null && s.getTemplate().getWorkstation() != null
-                        && s.getTemplate().getWorkstation().getId().equals(workstationId)))
-                .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.PASSED).findFirst().map(EvaluationSession::getNiveau).orElse("-");
+                .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.PASSED)
+                .anyMatch(s -> {
+                    List<EvaluationAnswer> ans = answerRepo.findBySessionId(s.getId());
+                    long genTotal = ans.stream()
+                            .filter(a -> a.getQuestion().getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON)
+                            .count();
+                    long genCorrect = ans.stream()
+                            .filter(a -> a.getQuestion().getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON && a.getAnswer() == 1)
+                            .count();
+                    return genTotal > 0 && genCorrect == genTotal;
+                });
     }
+
+    private Map<String, Object> buildResult(EvaluationSession session, String message) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sessionId", session.getId());
+        result.put("status", session.getStatus().name());
+        result.put("decision", session.getDecision());
+        result.put("niveau", session.getNiveau());
+        result.put("genericTotal", session.getGenericTotal());
+        result.put("genericCorrect", session.getGenericCorrect());
+        result.put("genericPercentage", session.getGenericPercentage());
+        result.put("productionTotal", session.getProductionTotal());
+        result.put("productionCorrect", session.getProductionCorrect());
+        result.put("productionPercentage", session.getProductionPercentage());
+        result.put("totalQuestions", session.getTotalQuestions());
+        result.put("correctAnswers", session.getCorrectAnswers());
+        result.put("scorePercentage", session.getScorePercentage());
+        result.put("seniorityMonths", session.getOperatorSeniorityMonths());
+        result.put("message", message);
+        return result;
+    }
+    @Transactional
+public Map<String, Object> updateQuestion(Long questionId, String questionText,
+                                           String expectedAnswer, Integer questionNumber, Long sectionId) {
+    EvaluationQuestion question = questionRepo.findById(questionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+    if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
+    }
+    if (questionText != null) question.setQuestionText(questionText);
+    if (expectedAnswer != null) question.setExpectedAnswer(expectedAnswer);
+    if (questionNumber != null) question.setQuestionNumber(questionNumber);
+    if (sectionId != null) {
+        EvaluationSection section = sectionRepo.findById(sectionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
+        question.setSection(section);
+    }
+    questionRepo.save(question);
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("id", question.getId());
+    result.put("questionText", question.getQuestionText());
+    result.put("expectedAnswer", question.getExpectedAnswer());
+    result.put("questionNumber", question.getQuestionNumber());
+    result.put("status", question.getStatus().name());
+    return result;
+}
+
+@Transactional
+public Map<String, Object> deleteQuestion(Long questionId) {
+    EvaluationQuestion question = questionRepo.findById(questionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+    if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
+    }
+    questionRepo.delete(question);
+    return Map.of("deleted", true);
+}
+
+@Transactional
+public Map<String, Object> updateTemplate(Long templateId, String name, String description, String targetNiveau) {
+    EvaluationTemplate template = templateRepo.findById(templateId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+    if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre modifie");
+    }
+    if (name != null) template.setName(name);
+    if (description != null) template.setDescription(description);
+    if (targetNiveau != null) template.setTargetNiveau(targetNiveau);
+    templateRepo.save(template);
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("id", template.getId());
+    result.put("name", template.getName());
+    result.put("description", template.getDescription());
+    result.put("type", template.getType().name());
+    result.put("status", template.getStatus().name());
+    return result;
+}
+
+@Transactional
+public Map<String, Object> deleteTemplate(Long templateId) {
+    EvaluationTemplate template = templateRepo.findById(templateId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+    if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre supprime");
+    }
+    templateRepo.delete(template);
+    return Map.of("deleted", true);
+}
 }

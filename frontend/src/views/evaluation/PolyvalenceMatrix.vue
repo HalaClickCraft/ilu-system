@@ -42,8 +42,7 @@
         <thead class="bg-gray-50">
           <tr>
             <th class="px-4 py-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[180px]">Operateur</th>
-            <th class="px-3 py-3 text-center font-semibold text-gray-700 min-w-[50px]">HSE</th>
-            <th class="px-3 py-3 text-center font-semibold text-gray-700 min-w-[50px]">Qualite</th>
+            <th class="px-3 py-3 text-center font-semibold text-gray-700 min-w-[50px]">Generique</th>
             <th class="px-3 py-3 text-center font-semibold text-gray-700 min-w-[50px]">Anciennete</th>
             <th v-for="ws in workstations" :key="ws.id" class="px-3 py-3 text-center font-semibold text-gray-700 min-w-[80px]">
               <div class="truncate text-xs" :title="ws.name">{{ ws.name }}</div>
@@ -57,13 +56,8 @@
               <p class="text-xs text-gray-400">{{ op.employeeId }}</p>
             </td>
             <td class="px-3 py-3 text-center">
-              <span :class="op.hsePassed ? 'bg-green-500' : 'bg-gray-200 text-gray-500'" class="inline-block w-8 h-8 leading-8 rounded-lg text-white text-xs font-bold">
-                {{ op.hsePassed ? 'OK' : '-' }}
-              </span>
-            </td>
-            <td class="px-3 py-3 text-center">
-              <span :class="op.qualityPassed ? 'bg-green-500' : 'bg-gray-200 text-gray-500'" class="inline-block w-8 h-8 leading-8 rounded-lg text-white text-xs font-bold">
-                {{ op.qualityPassed ? 'OK' : '-' }}
+              <span :class="op.genericPassed ? 'bg-green-500' : 'bg-gray-200 text-gray-500'" class="inline-block w-8 h-8 leading-8 rounded-lg text-white text-xs font-bold">
+                {{ op.genericPassed ? 'OK' : '-' }}
               </span>
             </td>
             <td class="px-3 py-3 text-center text-xs text-gray-600">{{ op.seniorityMonths }} mois</td>

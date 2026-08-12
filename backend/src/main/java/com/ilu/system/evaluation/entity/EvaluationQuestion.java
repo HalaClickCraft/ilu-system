@@ -29,15 +29,8 @@ public class EvaluationQuestion {
     private Integer questionNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "response_type")
-    private ResponseType responseType = ResponseType.BINARY;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "validator_role")
     private ValidatorRole validatorRole = ValidatorRole.CHEF_EQUIPE;
-
-    @Enumerated(EnumType.STRING)
-    private QuestionCategory category = QuestionCategory.PRODUCTION;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -64,20 +57,11 @@ public class EvaluationQuestion {
         CHEF_EQUIPE, AGENT_QUALITE, RESP_HSE, RESP_QUALITE
     }
 
-    public enum QuestionCategory {
-        HSE, SECURITY_ENVIRONMENT, FIVE_S, TRACEABILITY, PRODUCTION_ALARMS,
-        QUALITY, PRODUCTION, ANIMATION
-    }
-
-    public enum ResponseType {
-        BINARY, YES_NO, TEXT, NUMBER
-    }
-
     public enum QuestionStatus {
         PENDING, VALIDATED, REJECTED
     }
+    
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public EvaluationTemplate getTemplate() { return template; }
@@ -90,12 +74,8 @@ public class EvaluationQuestion {
     public void setExpectedAnswer(String expectedAnswer) { this.expectedAnswer = expectedAnswer; }
     public Integer getQuestionNumber() { return questionNumber; }
     public void setQuestionNumber(Integer questionNumber) { this.questionNumber = questionNumber; }
-    public ResponseType getResponseType() { return responseType; }
-    public void setResponseType(ResponseType responseType) { this.responseType = responseType; }
     public ValidatorRole getValidatorRole() { return validatorRole; }
     public void setValidatorRole(ValidatorRole validatorRole) { this.validatorRole = validatorRole; }
-    public QuestionCategory getCategory() { return category; }
-    public void setCategory(QuestionCategory category) { this.category = category; }
     public QuestionStatus getStatus() { return status; }
     public void setStatus(QuestionStatus status) { this.status = status; }
     public Long getCreatedById() { return createdById; }

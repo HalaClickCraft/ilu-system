@@ -22,6 +22,9 @@ import com.ilu.system.structure.repository.ProjectMemberRepository;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
+
+import com.ilu.system.operator.service.OnboardingService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,7 +88,7 @@ public class TrainingService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "L'operateur " + operator.getEmployeeId() + " doit terminer tous les modules theorique avant la formation pratique");
             }
-            if (!formationRepo.findActiveByOperatorAndWorkstation(operatorId, workstationId).isEmpty()) {
+            if (formationRepo.findActiveByOperator_IdAndWorkstation_Id(operatorId, workstationId) != null) {
                 continue;
             }
             WorkstationFormation formation = new WorkstationFormation();

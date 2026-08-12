@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Validation des Questions</h1>
-      <p class="text-sm text-gray-500 mt-1">Les questions Qualite soumises par les agents requierent votre approbation.</p>
+      <p class="text-sm text-gray-500 mt-1">Valider ou rejeter les questions soumises par les agents</p>
     </div>
 
     <!-- Stats -->
@@ -17,14 +17,15 @@
       </div>
     </div>
 
+
+
     <!-- Pending questions list -->
     <div class="space-y-3">
-      <div v-for="q in pendingQuestions" :key="q.id" class="bg-white rounded-xl border border-gray-200 p-5">
+      <div v-for="q in filteredQuestions" :key="q.id" class="bg-white rounded-xl border border-gray-200 p-5">
         <div class="flex items-start justify-between">
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">Domaine : {{ domainLabel(q.sectionDomain) }}</span>
-              <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Responsable : {{ roleLabel(q.responsibleRole) }}</span>
+              <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ q.validatorRole }}</span>
               <span class="text-xs text-gray-400">Template: {{ q.templateName }}</span>
             </div>
             <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
@@ -65,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { evaluationApi } from '@/api/endpoints'
 
 const pendingQuestions = ref([])
@@ -74,8 +75,7 @@ const rejectTarget = ref(null)
 const rejectReason = ref('')
 const processedCount = ref(0)
 
-const domainLabel = (domain) => ({ QUALITY: 'Qualité' }[domain] || domain || 'Qualité')
-const roleLabel = (role) => ({ AGENT_QUALITE: 'Agent qualité', RESP_QUALITE: 'Responsable qualité' }[role] || role || '—')
+const filteredQuestions = computed(() => pendingQuestions.value)
 
 const formatDate = (d) => {
   if (!d) return ''

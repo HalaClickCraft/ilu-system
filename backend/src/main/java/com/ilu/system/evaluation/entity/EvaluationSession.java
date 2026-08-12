@@ -61,6 +61,16 @@ public class EvaluationSession {
     @Column(name = "production_percentage")
     private Double productionPercentage = 0.0;
 
+    // Animation part scores (FIX P1-3)
+    @Column(name = "animation_total")
+    private Integer animationTotal = 0;
+
+    @Column(name = "animation_correct")
+    private Integer animationCorrect = 0;
+
+    @Column(name = "animation_percentage")
+    private Double animationPercentage = 0.0;
+
     // Overall
     @Column(name = "total_questions")
     private Integer totalQuestions = 0;
@@ -93,8 +103,12 @@ public class EvaluationSession {
         this.createdAt = LocalDateTime.now();
     }
 
+    /**
+     * FIX P2-1: Removed unused COMPLETED status.
+     * Only IN_PROGRESS, PASSED, FAILED, BLOCKED are used in the codebase.
+     */
     public enum SessionStatus {
-        IN_PROGRESS, COMPLETED, PASSED, FAILED, BLOCKED
+        IN_PROGRESS, PASSED, FAILED, BLOCKED
     }
 
     // Getters and Setters
@@ -126,6 +140,12 @@ public class EvaluationSession {
     public void setProductionCorrect(Integer productionCorrect) { this.productionCorrect = productionCorrect; }
     public Double getProductionPercentage() { return productionPercentage; }
     public void setProductionPercentage(Double productionPercentage) { this.productionPercentage = productionPercentage; }
+    public Integer getAnimationTotal() { return animationTotal; }
+    public void setAnimationTotal(Integer animationTotal) { this.animationTotal = animationTotal; }
+    public Integer getAnimationCorrect() { return animationCorrect; }
+    public void setAnimationCorrect(Integer animationCorrect) { this.animationCorrect = animationCorrect; }
+    public Double getAnimationPercentage() { return animationPercentage; }
+    public void setAnimationPercentage(Double animationPercentage) { this.animationPercentage = animationPercentage; }
     public Integer getTotalQuestions() { return totalQuestions; }
     public void setTotalQuestions(Integer totalQuestions) { this.totalQuestions = totalQuestions; }
     public Integer getCorrectAnswers() { return correctAnswers; }

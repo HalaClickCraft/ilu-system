@@ -19,8 +19,23 @@ public interface EvaluationSessionRepository extends JpaRepository<EvaluationSes
     @Query("SELECT s FROM EvaluationSession s WHERE s.status = 'IN_PROGRESS'")
     List<EvaluationSession> findInProgressSessions();
 
-    // Auto-trigger: find if operator already has a session for a specific formation
     boolean existsByOperatorIdAndFormationId(Long operatorId, Long formationId);
 
     boolean existsByOperatorIdAndPracticalFormationId(Long operatorId, Long practicalFormationId);
+
+    @Query("SELECT s FROM EvaluationSession s " +
+           "LEFT JOIN s.practicalFormation pf " +
+           "LEFT JOIN s.template t " +
+           "WHERE s.operator.id = :operatorId AND s.status = 'PASSED' " +
+           "ORDER BY s.createdAt DESC")
+    List<EvaluationSession> findPassedSessionsForOperator(@Param("operatorId") Long operatorId);
+
+    @Query("SELECT s FROM EvaluationSession s " +
+           "LEFT JOIN s.practicalFormation pf " +
+           "LEFT JOIN s.template t " +
+           "WHERE s.operator.id = :operatorId AND s.status = 'PASSED' AND s.niveau = :niveau " +
+           "AND (pf.workstation.id = :workstationId OR t.workstation.id = :workstationId)")
+    List<EvaluationSession> findPassedByOperatorAndWorkstationAndNiveau(@Param("operatorId") Long operatorId,
+                                                                        @Param("workstationId") Long workstationId,
+                                                                        @Param("niveau") String niveau);
 }

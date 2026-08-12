@@ -78,7 +78,7 @@ public class OperatorService {
     }
 
     public List<FormationDetailsDto> getOperatorFormations(Long operatorId) {
-        return workstationFormationRepository.findByOperatorId(operatorId).stream().map(f -> {
+        return workstationFormationRepository.findByOperator_Id(operatorId).stream().map(f -> {
             FormationDetailsDto dto = new FormationDetailsDto();
             dto.setId(f.getId());
             dto.setOperatorId(f.getOperator().getId());

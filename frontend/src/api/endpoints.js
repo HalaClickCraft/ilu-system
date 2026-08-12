@@ -35,7 +35,7 @@ export const trainingApi = {
   saveDailyBatch: (entries) => api.post('/training/daily-batch', { entries }),
   autoEvaluate: (formationId) => api.post(`/training/formations/${formationId}/auto-evaluate`),
   getChartData: (formationId) => api.get(`/training/formations/${formationId}/chart-data`),
-    resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
+  resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
   setQualityObjective: (formationId, qualityObjective) => api.put(`/training/formations/${formationId}/quality-objective`, { qualityObjective }),
   setWorkstationQualityObjective: (workstationId, qualityObjective) => api.put(`/training/workstations/${workstationId}/quality-objective`, { qualityObjective }),
   getStatistics: () => api.get('/training/statistics'),
@@ -58,35 +58,41 @@ export const structureApi = {
   updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
   deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
   getAvailableUsers: () => api.get('/structure/users-available'),
-
 }
+
 export const evaluationApi = {
   // Templates
   getTemplates: () => api.get('/evaluation/templates'),
   getTemplateDetail: (id) => api.get(`/evaluation/templates/${id}`),
   createTemplate: (data) => api.post('/evaluation/templates', data),
   validateTemplate: (id) => api.post(`/evaluation/templates/${id}/validate`),
-
+ 
+updateTemplate: (id, data) => api.put(`/evaluation/templates/${id}`, data),
+deleteTemplate: (id) => api.delete(`/evaluation/templates/${id}`),
   // Sections
   addSection: (templateId, data) => api.post(`/evaluation/templates/${templateId}/sections`, data),
 
   // Questions
   addQuestion: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions`, data),
+  updateQuestion: (questionId, data) => api.put(`/evaluation/questions/${questionId}`, data),
+  deleteQuestion: (questionId) => api.delete(`/evaluation/questions/${questionId}`),
 
-  // Question Validation (Responsable)
+  // Question Validation
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
   validateQuestion: (id) => api.post(`/evaluation/questions/${id}/validate`),
   rejectQuestion: (id, reason) => api.post(`/evaluation/questions/${id}/reject`, { reason }),
 
   // Sessions
   startEvaluation: (data) => api.post('/evaluation/sessions/start', data),
+  startAnimationEvaluation: (data) => api.post('/evaluation/sessions/start-animation', null, { params: data }),
   submitAnswers: (sessionId, answers) => api.post(`/evaluation/sessions/${sessionId}/answers`, { answers }),
   completeEvaluation: (sessionId) => api.post(`/evaluation/sessions/${sessionId}/complete`),
   getSessionDetail: (id) => api.get(`/evaluation/sessions/${id}`),
 
-  // Auto-trigger: operators who passed 12j suivi
+  // Pending
   getPendingForOperator: (operatorId) => api.get(`/evaluation/pending/operator/${operatorId}`),
   getAllPendingEvaluations: () => api.get('/evaluation/pending/all'),
+  getPendingAnimationEvaluations: () => api.get('/evaluation/pending/animations'),
 
   // Polyvalence Matrix
   getMatrix: () => api.get('/evaluation/matrix'),

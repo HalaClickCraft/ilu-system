@@ -3,9 +3,7 @@ package com.ilu.system.evaluation.entity;
 import com.ilu.system.structure.entity.Workstation;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "evaluation_templates")
@@ -28,16 +26,6 @@ public class EvaluationTemplate {
     @ManyToOne
     @JoinColumn(name = "workstation_id")
     private Workstation workstation;
-
-    /**
-     * New templates can serve several workstations. workstation is retained for
-     * compatibility with templates created before this relationship existed.
-     */
-    @ManyToMany
-    @JoinTable(name = "evaluation_template_workstations",
-            joinColumns = @JoinColumn(name = "template_id"),
-            inverseJoinColumns = @JoinColumn(name = "workstation_id"))
-    private Set<Workstation> workstations = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -62,14 +50,13 @@ public class EvaluationTemplate {
     }
 
     public enum TemplateType {
-        GENERIC_HSE, GENERIC_QUALITY, GENERIC_COMMON, POSTE_PRODUCTION, ANIMATION
+        GENERIC_COMMON, POSTE_PRODUCTION, ANIMATION
     }
 
     public enum TemplateStatus {
         DRAFT, VALIDATED, ARCHIVED
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -80,8 +67,6 @@ public class EvaluationTemplate {
     public void setType(TemplateType type) { this.type = type; }
     public Workstation getWorkstation() { return workstation; }
     public void setWorkstation(Workstation workstation) { this.workstation = workstation; }
-    public Set<Workstation> getWorkstations() { return workstations; }
-    public void setWorkstations(Set<Workstation> workstations) { this.workstations = workstations; }
     public TemplateStatus getStatus() { return status; }
     public void setStatus(TemplateStatus status) { this.status = status; }
     public String getTargetNiveau() { return targetNiveau; }

@@ -13,8 +13,6 @@
           <p class="text-sm text-gray-500 mt-1">
             Template: {{ session.templateName }}
             <span v-if="session.formationId"> | Formation #{{ session.formationId }}</span>
-            <span v-if="session.projectName"> | Projet: {{ session.projectName }}</span>
-            <span v-if="session.workstationName"> | Poste: {{ session.workstationName }}</span>
             | Evaluateur: {{ session.evaluatorName || 'N/A' }}
           </p>
         </div>
@@ -34,38 +32,23 @@
       </div>
 
       <!-- Questions by section -->
-      <div v-for="section in session.sections || []" :key="section.id || section.title" class="bg-white rounded-xl border p-5 mt-4">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-          <h2 class="text-lg font-bold text-gray-900">{{ section.title || 'Questions sans section' }}</h2>
-          <div class="flex gap-2 text-xs">
-            <span class="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">Domaine : {{ domainLabel(section.domain) }}</span>
-            <span class="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">Responsable : {{ roleLabel(section.responsibleRole) }}</span>
-          </div>
-        </div>
-        <p v-if="section.description" class="mb-3 text-sm text-gray-500">{{ section.description }}</p>
-        <div v-for="q in section.questions" :key="q.id" class="py-3 border-b last:border-0">
-          <div class="flex items-start gap-4">
-            <span class="text-sm text-gray-400 w-8 shrink-0">{{ q.questionNumber }}</span>
-            <div class="flex-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
-              </div>
-              <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Réponse espérée : {{ q.expectedAnswer }}</p>
-              <p class="text-xs text-gray-400 mt-1">Contrôle binaire : 0 / 1</p>
+      <div v-for="section in templateSections" :key="section.id || section.title" class="bg-white rounded-xl border p-5 mt-4">
+        <h2 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">{{ section.title || 'Questions sans section' }}</h2>
+        <div v-for="q in section.questions" :key="q.id" class="flex items-start gap-4 py-3 border-b last:border-0">
+          <span class="text-sm text-gray-400 w-8 shrink-0">{{ q.questionNumber }}</span>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
             </div>
-            <div v-if="canEditQuestion(section)" class="flex items-center gap-2">
-              <button @click="setAnswer(q.id, 1)" :class="answers[q.id] === 1 ? 'bg-green-600 ring-2 ring-green-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-green-700 transition" title="Conforme">1</button>
-              <button @click="setAnswer(q.id, 0)" :class="answers[q.id] === 0 ? 'bg-red-600 ring-2 ring-red-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-red-700 transition" title="Non conforme">0</button>
-            </div>
-            <span v-else class="text-sm font-medium text-gray-400">
-              {{ section.domain === 'PRODUCTION' && !session.productionEnabled ? 'Verrouillée jusqu’à validation des questions communes' : (getAnswerForQuestion(q.id) === undefined ? 'Non renseignée' : getAnswerForQuestion(q.id)) }}
-            </span>
+            <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Attendu: {{ q.expectedAnswer }}</p>
           </div>
-          <div v-if="canEditQuestion(section)" class="ml-12 mt-2">
-            <label class="block text-xs text-gray-500">Note / observation de l'évaluateur</label>
-            <textarea :value="comments[q.id] || ''" @input="setComment(q.id, $event.target.value)" :disabled="answers[q.id] === undefined" rows="2" placeholder="Sélectionnez d'abord 0 ou 1, puis ajoutez une observation si nécessaire." class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"></textarea>
+          <div v-if="session.status === 'IN_PROGRESS'" class="flex items-center gap-2">
+            <button @click="setAnswer(q.id, 1)" :class="answers[q.id] === 1 ? 'bg-green-600 ring-2 ring-green-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-green-700 transition">1</button>
+            <button @click="setAnswer(q.id, 0)" :class="answers[q.id] === 0 ? 'bg-red-600 ring-2 ring-red-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-red-700 transition">0</button>
           </div>
-          <p v-else-if="getCommentForQuestion(q.id)" class="ml-12 mt-2 text-sm text-gray-600"><span class="font-medium">Observation :</span> {{ getCommentForQuestion(q.id) }}</p>
+          <span v-else class="text-xl font-bold" :class="getAnswerForQuestion(q.id) === 1 ? 'text-green-600' : 'text-red-600'">
+            {{ getAnswerForQuestion(q.id) === 1 ? '1' : '0' }}
+          </span>
         </div>
       </div>
 
@@ -84,7 +67,7 @@
         <h2 class="text-lg font-bold mb-4">Resultats</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-gray-50 rounded-lg p-4 text-center">
-            <p class="text-xs text-gray-500">Partie commune</p>
+            <p class="text-xs text-gray-500">Partie Generique (HSE+Q)</p>
             <p class="text-xl font-bold" :class="session.genericPercentage >= 100 ? 'text-green-600' : 'text-red-600'">{{ session.genericPercentage }}%</p>
             <p class="text-xs text-gray-400">{{ session.genericCorrect }}/{{ session.genericTotal }}</p>
           </div>
@@ -103,7 +86,11 @@
             <p class="text-2xl font-bold" :class="niveauClass(session.niveau)">{{ session.niveau || '-' }}</p>
           </div>
         </div>
-        <div v-if="session.decision === 'FAILED'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <div v-if="session.decision === 'BLOCKED_GENERIC'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+          <p class="font-bold">BLOQUE - Partie generique insuffisante</p>
+          <p class="text-sm mt-1">La partie generique (HSE + Qualite) doit etre a 100% pour poursuivre l'evaluation.</p>
+        </div>
+        <div v-else-if="session.decision === 'FAILED'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
           <p class="font-bold">Echec</p>
           <p class="text-sm mt-1">Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.</p>
         </div>
@@ -139,7 +126,7 @@
           <div class="flex items-center justify-between">
             <div>
               <h3 class="font-semibold text-gray-900 text-lg">{{ pe.operatorName }}</h3>
-              <p class="text-sm text-gray-500">{{ pe.operatorEmployeeId }} <span v-if="pe.projectName">| Projet: {{ pe.projectName }} </span>| Poste: {{ pe.workstationName }} | Anciennete: {{ pe.seniorityMonths }} mois</p>
+              <p class="text-sm text-gray-500">{{ pe.operatorEmployeeId }} | Poste: {{ pe.workstationName }} | Anciennete: {{ pe.seniorityMonths }} mois</p>
             </div>
             <button @click="goToStartEvaluation(pe)"
               class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium">
@@ -149,6 +136,31 @@
         </div>
       </div>
 
+      <!-- Manual start form -->
+      <div class="bg-white rounded-xl border p-6 mt-8">
+        <h2 class="text-lg font-bold mb-4">Demarrer une evaluation manuellement</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="text-sm font-medium text-gray-700">Operateur</label>
+            <select v-model="startForm.operatorId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+              <option :value="null">-- Selectionner --</option>
+              <option v-for="op in operators" :key="op.id" :value="op.id">{{ op.lastName }} {{ op.firstName }} ({{ op.employeeId }})</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Template</label>
+            <select v-model="startForm.templateId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+              <option :value="null">-- Selectionner --</option>
+              <option v-for="tpl in validatedTemplates" :key="tpl.id" :value="tpl.id">{{ tpl.name }} ({{ tpl.type }})</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button @click="manualStart" :disabled="!startForm.operatorId || !startForm.templateId" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50 w-full">
+              Demarrer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -156,19 +168,20 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { evaluationApi } from '@/api/endpoints'
-import { useAuthStore } from '@/stores/auth'
+import { evaluationApi, operatorsApi } from '@/api/endpoints'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
 const session = ref(null)
+const templateSections = ref([])
 const answers = reactive({})
-const comments = reactive({})
-const dirtyAnswers = reactive(new Set())
 const loading = ref(true)
 const saving = ref(false)
 const pendingEvaluations = ref([])
+const operators = ref([])
+const validatedTemplates = ref([])
+
+const startForm = reactive({ operatorId: null, templateId: null, formationId: null })
 
 const sessionStatusClass = (s) => ({
   IN_PROGRESS: 'bg-blue-100 text-blue-700',
@@ -186,28 +199,8 @@ const sessionStatusLabel = (s) => ({
 
 const niveauClass = (n) => ({ I: 'text-amber-600', L: 'text-blue-600', U: 'text-green-600' }[n] || 'text-gray-400')
 
-const domainLabel = (domain) => ({
-  SECURITY_ENVIRONMENT: 'Sécurité / environnement',
-  QUALITY: 'Qualité',
-  FIVE_S: '5S',
-  TRACEABILITY: 'Traçabilité',
-  PRODUCTION_ALARMS: 'Alarmes production',
-  PRODUCTION: 'Production',
-  ANIMATION: 'Animation'
-}[domain] || domain || '—')
-const roleLabel = (role) => ({
-  RESP_HSE: 'Responsable HSE',
-  AGENT_QUALITE: 'Agent qualité',
-  RESP_QUALITE: 'Responsable qualité',
-  CHEF_EQUIPE: "Chef d'équipe"
-}[role] || role || '—')
-
-const canModifySection = (section) => authStore.hasAnyRole(['ADMIN', section.responsibleRole])
-const canEditQuestion = (section) => session.value?.status === 'IN_PROGRESS' && canModifySection(section) && (section.domain !== 'PRODUCTION' || session.value.productionEnabled)
-function setAnswer(questionId, value) { answers[questionId] = value; dirtyAnswers.add(questionId) }
-function setComment(questionId, value) { comments[questionId] = value; dirtyAnswers.add(questionId) }
+function setAnswer(questionId, value) { answers[questionId] = value }
 function getAnswerForQuestion(questionId) { return answers[questionId] }
-function getCommentForQuestion(questionId) { return comments[questionId] }
 
 async function loadPendingEvaluations() {
   loading.value = true
@@ -218,10 +211,33 @@ async function loadPendingEvaluations() {
   loading.value = false
 }
 
-async function goToStartEvaluation(pe) {
+async function loadDropdowns() {
+  const [opsRes, tplRes] = await Promise.allSettled([
+    operatorsApi.getActive(),
+    evaluationApi.getTemplates()
+  ])
+  if (opsRes.status === 'fulfilled') operators.value = opsRes.value.data || []
+  if (tplRes.status === 'fulfilled') validatedTemplates.value = (tplRes.value.data || []).filter(t => t.status === 'VALIDATED')
+}
+
+function goToStartEvaluation(pe) {
+  startForm.operatorId = pe.operatorId
+  startForm.formationId = pe.formationId
+  const tpl = validatedTemplates.value.find(t => t.type === 'POSTE_PRODUCTION')
+  if (tpl) startForm.templateId = tpl.id
+  manualStart()
+}
+
+async function manualStart() {
+  if (!startForm.operatorId || !startForm.templateId) return
   saving.value = true
   try {
-    const res = await evaluationApi.startEvaluation({ operatorId: pe.operatorId, formationId: pe.formationId })
+    const payload = {
+      operatorId: startForm.operatorId,
+      templateId: startForm.templateId,
+    }
+    if (startForm.formationId) payload.formationId = startForm.formationId
+    const res = await evaluationApi.startEvaluation(payload)
     const newSessionId = res.data.sessionId
     router.push(`/evaluation/session/${newSessionId}`)
   } catch (e) {
@@ -233,13 +249,15 @@ async function goToStartEvaluation(pe) {
 async function loadSessionDetail() {
   if (!session.value) return
   try {
-    const sessionRes = await evaluationApi.getSessionDetail(session.value.id || route.params.id)
+    const [sessionRes, templateRes] = await Promise.all([
+      evaluationApi.getSessionDetail(session.value.id || route.params.id),
+      evaluationApi.getTemplateDetail(session.value.templateId)
+    ])
     session.value = sessionRes.data
+    const sections = templateRes.data?.sections || []
+    templateSections.value = sections
     if (sessionRes.data?.answers) {
-      for (const a of sessionRes.data.answers) {
-        answers[a.questionId] = a.answer
-        comments[a.questionId] = a.comment || ''
-      }
+      for (const a of sessionRes.data.answers) { answers[a.questionId] = a.answer }
     }
   } catch (e) { console.error('Error loading session', e) }
 }
@@ -248,16 +266,10 @@ async function saveAnswers() {
   if (!session.value) return
   saving.value = true
   try {
-    const answerList = [...dirtyAnswers].map(questionId => ({
-      questionId: Number(questionId),
-      answer: answers[questionId],
-      comment: comments[questionId] || null
+    const answerList = Object.entries(answers).map(([questionId, answer]) => ({
+      questionId: Number(questionId), answer
     }))
-    if (answerList.length) {
-      const res = await evaluationApi.submitAnswers(session.value.id, answerList)
-      dirtyAnswers.clear()
-      session.value.productionEnabled = res.data.productionEnabled
-    }
+    await evaluationApi.submitAnswers(session.value.id, answerList)
   } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
   saving.value = false
 }
@@ -275,7 +287,6 @@ async function completeEval() {
 }
 
 onMounted(async () => {
-  // If route has :id, load existing session
   if (route.params.id && route.params.id !== 'new') {
     try {
       const res = await evaluationApi.getSessionDetail(route.params.id)
@@ -285,7 +296,6 @@ onMounted(async () => {
       return
     } catch (e) { /* fall through to pending list */ }
   }
-  // Otherwise load pending evaluations + dropdowns
-  await loadPendingEvaluations()
+  await Promise.all([loadPendingEvaluations(), loadDropdowns()])
 })
 </script>
