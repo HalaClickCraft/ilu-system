@@ -21,11 +21,13 @@ public class EvaluationSection {
     @Column(name = "display_order")
     private Integer displayOrder = 0;
 
+    @Column(name = "complementary_questions", columnDefinition = "TEXT")
+    private String complementaryQuestions;
+
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("questionNumber ASC")
     private List<EvaluationQuestion> questions;
 
-    
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public EvaluationTemplate getTemplate() { return template; }
@@ -36,4 +38,6 @@ public class EvaluationSection {
     public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
     public List<EvaluationQuestion> getQuestions() { return questions; }
     public void setQuestions(List<EvaluationQuestion> questions) { this.questions = questions; }
+    public String getComplementaryQuestions() { return complementaryQuestions; }
+    public void setComplementaryQuestions(String complementaryQuestions) { this.complementaryQuestions = complementaryQuestions; }
 }

@@ -28,6 +28,9 @@ public class EvaluationQuestion {
     @Column(name = "question_number")
     private Integer questionNumber;
 
+    @Column(name = "complementary_questions", columnDefinition = "TEXT")
+    private String complementaryQuestions;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "validator_role")
     private ValidatorRole validatorRole = ValidatorRole.CHEF_EQUIPE;
@@ -60,7 +63,6 @@ public class EvaluationQuestion {
     public enum QuestionStatus {
         PENDING, VALIDATED, REJECTED
     }
-    
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -74,6 +76,8 @@ public class EvaluationQuestion {
     public void setExpectedAnswer(String expectedAnswer) { this.expectedAnswer = expectedAnswer; }
     public Integer getQuestionNumber() { return questionNumber; }
     public void setQuestionNumber(Integer questionNumber) { this.questionNumber = questionNumber; }
+    public String getComplementaryQuestions() { return complementaryQuestions; }
+    public void setComplementaryQuestions(String complementaryQuestions) { this.complementaryQuestions = complementaryQuestions; }
     public ValidatorRole getValidatorRole() { return validatorRole; }
     public void setValidatorRole(ValidatorRole validatorRole) { this.validatorRole = validatorRole; }
     public QuestionStatus getStatus() { return status; }

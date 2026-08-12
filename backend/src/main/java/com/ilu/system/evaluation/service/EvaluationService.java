@@ -12,16 +12,6 @@ import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.repository.WorkstationRepository;
-
-import com.ilu.system.evaluation.entity.EvaluationSession;
-import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
-
-import com.ilu.system.evaluation.entity.EvaluationAnswer;
-import com.ilu.system.evaluation.entity.EvaluationTemplate;
-import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
-import com.ilu.system.evaluation.repository.EvaluationQuestionRepository;
-import com.ilu.system.evaluation.repository.EvaluationSectionRepository;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -106,7 +96,7 @@ public class EvaluationService {
     }
 
     @Transactional
-    public Map<String, Object> addSection(Long templateId, String title, Integer displayOrder) {
+    public Map<String, Object> addSection(Long templateId, String title, Integer displayOrder, String complementaryQuestions) {
         EvaluationTemplate template = templateRepo.findById(templateId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
 
@@ -114,6 +104,7 @@ public class EvaluationService {
         section.setTemplate(template);
         section.setTitle(title);
         section.setDisplayOrder(displayOrder != null ? displayOrder : (template.getSections() != null ? template.getSections().size() : 0) + 1);
+        section.setComplementaryQuestions(complementaryQuestions);
         sectionRepo.save(section);
 
         if (template.getSections() == null) {
@@ -126,56 +117,75 @@ public class EvaluationService {
         result.put("id", section.getId());
         result.put("title", section.getTitle());
         result.put("displayOrder", section.getDisplayOrder());
+        result.put("complementaryQuestions", section.getComplementaryQuestions());
         result.put("templateId", templateId);
         return result;
     }
 
     @Transactional
-   public Map<String, Object> addQuestion(Long templateId, Long sectionId, String questionText,
-                                        String expectedAnswer, Integer questionNumber,
+    public Map<String, Object> addQuestion(Long templateId, Long sectionId, String questionText,
+                                        String expectedAnswer, String complementaryQuestions, Integer questionNumber,
                                         Set<String> userRoles, Long createdById) {
-    EvaluationTemplate template = templateRepo.findById(templateId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
 
-    // Derive validatorRole from authenticated user's roles — no impersonation possible
-    EvaluationQuestion.ValidatorRole validatorRole = deriveValidatorRole(userRoles);
+        EvaluationQuestion.ValidatorRole validatorRole = deriveValidatorRole(userRoles);
 
-    EvaluationQuestion question = new EvaluationQuestion();
-    question.setTemplate(template);
-    question.setQuestionText(questionText);
-    question.setExpectedAnswer(expectedAnswer);
-    question.setQuestionNumber(questionNumber);
-    question.setValidatorRole(validatorRole);
-    question.setCreatedById(createdById);
+        EvaluationQuestion question = new EvaluationQuestion();
+        question.setTemplate(template);
+        question.setQuestionText(questionText);
+        question.setExpectedAnswer(expectedAnswer);
+        question.setComplementaryQuestions(complementaryQuestions);
+        question.setQuestionNumber(questionNumber);
+        question.setValidatorRole(validatorRole);
+        question.setCreatedById(createdById);
 
-    if (sectionId != null) {
-        EvaluationSection section = sectionRepo.findById(sectionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
-        question.setSection(section);
+        // Only AGENT_QUALITE questions need PENDING approval by RESP_QUALITE
+        // CHEF_EQUIPE, RESP_HSE, RESP_QUALITE questions are auto-validated
+        if (validatorRole == EvaluationQuestion.ValidatorRole.AGENT_QUALITE) {
+            question.setStatus(EvaluationQuestion.QuestionStatus.PENDING);
+        } else {
+            question.setStatus(EvaluationQuestion.QuestionStatus.VALIDATED);
+            question.setValidatedById(createdById);
+        }
+
+        if (sectionId != null) {
+            EvaluationSection section = sectionRepo.findById(sectionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
+            question.setSection(section);
+        }
+
+        questionRepo.save(question);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", question.getId());
+        result.put("questionText", question.getQuestionText());
+        result.put("expectedAnswer", question.getExpectedAnswer());
+        result.put("complementaryQuestions", question.getComplementaryQuestions());
+        result.put("questionNumber", question.getQuestionNumber());
+        result.put("validatorRole", question.getValidatorRole().name());
+        result.put("status", question.getStatus().name());
+        result.put("createdById", question.getCreatedById());
+        if (question.getStatus() == EvaluationQuestion.QuestionStatus.PENDING) {
+            result.put("message", "Question creee en attente de validation par le responsable");
+        } else {
+            result.put("message", "Question validee automatiquement");
+        }
+        return result;
     }
 
-    questionRepo.save(question);
-    // questionRepo.save(question); // Duplicate save removed
-    Map<String, Object> result = new LinkedHashMap<>();
-    result.put("id", question.getId());
-    result.put("questionText", question.getQuestionText());
-    result.put("validatorRole", question.getValidatorRole().name());
-    result.put("status", question.getStatus().name());
-    result.put("createdById", question.getCreatedById());
-    return result;
-}
-
-/**
- * Maps the authenticated user's real roles to a ValidatorRole.
- * Prevents impersonation — the role comes from the JWT, not the request body.
- */
-private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRoles) {
-    if (userRoles.contains("RESP_HSE")) return EvaluationQuestion.ValidatorRole.RESP_HSE;
-    if (userRoles.contains("RESP_QUALITE")) return EvaluationQuestion.ValidatorRole.RESP_QUALITE;
-    if (userRoles.contains("AGENT_QUALITE")) return EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
-    if (userRoles.contains("CHEF_EQUIPE")) return EvaluationQuestion.ValidatorRole.CHEF_EQUIPE;
-    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Role non autorise a creer des questions");
-}
+    /**
+     * Maps the authenticated user's real roles to a ValidatorRole.
+     * Prevents impersonation - the role comes from the JWT, not the request body.
+     */
+    private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRoles) {
+        if (userRoles.contains("ADMIN")) return EvaluationQuestion.ValidatorRole.CHEF_EQUIPE;
+        if (userRoles.contains("CHEF_EQUIPE")) return EvaluationQuestion.ValidatorRole.CHEF_EQUIPE;
+        if (userRoles.contains("RESP_HSE")) return EvaluationQuestion.ValidatorRole.RESP_HSE;
+        if (userRoles.contains("RESP_QUALITE")) return EvaluationQuestion.ValidatorRole.RESP_QUALITE;
+        if (userRoles.contains("AGENT_QUALITE")) return EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Role non autorise a creer des questions");
+    }
 
     // ======================== QUESTION VALIDATION ========================
 
@@ -392,7 +402,6 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
         session.setCorrectAnswers(correctAnswers);
         session.setScorePercentage(Math.round(overallPct * 10.0) / 10.0);
 
-        // Rule: Generic part MUST be 100%
         if (genericPct < 100.0) {
             session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
             session.setDecision("BLOCKED_GENERIC");
@@ -401,7 +410,6 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
             return buildResult(session, "BLOQUE: La partie generique (HSE + Qualite) doit etre 100%");
         }
 
-        // Determine niveau based on seniority + production percentage
         String niveau = determineNiveau(session.getOperatorSeniorityMonths(), productionPct);
         session.setNiveau(niveau);
 
@@ -423,10 +431,6 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
 
     // ======================== AUTO-TRIGGER ========================
 
-    /**
-     * Finds operators who completed their 12-day suivi (COMPLETED) but don't have
-     * an evaluation session yet for that formation.
-     */
     public List<Map<String, Object>> getPendingEvaluationsForOperator(Long operatorId) {
         Operator operator = operatorRepo.findById(operatorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
@@ -457,9 +461,6 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
         return pending;
     }
 
-    /**
-     * Checks all operators and returns those with pending evaluations (global view).
-     */
     public List<Map<String, Object>> getAllPendingEvaluations() {
         List<Operator> operators = operatorRepo.findAll();
         List<Map<String, Object>> allPending = new ArrayList<>();
@@ -564,6 +565,7 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
             map.put("id", q.getId());
             map.put("questionText", q.getQuestionText());
             map.put("expectedAnswer", q.getExpectedAnswer());
+            map.put("complementaryQuestions", q.getComplementaryQuestions());
             map.put("validatorRole", q.getValidatorRole().name());
             map.put("templateId", q.getTemplate().getId());
             map.put("templateName", q.getTemplate().getName());
@@ -637,16 +639,39 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
                     sMap.put("id", s.getId());
                     sMap.put("title", s.getTitle());
                     sMap.put("displayOrder", s.getDisplayOrder());
+                    sMap.put("complementaryQuestions", s.getComplementaryQuestions());
 
-                    List<Map<String, Object>> qs = questionRepo.findValidatedQuestionsByTemplate(templateId).stream()
-                            .filter(q -> q.getSection() != null && q.getSection().getId().equals(s.getId()))
+                    // For DRAFT templates, show ALL questions so users can manage them.
+                    // For VALIDATED/ARCHIVED, show only VALIDATED questions.
+                    List<EvaluationQuestion> questions;
+                    if (template.getStatus() == EvaluationTemplate.TemplateStatus.DRAFT) {
+                        questions = questionRepo.findByTemplateId(templateId).stream()
+                                .filter(q -> q.getSection() != null && q.getSection().getId().equals(s.getId()))
+                                .sorted(Comparator.comparing(q -> q.getQuestionNumber() != null ? q.getQuestionNumber() : 0))
+                                .collect(Collectors.toList());
+                    } else {
+                        questions = questionRepo.findValidatedQuestionsByTemplate(templateId).stream()
+                                .filter(q -> q.getSection() != null && q.getSection().getId().equals(s.getId()))
+                                .collect(Collectors.toList());
+                    }
+
+                    List<Map<String, Object>> qs = questions.stream()
                             .map(q -> {
                                 Map<String, Object> qMap = new LinkedHashMap<>();
                                 qMap.put("id", q.getId());
                                 qMap.put("questionText", q.getQuestionText());
                                 qMap.put("expectedAnswer", q.getExpectedAnswer());
+                                qMap.put("complementaryQuestions", q.getComplementaryQuestions());
                                 qMap.put("questionNumber", q.getQuestionNumber());
                                 qMap.put("validatorRole", q.getValidatorRole().name());
+                                qMap.put("status", q.getStatus().name());
+                                qMap.put("createdById", q.getCreatedById());
+                                String creatorName = q.getCreatedById() != null
+                                        ? userRepo.findById(q.getCreatedById()).map(User::getName).orElse("Inconnu") : "Inconnu";
+                                qMap.put("createdByName", creatorName);
+                                String creatorEmployeeId = q.getCreatedById() != null
+                                        ? userRepo.findById(q.getCreatedById()).map(User::getEmployeeId).orElse(null) : null;
+                                qMap.put("createdByEmployeeId", creatorEmployeeId);
                                 return qMap;
                             }).collect(Collectors.toList());
                     sMap.put("questions", qs);
@@ -655,6 +680,87 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
         map.put("sections", sectionsList);
 
         return map;
+    }
+
+    // ======================== QUESTION / TEMPLATE UPDATE & DELETE ========================
+
+    @Transactional
+    public Map<String, Object> updateQuestion(Long questionId, String questionText,
+                                           String expectedAnswer, String complementaryQuestions,
+                                           Integer questionNumber, Long sectionId, Long currentUserId) {
+        EvaluationQuestion question = questionRepo.findById(questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+        if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
+        }
+        // Ownership check: only the creator can edit their own question
+        if (!question.getCreatedById().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Vous ne pouvez modifier que vos propres questions");
+        }
+        if (questionText != null) question.setQuestionText(questionText);
+        if (expectedAnswer != null) question.setExpectedAnswer(expectedAnswer);
+        if (complementaryQuestions != null) question.setComplementaryQuestions(complementaryQuestions);
+        if (questionNumber != null) question.setQuestionNumber(questionNumber);
+        if (sectionId != null) {
+            EvaluationSection section = sectionRepo.findById(sectionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
+            question.setSection(section);
+        }
+        questionRepo.save(question);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", question.getId());
+        result.put("questionText", question.getQuestionText());
+        result.put("expectedAnswer", question.getExpectedAnswer());
+        result.put("complementaryQuestions", question.getComplementaryQuestions());
+        result.put("questionNumber", question.getQuestionNumber());
+        result.put("status", question.getStatus().name());
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> deleteQuestion(Long questionId, Long currentUserId) {
+        EvaluationQuestion question = questionRepo.findById(questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+        if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
+        }
+        // Ownership check: only the creator can delete their own question
+        if (!question.getCreatedById().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Vous ne pouvez supprimer que vos propres questions");
+        }
+        questionRepo.delete(question);
+        return Map.of("deleted", true);
+    }
+
+    @Transactional
+    public Map<String, Object> updateTemplate(Long templateId, String name, String description, String targetNiveau) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+        if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre modifie");
+        }
+        if (name != null) template.setName(name);
+        if (description != null) template.setDescription(description);
+        if (targetNiveau != null) template.setTargetNiveau(targetNiveau);
+        templateRepo.save(template);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", template.getId());
+        result.put("name", template.getName());
+        result.put("description", template.getDescription());
+        result.put("type", template.getType().name());
+        result.put("status", template.getStatus().name());
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> deleteTemplate(Long templateId) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+        if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre supprime");
+        }
+        templateRepo.delete(template);
+        return Map.of("deleted", true);
     }
 
     // ======================== PRIVATE HELPERS ========================
@@ -722,71 +828,4 @@ private EvaluationQuestion.ValidatorRole deriveValidatorRole(Set<String> userRol
         result.put("message", message);
         return result;
     }
-    @Transactional
-public Map<String, Object> updateQuestion(Long questionId, String questionText,
-                                           String expectedAnswer, Integer questionNumber, Long sectionId) {
-    EvaluationQuestion question = questionRepo.findById(questionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
-    if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
-    }
-    if (questionText != null) question.setQuestionText(questionText);
-    if (expectedAnswer != null) question.setExpectedAnswer(expectedAnswer);
-    if (questionNumber != null) question.setQuestionNumber(questionNumber);
-    if (sectionId != null) {
-        EvaluationSection section = sectionRepo.findById(sectionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section introuvable"));
-        question.setSection(section);
-    }
-    questionRepo.save(question);
-    Map<String, Object> result = new LinkedHashMap<>();
-    result.put("id", question.getId());
-    result.put("questionText", question.getQuestionText());
-    result.put("expectedAnswer", question.getExpectedAnswer());
-    result.put("questionNumber", question.getQuestionNumber());
-    result.put("status", question.getStatus().name());
-    return result;
-}
-
-@Transactional
-public Map<String, Object> deleteQuestion(Long questionId) {
-    EvaluationQuestion question = questionRepo.findById(questionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
-    if (question.getTemplate().getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un template en brouillon peut etre modifie");
-    }
-    questionRepo.delete(question);
-    return Map.of("deleted", true);
-}
-
-@Transactional
-public Map<String, Object> updateTemplate(Long templateId, String name, String description, String targetNiveau) {
-    EvaluationTemplate template = templateRepo.findById(templateId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
-    if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre modifie");
-    }
-    if (name != null) template.setName(name);
-    if (description != null) template.setDescription(description);
-    if (targetNiveau != null) template.setTargetNiveau(targetNiveau);
-    templateRepo.save(template);
-    Map<String, Object> result = new LinkedHashMap<>();
-    result.put("id", template.getId());
-    result.put("name", template.getName());
-    result.put("description", template.getDescription());
-    result.put("type", template.getType().name());
-    result.put("status", template.getStatus().name());
-    return result;
-}
-
-@Transactional
-public Map<String, Object> deleteTemplate(Long templateId) {
-    EvaluationTemplate template = templateRepo.findById(templateId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
-    if (template.getStatus() != EvaluationTemplate.TemplateStatus.DRAFT) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seul un brouillon peut etre supprime");
-    }
-    templateRepo.delete(template);
-    return Map.of("deleted", true);
-}
 }

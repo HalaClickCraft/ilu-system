@@ -66,9 +66,7 @@ export const evaluationApi = {
   getTemplateDetail: (id) => api.get(`/evaluation/templates/${id}`),
   createTemplate: (data) => api.post('/evaluation/templates', data),
   validateTemplate: (id) => api.post(`/evaluation/templates/${id}/validate`),
- 
-updateTemplate: (id, data) => api.put(`/evaluation/templates/${id}`, data),
-deleteTemplate: (id) => api.delete(`/evaluation/templates/${id}`),
+
   // Sections
   addSection: (templateId, data) => api.post(`/evaluation/templates/${templateId}/sections`, data),
 
@@ -77,22 +75,20 @@ deleteTemplate: (id) => api.delete(`/evaluation/templates/${id}`),
   updateQuestion: (questionId, data) => api.put(`/evaluation/questions/${questionId}`, data),
   deleteQuestion: (questionId) => api.delete(`/evaluation/questions/${questionId}`),
 
-  // Question Validation
+  // Question Validation (Responsable)
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
   validateQuestion: (id) => api.post(`/evaluation/questions/${id}/validate`),
   rejectQuestion: (id, reason) => api.post(`/evaluation/questions/${id}/reject`, { reason }),
 
   // Sessions
   startEvaluation: (data) => api.post('/evaluation/sessions/start', data),
-  startAnimationEvaluation: (data) => api.post('/evaluation/sessions/start-animation', null, { params: data }),
   submitAnswers: (sessionId, answers) => api.post(`/evaluation/sessions/${sessionId}/answers`, { answers }),
   completeEvaluation: (sessionId) => api.post(`/evaluation/sessions/${sessionId}/complete`),
   getSessionDetail: (id) => api.get(`/evaluation/sessions/${id}`),
 
-  // Pending
+  // Auto-trigger: operators who passed 12j suivi
   getPendingForOperator: (operatorId) => api.get(`/evaluation/pending/operator/${operatorId}`),
   getAllPendingEvaluations: () => api.get('/evaluation/pending/all'),
-  getPendingAnimationEvaluations: () => api.get('/evaluation/pending/animations'),
 
   // Polyvalence Matrix
   getMatrix: () => api.get('/evaluation/matrix'),

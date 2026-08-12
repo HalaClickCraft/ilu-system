@@ -5,12 +5,13 @@
         <h1 class="text-2xl font-bold text-gray-900">Gestion des Templates d'Evaluation</h1>
         <p class="text-sm text-gray-500 mt-1">Creer et gerer les templates de questions par poste</p>
       </div>
-      <button v-if="canManageTemplates" @click="openCreateModal" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-2">
+      <button v-if="canManage" @click="openCreateModal" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
         Nouveau Template
       </button>
     </div>
 
+    <!-- Filter tabs -->
     <div class="flex gap-2 border-b border-gray-200">
       <button v-for="t in typeTabs" :key="t.key" @click="activeType = t.key"
         class="px-4 py-2 text-sm font-medium border-b-2 transition"
@@ -19,6 +20,7 @@
       </button>
     </div>
 
+    <!-- Templates list -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div v-for="tpl in filteredTemplates" :key="tpl.id" @click="selectTemplate(tpl)"
         class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-emerald-300 transition">
@@ -33,72 +35,122 @@
           <span class="bg-gray-100 px-2 py-0.5 rounded">{{ typeLabel(tpl.type) }}</span>
           <span v-if="tpl.workstationName" class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ tpl.workstationName }}</span>
           <span v-if="tpl.targetNiveau" class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded">Niveau {{ tpl.targetNiveau }}</span>
-          <span>{{ tpl.validatedQuestionCount || 0 }} questions</span>
+          <span>{{ tpl.validatedQuestionCount || 0 }} questions validees</span>
         </div>
       </div>
-      <div v-if="filteredTemplates.length === 0" class="col-span-full text-center py-12 text-gray-400">Aucun template trouve</div>
+      <div v-if="filteredTemplates.length === 0" class="col-span-full text-center py-12 text-gray-400">
+        Aucun template trouve
+      </div>
     </div>
 
-    <!-- Detail Panel -->
+    <!-- Template Detail Panel -->
     <div v-if="selectedTemplate" class="fixed inset-0 bg-black/40 z-40" @click="closePanel"></div>
-    <div v-if="selectedTemplate" class="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 overflow-y-auto">
+    <div v-if="selectedTemplate" class="fixed right-0 top-0 h-full w-full max-w-3xl bg-white shadow-2xl z-50 overflow-y-auto">
       <div class="p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold">{{ selectedTemplate.name }}</h2>
-          <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg">X</button>
+          <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
         </div>
 
+        <!-- Template info -->
         <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
           <div><span class="text-xs text-gray-500">Type</span><p class="font-medium">{{ typeLabel(selectedTemplate.type) }}</p></div>
           <div><span class="text-xs text-gray-500">Statut</span><p><span :class="statusClass(selectedTemplate.status)" class="text-xs font-medium px-2 py-0.5 rounded-full">{{ statusLabel(selectedTemplate.status) }}</span></p></div>
           <div v-if="selectedTemplate.workstationName"><span class="text-xs text-gray-500">Poste</span><p class="font-medium">{{ selectedTemplate.workstationName }}</p></div>
-          <div><span class="text-xs text-gray-500">Questions</span><p class="font-medium">{{ questionCount }}</p></div>
-        </div>
-
-        <!-- Template actions: edit / delete / validate -->
-        <div v-if="canManageTemplates" class="flex flex-wrap gap-2 mb-6">
-          <button v-if="selectedTemplate.status === 'DRAFT'" @click="openEditModal" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700">Modifier le Template</button>
-          <button v-if="selectedTemplate.status === 'DRAFT'" @click="deleteTemplate" class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700">Supprimer le Template</button>
-          <button v-if="isResponsable && selectedTemplate.status === 'DRAFT'" @click="validateThisTemplate" class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700">Valider le Template</button>
+          <div><span class="text-xs text-gray-500">Questions validees</span><p class="font-medium">{{ templateDetail?.sections?.reduce((sum, s) => sum + (s.questions?.filter(q => q.status === 'VALIDATED').length || 0), 0) || 0 }}</p></div>
         </div>
 
         <!-- Add Section -->
-        <div v-if="canManageTemplates && selectedTemplate.status === 'DRAFT'" class="mb-4 flex gap-2">
-          <input v-model="newSectionTitle" placeholder="Nom de la section..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" @keyup.enter="addSection">
-          <button @click="addSection" class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700">+ Section</button>
+        <div v-if="canManage && selectedTemplate.status === 'DRAFT'" class="mb-4 p-4 bg-emerald-50 rounded-lg">
+          <h4 class="text-sm font-semibold text-emerald-800 mb-2">Ajouter une section</h4>
+          <div class="flex gap-2 mb-2">
+            <input v-model="newSectionTitle" placeholder="Nom de la section..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" @keyup.enter="addSection">
+            <button @click="addSection" class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700">+ Section</button>
+          </div>
+          <textarea v-model="newSectionComplementary" placeholder="Questions complementaires (optionnel)..." rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
         </div>
 
         <!-- Sections & Questions -->
         <div v-for="section in templateDetail?.sections" :key="section.id" class="mb-6">
-          <h3 class="font-semibold text-gray-800 flex items-center gap-2 mb-3">
-            <span class="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">{{ section.displayOrder + 1 }}</span>
-            {{ section.title }}
-            <span class="text-xs text-gray-400">({{ section.questions.length }} questions)</span>
-          </h3>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+              <span class="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">{{ section.displayOrder + 1 }}</span>
+              {{ section.title }}
+              <span class="text-xs text-gray-400">({{ section.questions.length }} questions)</span>
+            </h3>
+          </div>
 
-          <div v-for="q in section.questions" :key="q.id" class="ml-8 mb-2 p-3 bg-gray-50 rounded-lg border-l-4 border-emerald-500">
-            <div class="flex items-start justify-between">
-              <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800">
-                  <span class="text-gray-400 mr-1">{{ q.questionNumber }}.</span>{{ q.questionText }}
-                </p>
-                <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Reponse: {{ q.expectedAnswer }}</p>
+          <!-- Section complementary questions -->
+          <div v-if="section.complementaryQuestions" class="ml-8 mb-2 p-2 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800">
+            <span class="font-medium">Questions complementaires:</span> {{ section.complementaryQuestions }}
+          </div>
+
+          <!-- Questions in section -->
+          <div v-for="q in section.questions" :key="q.id"
+            class="ml-8 mb-2 p-3 rounded-lg border-l-4 transition"
+            :class="questionBorderClass(q)">
+
+            <!-- Normal view -->
+            <div v-if="editingQuestionId !== q.id">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="text-sm font-medium text-gray-800">
+                      <span class="text-gray-400 mr-1">{{ q.questionNumber }}.</span>{{ q.questionText }}
+                    </p>
+                    <span v-if="q.status === 'PENDING'" class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-medium">EN ATTENTE</span>
+                    <span v-if="q.status === 'REJECTED'" class="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-medium">REJETEE</span>
+                    <span v-if="q.status === 'VALIDATED'" class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-medium">VALIDEE</span>
+                  </div>
+                  <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Reponse: {{ q.expectedAnswer }}</p>
+                  <p v-if="q.complementaryQuestions" class="text-xs text-purple-600 mt-1 bg-purple-50 px-2 py-1 rounded inline-block">Q. complementaires: {{ q.complementaryQuestions }}</p>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{{ q.validatorRole }}</span>
+                    <span class="text-xs text-gray-400">par {{ q.createdByName || 'Inconnu' }}</span>
+                  </div>
+                </div>
+                <!-- Edit / Delete buttons (only for own questions in DRAFT) -->
+                <div v-if="canManage && selectedTemplate.status === 'DRAFT' && isOwnQuestion(q)" class="flex gap-1 ml-2 shrink-0">
+                  <button @click.stop="startEditQuestion(q)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Modifier">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                  </button>
+                  <button @click.stop="deleteQuestion(q.id)" class="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Supprimer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
               </div>
-              <div v-if="canManageTemplates && selectedTemplate.status === 'DRAFT'" class="flex gap-1 ml-2">
-                <button @click="editQuestion(q)" class="text-blue-600 hover:text-blue-800 p-1" title="Modifier">✏️</button>
-                <button @click="deleteQuestion(q.id)" class="text-red-600 hover:text-red-800 p-1" title="Supprimer">🗑️</button>
+            </div>
+
+            <!-- Edit mode -->
+            <div v-else class="space-y-2">
+              <input v-model="editForm.questionText" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Question...">
+              <input v-model="editForm.expectedAnswer" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Reponse attendue...">
+              <textarea v-model="editForm.complementaryQuestions" rows="2" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Questions complementaires..."></textarea>
+              <div class="flex gap-2">
+                <button @click="saveEditQuestion" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs hover:bg-blue-700">Enregistrer</button>
+                <button @click="cancelEdit" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs hover:bg-gray-300">Annuler</button>
               </div>
             </div>
           </div>
 
-          <div v-if="canManageTemplates && selectedTemplate.status === 'DRAFT'" class="ml-8 mt-2 space-y-2 mb-2">
-            <input v-model="newQuestion[section.id].text" placeholder="Question..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            <input v-model="newQuestion[section.id].expected" placeholder="Reponse attendue..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            <button @click="addQuestionToSection(section.id)" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700">+ Ajouter Question</button>
+          <!-- Add question to section -->
+          <div v-if="canManage && selectedTemplate.status === 'DRAFT'" class="ml-8 mt-2 p-3 bg-gray-50 rounded-lg">
+            <h4 class="text-xs font-semibold text-gray-600 mb-2">+ Ajouter une question</h4>
+            <div class="space-y-2">
+              <input v-model="newQuestion[section.id].text" placeholder="Question..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <input v-model="newQuestion[section.id].expected" placeholder="Reponse attendue..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <textarea v-model="newQuestion[section.id].complementary" rows="2" placeholder="Questions complementaires (optionnel)..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+              <button @click="addQuestionToSection(section.id)" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700">Ajouter</button>
+            </div>
           </div>
         </div>
 
-        <div v-if="!templateDetail?.sections?.length" class="text-center py-8 text-gray-400">Aucune section. Ajoutez une section pour commencer.</div>
+        <!-- Template actions -->
+        <div v-if="canManage || isResponsable" class="flex gap-2 mt-6 pt-4 border-t">
+          <button v-if="isResponsable && selectedTemplate.status === 'DRAFT'" @click="validateThisTemplate" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Valider le Template</button>
+        </div>
       </div>
     </div>
 
@@ -138,37 +190,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Edit Template Modal -->
-    <div v-if="showEditModal" class="fixed inset-0 bg-black/40 z-40" @click="showEditModal = false"></div>
-    <div v-if="showEditModal" class="fixed inset-0 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" @click.stop>
-        <h2 class="text-lg font-bold mb-4">Modifier le Template</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-sm font-medium text-gray-700">Nom *</label>
-            <input v-model="editTemplateData.name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
-          </div>
-          <div>
-            <label class="text-sm font-medium text-gray-700">Description</label>
-            <textarea v-model="editTemplateData.description" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1"></textarea>
-          </div>
-          <div>
-            <label class="text-sm font-medium text-gray-700">Niveau cible</label>
-            <select v-model="editTemplateData.targetNiveau" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
-              <option :value="null">-- Aucun --</option>
-              <option value="I">Niveau I</option>
-              <option value="L">Niveau L</option>
-              <option value="U">Niveau U</option>
-            </select>
-          </div>
-          <div class="flex gap-2 pt-2">
-            <button @click="saveTemplateEdit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700">Enregistrer</button>
-            <button @click="showEditModal = false" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-300">Annuler</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -178,8 +199,9 @@ import { useAuthStore } from '@/stores/auth'
 import { evaluationApi, structureApi } from '@/api/endpoints'
 
 const authStore = useAuthStore()
-const canManageTemplates = computed(() => authStore.hasAnyRole(['ADMIN', 'AGENT_QUALITE', 'RESP_HSE', 'RESP_QUALITE', 'CHEF_EQUIPE']))
-const isResponsable = computed(() => authStore.hasAnyRole(['RESP_QUALITE', 'RESP_HSE', 'ADMIN']))
+const canManage = computed(() => authStore.hasAnyRole(['ADMIN', 'AGENT_QUALITE', 'RESP_HSE', 'RESP_QUALITE', 'CHEF_EQUIPE']))
+const isResponsable = computed(() => authStore.hasAnyRole(['RESP_QUALITE', 'RESP_HSE']))
+const currentEmployeeId = computed(() => authStore.user?.employeeId)
 
 const templates = ref([])
 const workstations = ref([])
@@ -187,12 +209,19 @@ const activeType = ref('ALL')
 const selectedTemplate = ref(null)
 const templateDetail = ref(null)
 const showCreateModal = ref(false)
-const showEditModal = ref(false)
 const newSectionTitle = ref('')
+const newSectionComplementary = ref('')
 const newQuestion = reactive({})
+const editingQuestionId = ref(null)
+const editForm = reactive({
+  questionText: '',
+  expectedAnswer: '',
+  complementaryQuestions: ''
+})
 
-const newTemplate = reactive({ name: '', description: '', type: 'POSTE_PRODUCTION', workstationId: null })
-const editTemplateData = reactive({ name: '', description: '', targetNiveau: null })
+const newTemplate = reactive({
+  name: '', description: '', type: 'POSTE_PRODUCTION', workstationId: null
+})
 
 const typeTabs = [
   { key: 'ALL', label: 'Tous' },
@@ -201,44 +230,75 @@ const typeTabs = [
   { key: 'ANIMATION', label: 'Animation' },
 ]
 
-const filteredTemplates = computed(() => activeType.value === 'ALL' ? templates.value : templates.value.filter(t => t.type === activeType.value))
-const countByType = (type) => type === 'ALL' ? templates.value.length : templates.value.filter(t => t.type === type).length
-const typeLabel = (type) => ({ GENERIC_COMMON: 'Partie Generique', POSTE_PRODUCTION: 'Production', ANIMATION: 'Animation' }[type] || type)
-const statusLabel = (s) => ({ DRAFT: 'Brouillon', VALIDATED: 'Valide', ARCHIVED: 'Archive' }[s] || s)
-const statusClass = (s) => ({ DRAFT: 'bg-gray-100 text-gray-700', VALIDATED: 'bg-green-100 text-green-700', ARCHIVED: 'bg-red-100 text-red-700' }[s] || '')
-const questionCount = computed(() => templateDetail.value?.sections?.reduce((sum, s) => sum + (s.questions?.length || 0), 0) || 0)
+const filteredTemplates = computed(() => {
+  if (activeType.value === 'ALL') return templates.value
+  return templates.value.filter(t => t.type === activeType.value)
+})
 
-function ensureNewQuestion(sectionId) {
-  if (!newQuestion[sectionId]) newQuestion[sectionId] = { text: '', expected: '' }
+const countByType = (type) => {
+  if (type === 'ALL') return templates.value.length
+  return templates.value.filter(t => t.type === type).length
+}
+
+const typeLabel = (type) => {
+  const map = { GENERIC_COMMON: 'Partie Generique', POSTE_PRODUCTION: 'Production', ANIMATION: 'Animation' }
+  return map[type] || type
+}
+
+const statusLabel = (s) => ({ DRAFT: 'Brouillon', VALIDATED: 'Valide', ARCHIVED: 'Archive' }[s] || s)
+const statusClass = (s) => ({
+  DRAFT: 'bg-gray-100 text-gray-700',
+  VALIDATED: 'bg-green-100 text-green-700',
+  ARCHIVED: 'bg-red-100 text-red-700'
+}[s] || '')
+
+const questionBorderClass = (q) => {
+  if (q.status === 'PENDING') return 'bg-yellow-50 border-l-yellow-500'
+  if (q.status === 'REJECTED') return 'bg-red-50 border-l-red-500'
+  return 'bg-gray-50 border-l-emerald-500'
+}
+
+const isOwnQuestion = (q) => {
+  return q.createdByEmployeeId === currentEmployeeId.value
 }
 
 async function load() {
-  const [tplRes, wsRes] = await Promise.allSettled([evaluationApi.getTemplates(), structureApi.getWorkstations()])
+  const [tplRes, wsRes] = await Promise.allSettled([
+    evaluationApi.getTemplates(),
+    structureApi.getWorkstations()
+  ])
   if (tplRes.status === 'fulfilled') templates.value = tplRes.value.data || []
   if (wsRes.status === 'fulfilled') workstations.value = wsRes.value.data || []
 }
 
 async function selectTemplate(tpl) {
   selectedTemplate.value = tpl
+  editingQuestionId.value = null
   try {
     const res = await evaluationApi.getTemplateDetail(tpl.id)
     templateDetail.value = res.data
-    for (const s of (res.data?.sections || [])) ensureNewQuestion(s.id)
-  } catch (e) { console.error(e) }
+    for (const s of (res.data?.sections || [])) {
+      if (!newQuestion[s.id]) {
+        newQuestion[s.id] = { text: '', expected: '', complementary: '' }
+      }
+    }
+  } catch (e) {
+    console.error('Error loading template detail', e)
+  }
 }
 
-function closePanel() { selectedTemplate.value = null; templateDetail.value = null }
+function closePanel() {
+  selectedTemplate.value = null
+  templateDetail.value = null
+  editingQuestionId.value = null
+}
 
-function openCreateModal() {
-  newTemplate.name = ''; newTemplate.description = ''; newTemplate.type = 'POSTE_PRODUCTION'; newTemplate.workstationId = null
+async function openCreateModal() {
+  newTemplate.name = ''
+  newTemplate.description = ''
+  newTemplate.type = 'POSTE_PRODUCTION'
+  newTemplate.workstationId = null
   showCreateModal.value = true
-}
-
-function openEditModal() {
-  editTemplateData.name = selectedTemplate.value.name
-  editTemplateData.description = selectedTemplate.value.description || ''
-  editTemplateData.targetNiveau = selectedTemplate.value.targetNiveau || null
-  showEditModal.value = true
 }
 
 async function createTemplate() {
@@ -249,63 +309,70 @@ async function createTemplate() {
     await evaluationApi.createTemplate(payload)
     showCreateModal.value = false
     await load()
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
-}
-
-async function saveTemplateEdit() {
-  if (!editTemplateData.name) return
-  try {
-    await evaluationApi.updateTemplate(selectedTemplate.value.id, {
-      name: editTemplateData.name,
-      description: editTemplateData.description,
-      targetNiveau: editTemplateData.targetNiveau
-    })
-    showEditModal.value = false
-    await load()
-    await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
-}
-
-async function deleteTemplate() {
-  if (!confirm('Supprimer ce template ?')) return
-  try {
-    await evaluationApi.deleteTemplate(selectedTemplate.value.id)
-    closePanel()
-    await load()
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur lors de la creation: ' + (e.response?.data?.message || e.message))
+  }
 }
 
 async function addSection() {
   if (!newSectionTitle.value || !selectedTemplate.value) return
   try {
-    await evaluationApi.addSection(selectedTemplate.value.id, { title: newSectionTitle.value, displayOrder: (templateDetail.value?.sections?.length || 0) })
+    await evaluationApi.addSection(selectedTemplate.value.id, {
+      title: newSectionTitle.value,
+      displayOrder: (templateDetail.value?.sections?.length || 0),
+      complementaryQuestions: newSectionComplementary.value || null
+    })
     newSectionTitle.value = ''
+    newSectionComplementary.value = ''
     await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
 }
 
 async function addQuestionToSection(sectionId) {
-  ensureNewQuestion(sectionId)
   const q = newQuestion[sectionId]
-  if (!q.text || !selectedTemplate.value) return
+  if (!q?.text || !selectedTemplate.value) return
   try {
     const section = templateDetail.value.sections.find(s => s.id === sectionId)
     await evaluationApi.addQuestion(selectedTemplate.value.id, {
-      questionText: q.text, expectedAnswer: q.expected || '', questionNumber: (section?.questions?.length || 0) + 1, sectionId
+      questionText: q.text,
+      expectedAnswer: q.expected || '',
+      complementaryQuestions: q.complementary || '',
+      questionNumber: (section?.questions?.length || 0) + 1,
+      sectionId
     })
-    newQuestion[sectionId] = { text: '', expected: '' }
+    newQuestion[sectionId] = { text: '', expected: '', complementary: '' }
     await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
 }
 
-async function editQuestion(q) {
-  const newText = prompt('Modifier la question:', q.questionText)
-  if (newText === null || !newText.trim()) return
-  const newExpected = prompt('Modifier la reponse attendue:', q.expectedAnswer || '')
+function startEditQuestion(q) {
+  editingQuestionId.value = q.id
+  editForm.questionText = q.questionText
+  editForm.expectedAnswer = q.expectedAnswer || ''
+  editForm.complementaryQuestions = q.complementaryQuestions || ''
+}
+
+function cancelEdit() {
+  editingQuestionId.value = null
+}
+
+async function saveEditQuestion() {
+  if (!editingQuestionId.value) return
   try {
-    await evaluationApi.updateQuestion(q.id, { questionText: newText.trim(), expectedAnswer: newExpected || '' })
+    await evaluationApi.updateQuestion(editingQuestionId.value, {
+      questionText: editForm.questionText,
+      expectedAnswer: editForm.expectedAnswer,
+      complementaryQuestions: editForm.complementaryQuestions
+    })
+    editingQuestionId.value = null
     await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
 }
 
 async function deleteQuestion(questionId) {
@@ -313,7 +380,9 @@ async function deleteQuestion(questionId) {
   try {
     await evaluationApi.deleteQuestion(questionId)
     await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
 }
 
 async function validateThisTemplate() {
@@ -322,7 +391,9 @@ async function validateThisTemplate() {
     await evaluationApi.validateTemplate(selectedTemplate.value.id)
     await load()
     await selectTemplate(selectedTemplate.value)
-  } catch (e) { alert('Erreur: ' + (e.response?.data?.message || e.message)) }
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
 }
 
 onMounted(load)
