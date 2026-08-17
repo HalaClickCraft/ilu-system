@@ -12,12 +12,6 @@ import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.repository.WorkstationRepository;
-
-import com.ilu.system.evaluation.entity.EvaluationQuestion;
-import com.ilu.system.evaluation.entity.EvaluationSection;
-import com.ilu.system.evaluation.entity.EvaluationSession;
-import com.ilu.system.evaluation.entity.EvaluationTemplate;
-
 import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
 import com.ilu.system.evaluation.repository.EvaluationQuestionRepository;
 import com.ilu.system.evaluation.repository.EvaluationSectionRepository;
@@ -681,6 +675,92 @@ public class EvaluationService {
             }
         }
         return allPending;
+    }
+
+      // ======================== EVALUATION HISTORY ========================
+
+    public Map<String, Object> getEvaluationHistory() {
+        List<EvaluationSession> allSessions = sessionRepo.findAll().stream()
+                .filter(s -> s.getStatus() != EvaluationSession.SessionStatus.IN_PROGRESS)
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        Map<String, Long> attemptCounters = new HashMap<>();
+        List<Map<String, Object>> history = new ArrayList<>();
+        List<Map<String, Object>> waitingForProduction = new ArrayList<>();
+
+        Set<Long> genericPassedOps = allSessions.stream()
+                .filter(s -> "PASSED".equals(s.getDecision())
+                        && s.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON)
+                .map(s -> s.getOperator().getId())
+                .collect(Collectors.toSet());
+
+        Set<Long> productionDoneOps = allSessions.stream()
+                .filter(s -> s.getTemplate().getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
+                        && (s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                            || s.getStatus() == EvaluationSession.SessionStatus.FAILED
+                            || s.getStatus() == EvaluationSession.SessionStatus.BLOCKED))
+                .map(s -> s.getOperator().getId())
+                .collect(Collectors.toSet());
+
+        Set<Long> waitingOps = new HashSet<>(genericPassedOps);
+        waitingOps.removeAll(productionDoneOps);
+
+        for (Long waitingOpId : waitingOps) {
+            operatorRepo.findById(waitingOpId).ifPresent(op -> {
+                Map<String, Object> wItem = new LinkedHashMap<>();
+                wItem.put("operatorId", op.getId());
+                wItem.put("operatorName", op.getLastName() + " " + op.getFirstName());
+                wItem.put("employeeId", op.getEmployeeId());
+                allSessions.stream()
+                        .filter(s -> s.getOperator().getId().equals(waitingOpId)
+                                && "PASSED".equals(s.getDecision())
+                                && s.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON)
+                        .findFirst()
+                        .ifPresent(s -> wItem.put("genericPassedDate", s.getCompletedAt() != null ? s.getCompletedAt().toString() : null));
+                waitingForProduction.add(wItem);
+            });
+        }
+
+        for (EvaluationSession session : allSessions) {
+            Long opId = session.getOperator().getId();
+            boolean isGeneric = session.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON;
+            String wsKey = isGeneric ? "GENERIC_" + opId : "PROD_" + opId + "_" + (session.getTemplate().getWorkstation() != null ? session.getTemplate().getWorkstation().getId() : 0);
+
+            long attempt = attemptCounters.getOrDefault(wsKey, 0L) + 1;
+            attemptCounters.put(wsKey, attempt);
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("sessionId", session.getId());
+            item.put("operatorId", opId);
+            item.put("operatorName", session.getOperator().getLastName() + " " + session.getOperator().getFirstName());
+            item.put("employeeId", session.getOperator().getEmployeeId());
+            item.put("templateType", session.getTemplate().getType().name());
+            item.put("templateName", session.getTemplate().getName());
+            item.put("workstationName", session.getTemplate().getWorkstation() != null ? session.getTemplate().getWorkstation().getName() : null);
+            item.put("status", session.getStatus().name());
+            item.put("decision", session.getDecision());
+            item.put("niveau", session.getNiveau());
+            item.put("genericPercentage", session.getGenericPercentage());
+            item.put("productionPercentage", session.getProductionPercentage());
+            item.put("scorePercentage", session.getScorePercentage());
+            item.put("evaluatorName", session.getEvaluatorName());
+            item.put("createdAt", session.getCreatedAt() != null ? session.getCreatedAt().toString() : null);
+            item.put("completedAt", session.getCompletedAt() != null ? session.getCompletedAt().toString() : null);
+            item.put("attemptNumber", attempt);
+            item.put("isSecondChance", attempt > 1);
+            history.add(item);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("history", history);
+        result.put("waitingForProduction", waitingForProduction);
+        result.put("totalSessions", history.size());
+        result.put("totalPassed", history.stream().filter(h -> "PASSED".equals(h.get("status"))).count());
+        result.put("totalFailed", history.stream().filter(h -> "FAILED".equals(h.get("status"))).count());
+        result.put("totalBlocked", history.stream().filter(h -> "BLOCKED".equals(h.get("status"))).count());
+        result.put("totalSecondChance", history.stream().filter(h -> Boolean.TRUE.equals(h.get("isSecondChance"))).count());
+        return result;
     }
 
     // ======================== POLYVALENCE MATRIX ========================

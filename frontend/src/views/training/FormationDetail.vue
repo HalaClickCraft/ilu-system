@@ -272,7 +272,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
+  LineController,
   Filler,
   Title,
   Tooltip,
@@ -286,7 +286,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
+  LineController,
   Filler,
   Title,
   Tooltip,
@@ -326,7 +326,7 @@ const openEditQuality = () => {
   editQOValue.value = formation.value?.qualityObjective ?? 7
 }
 const canContribute = computed(() => canEditCadence.value || canEditDefects.value)
-const canEdit = computed(() => formation.value?.status === 'IN_PROGRESS')
+const canEdit = computed(() => formation.value?.status === 'IN_PROGRESS' || formation.value?.status === 'NOT_STARTED' || formation.value?.status === 'COMPLETED')
 const hasDirty = computed(() => dirtyDays.size > 0)
 const completeDays = computed(
   () => Object.values(dayData).filter((day) => day.cadence !== null && day.defects !== null).length,
@@ -381,7 +381,7 @@ const renderChart = () => {
     defectsData.push(dayData[i]?.defects ?? null)
   }
   chartInstance = new ChartJS(chartCanvas.value, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels,
       datasets: [
@@ -406,11 +406,11 @@ const renderChart = () => {
         {
           label: 'Defauts',
           data: defectsData,
-          type: 'bar',
+          type: 'line',
           yAxisID: 'y1',
           borderColor: '#ef4444',
-          backgroundColor: 'rgba(239,68,68,0.15)',
-          spanGaps: true,
+          backgroundColor: 'rgba(239,68,68,0.1)',
+          tension: 0.4,
         },
       ],
     },

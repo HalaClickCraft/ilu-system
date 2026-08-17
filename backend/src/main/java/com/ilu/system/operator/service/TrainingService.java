@@ -184,10 +184,8 @@ public class TrainingService {
     public DailyFormationTracking addDailyTracking(Long formationId, DailyTrackingDto dto,
                                                     String employeeId, Set<String> roles) {
         WorkstationFormation formation = getFormation(formationId);
-        validateWorkstationAccess(formation.getWorkstation(), employeeId, roles);
-        if (!"IN_PROGRESS".equals(formation.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La formation n'est plus en cours");
-        }
+                validateWorkstationAccess(formation.getWorkstation(), employeeId, roles);
+        // Allow saving for operators deja en poste (IN_PROGRESS, COMPLETED, or NOT_STARTED)
         validateTrackingInput(dto, roles);
         int dayNumber = dto.getDayNumber();
         DailyFormationTracking tracking = trackingRepo.findByFormationIdAndDayNumber(formationId, dayNumber)

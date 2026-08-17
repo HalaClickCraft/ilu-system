@@ -94,4 +94,7 @@ export const evaluationApi = {
   // Polyvalence Matrix
   getMatrix: () => api.get('/evaluation/matrix'),
   getDoubleFailures: () => api.get('/evaluation/double-failures'),
+
+    // Evaluation History
+  getHistory: () => api.get('/evaluation/history'),
 }

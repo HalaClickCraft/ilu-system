@@ -1,67 +1,12 @@
 <template>
   <div class="space-y-6">
-    <button
-      @click="$router.back()"
-      class="flex items-center gap-2 text-gray-500 hover:text-gray-700"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M15 19l-7-7 7-7"
-        ></path>
-      </svg>
+    <button @click="$router.back()" class="flex items-center gap-2 text-gray-500 hover:text-gray-700">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
       Retour
     </button>
 
+    <!-- ====== VIEW 1: Existing Session Detail ====== -->
     <div v-if="session">
-      <!-- INITIAL MODE banner -->
-      <div
-        v-if="session.mode === 'INITIAL'"
-        class="rounded-lg p-4 mb-2"
-        :class="
-          session.templateType === 'GENERIC_COMMON'
-            ? 'bg-indigo-50 border border-indigo-200'
-            : 'bg-blue-50 border border-blue-200'
-        "
-      >
-        <div class="flex items-center gap-3">
-          <span
-            class="text-2xl font-bold"
-            :class="session.templateType === 'GENERIC_COMMON' ? 'text-indigo-600' : 'text-blue-600'"
-          >
-            {{ session.templateType === 'GENERIC_COMMON' ? '1' : '2' }} / 2
-          </span>
-          <div>
-            <p
-              class="font-semibold"
-              :class="
-                session.templateType === 'GENERIC_COMMON' ? 'text-indigo-800' : 'text-blue-800'
-              "
-            >
-              {{
-                session.templateType === 'GENERIC_COMMON'
-                  ? 'Etape 1 - Partie Generique'
-                  : 'Etape 2 - Partie Production'
-              }}
-            </p>
-            <p
-              class="text-xs"
-              :class="
-                session.templateType === 'GENERIC_COMMON' ? 'text-indigo-600' : 'text-blue-600'
-              "
-            >
-              {{
-                session.templateType === 'GENERIC_COMMON'
-                  ? 'Securite + Qualite + Non-conforme - 100% requis'
-                  : 'Questions specifiques au poste - Niveau attribue selon anciennete'
-              }}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">Evaluation: {{ session.operatorName }}</h1>
@@ -71,294 +16,341 @@
             | Evaluateur: {{ session.evaluatorName || 'N/A' }}
           </p>
         </div>
-        <span
-          :class="sessionStatusClass(session.status)"
-          class="text-sm font-semibold px-3 py-1 rounded-full"
-        >
+        <span :class="sessionStatusClass(session.status)" class="text-sm font-semibold px-3 py-1 rounded-full">
           {{ sessionStatusLabel(session.status) }}
         </span>
       </div>
 
       <!-- Seniority info -->
       <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-        <p class="text-sm font-medium text-amber-800">
-          Anciennete: {{ session.seniorityMonths }} mois
-        </p>
+        <p class="text-sm font-medium text-amber-800">Anciennete: {{ session.seniorityMonths }} mois</p>
         <p class="text-xs text-amber-600 mt-1">
-          Niveau I: &lt;6 mois, score 70%+ | Niveau L: 6+ mois, score 81%+ | Niveau U: 12+ mois,
-          score 91%+
+          Niveau I: &lt;6 mois, score 70%+ |
+          Niveau L: 6+ mois, score 81%+ |
+          Niveau U: 12+ mois, score 91%+
         </p>
+      </div>
+
+      <!-- Role completion status bar -->
+      <div v-if="session.status === 'IN_PROGRESS' && roleCompletionStatus.length > 0" class="bg-white rounded-xl border p-4 mt-4">
+        <p class="text-sm font-semibold text-gray-700 mb-3">Avancement par role:</p>
+        <div class="flex flex-wrap gap-3">
+          <div v-for="rs in roleCompletionStatus" :key="rs.role"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm"
+            :class="rs.completed ? 'bg-green-50 border-green-300 text-green-800' : 'bg-yellow-50 border-yellow-300 text-yellow-800'">
+            <svg v-if="rs.completed" class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <svg v-else class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="font-medium">{{ roleLabel(rs.role) }}</span>
+            <span class="text-xs opacity-75">({{ rs.answered }}/{{ rs.total }})</span>
+          </div>
+        </div>
       </div>
 
       <!-- Questions by section -->
-      <div
-        v-for="section in templateSections"
-        :key="section.id || section.title"
-        class="bg-white rounded-xl border p-5 mt-4 overflow-hidden"
-      >
-        <h2 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">
-          {{ section.title || 'Questions sans section' }}
-        </h2>
-        
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">N°</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/3">Question</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/4">Réponse attendue</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Validé par</th>
-                <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Évaluation</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/4">Question Complémentaire</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="q in section.questions" :key="q.id" class="hover:bg-gray-50">
-                <!-- N° -->
-                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
-                  {{ q.questionNumber }}
-                </td>
-                
-                <!-- Question -->
-                <td class="px-6 py-4 text-sm font-semibold text-gray-900 break-words">
-                  {{ q.questionText }}
-                </td>
-                
-                <!-- Réponse attendue -->
-                <td class="px-6 py-4 text-xs text-gray-700 break-words">
-                  {{ q.expectedAnswer || '—' }}
-                </td>
-                
-                <!-- Validé par -->
-                <td class="px-4 py-4 whitespace-nowrap">
-                  <span class="inline-flex px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                    {{ q.validatorRole || '—' }}
-                  </span>
-                </td>
-                
-                <!-- Évaluation -->
-                <td class="px-4 py-4 whitespace-nowrap text-center">
-                  <div v-if="session.status === 'IN_PROGRESS'" class="flex items-center justify-center gap-2">
-                    <button
-                      @click="setAnswer(q.id, 1)"
-                      :class="
-                        answers[q.id] === 1
-                          ? 'bg-green-600 ring-2 ring-green-300 text-white shadow'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border'
-                      "
-                      class="w-10 h-10 rounded-lg font-bold transition-all"
-                    >
-                      1
-                    </button>
-                    <button
-                      @click="setAnswer(q.id, 0)"
-                      :class="
-                        answers[q.id] === 0
-                          ? 'bg-red-600 ring-2 ring-red-300 text-white shadow'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border'
-                      "
-                      class="w-10 h-10 rounded-lg font-bold transition-all"
-                    >
-                      0
-                    </button>
-                  </div>
-                  <span
-                    v-else
-                    class="inline-flex px-3 py-1 rounded-full text-sm font-bold"
-                    :class="getAnswerForQuestion(q.id) === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-                  >
-                    {{ getAnswerForQuestion(q.id) === 1 ? '1' : '0' }}
-                  </span>
-                </td>
-
-                <!-- Question Complémentaire -->
-                <td class="px-6 py-4 text-xs text-gray-600 break-words italic">
-                  {{ q.complementaryQuestions || '—' }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <div v-for="section in templateSections" :key="section.id || section.title" class="bg-white rounded-xl border p-5 mt-4">
+        <h2 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">{{ section.title || 'Questions sans section' }}</h2>
+        <div v-for="q in section.questions" :key="q.id" class="flex items-start gap-4 py-3 border-b last:border-0">
+          <span class="text-sm text-gray-400 w-8 shrink-0">{{ q.questionNumber }}</span>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
+            </div>
+            <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Attendu: {{ q.expectedAnswer }}</p>
+          </div>
+          <!-- Current role can answer -->
+          <div v-if="session.status === 'IN_PROGRESS' && canAnswerQuestion(q.validatorRole)" class="flex items-center gap-2">
+            <button @click="setAnswer(q.id, 1)" :class="answers[q.id] === 1 ? 'bg-green-600 ring-2 ring-green-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-green-700 transition">1</button>
+            <button @click="setAnswer(q.id, 0)" :class="answers[q.id] === 0 ? 'bg-red-600 ring-2 ring-red-300' : 'bg-gray-200'" class="w-10 h-10 rounded-lg text-white font-bold hover:bg-red-700 transition">0</button>
+          </div>
+          <!-- Other role: show completed or pending -->
+          <div v-else-if="session.status === 'IN_PROGRESS' && !canAnswerQuestion(q.validatorRole)" class="flex items-center gap-1">
+            <span v-if="answers[q.id] !== undefined"
+              class="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+              {{ roleLabel(q.validatorRole) }}
+            </span>
+            <span v-else
+              class="flex items-center gap-1 text-xs bg-yellow-50 text-yellow-600 px-2 py-1 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {{ roleLabel(q.validatorRole) }} en attente
+            </span>
+          </div>
+          <!-- Completed session: show final answer -->
+          <span v-else class="text-xl font-bold" :class="getAnswerForQuestion(q.id) === 1 ? 'text-green-600' : 'text-red-600'">
+            {{ getAnswerForQuestion(q.id) === 1 ? '1' : '0' }}
+          </span>
         </div>
       </div>
 
-      <!-- Action buttons -->
-      <div v-if="session.status === 'IN_PROGRESS'" class="flex gap-3 mt-4">
-        <button
-          @click="saveAnswers"
-          :disabled="saving"
-          class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-        >
+       <!-- Action buttons: only Sauvegarder, no Terminer (auto-complete) -->
+      <div v-if="session.status === 'IN_PROGRESS'" class="flex items-center gap-3 mt-4 relative">
+        <button @click="saveAnswers" :disabled="saving" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
           {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
         </button>
-        <button
-          @click="completeEval"
-          :disabled="saving"
-          class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50"
-        >
-          Terminer l'evaluation
-        </button>
-      </div>
-
-      <!-- PASSED_GENERIC in INITIAL mode -->
-      <div
-        v-if="
-          session.mode === 'INITIAL' &&
-          session.decision === 'PASSED_GENERIC' &&
-          session.nextTemplateId
-        "
-        class="mt-4 bg-green-50 border border-green-200 rounded-lg p-6"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="font-bold text-green-800 text-lg">Partie Generique reussie a 100%</p>
-            <p class="text-sm text-green-600 mt-1">
-              L'operateur peut maintenant passer la Partie Production.
-            </p>
-          </div>
-          <button
-            @click="startProductionSession"
-            :disabled="startingProduction"
-            class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 disabled:opacity-50"
-          >
-            <svg
-              v-if="startingProduction"
-              class="w-4 h-4 animate-spin"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              ></path>
-            </svg>
-            Commencer la Partie Production
-          </button>
-        </div>
+        <!-- Inline save confirmation (like a copy success popup) -->
+        <Transition name="save-pop">
+          <span v-if="saveSuccess" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            Sauvegardé !
+          </span>
+        </Transition>
       </div>
 
       <!-- Results -->
-      <div
-        v-if="session.status !== 'IN_PROGRESS' && session.totalQuestions"
-        class="bg-white rounded-xl border p-6 mt-4"
-      >
+      <div v-if="session.status !== 'IN_PROGRESS' && session.totalQuestions" class="bg-white rounded-xl border p-6 mt-4">
         <h2 class="text-lg font-bold mb-4">Resultats</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-gray-50 rounded-lg p-4 text-center">
-            <p class="text-xs text-gray-500">Partie Generique</p>
-            <p
-              class="text-xl font-bold"
-              :class="session.genericPercentage >= 100 ? 'text-green-600' : 'text-red-600'"
-            >
-              {{ session.genericPercentage }}%
-            </p>
-            <p class="text-xs text-gray-400">
-              {{ session.genericCorrect }}/{{ session.genericTotal }}
-            </p>
+            <p class="text-xs text-gray-500">Partie Generique (HSE+Q)</p>
+            <p class="text-xl font-bold" :class="session.genericPercentage >= 100 ? 'text-green-600' : 'text-red-600'">{{ session.genericPercentage }}%</p>
+            <p class="text-xs text-gray-400">{{ session.genericCorrect }}/{{ session.genericTotal }}</p>
           </div>
           <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-xs text-gray-500">Production</p>
             <p class="text-xl font-bold text-blue-600">{{ session.productionPercentage }}%</p>
-            <p class="text-xs text-gray-400">
-              {{ session.productionCorrect }}/{{ session.productionTotal }}
-            </p>
+            <p class="text-xs text-gray-400">{{ session.productionCorrect }}/{{ session.productionTotal }}</p>
           </div>
           <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-xs text-gray-500">Score Total</p>
             <p class="text-xl font-bold text-gray-900">{{ session.scorePercentage }}%</p>
-            <p class="text-xs text-gray-400">
-              {{ session.correctAnswers }}/{{ session.totalQuestions }}
-            </p>
+            <p class="text-xs text-gray-400">{{ session.correctAnswers }}/{{ session.totalQuestions }}</p>
           </div>
           <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-xs text-gray-500">Niveau</p>
-            <p class="text-2xl font-bold" :class="niveauClass(session.niveau)">
-              {{ session.niveau || '-' }}
-            </p>
+            <p class="text-2xl font-bold" :class="niveauClass(session.niveau)">{{ session.niveau || '-' }}</p>
           </div>
         </div>
-
-        <div
-          v-if="session.decision === 'BLOCKED_GENERIC'"
-          class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800"
-        >
+        <div v-if="session.decision === 'BLOCKED_GENERIC'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
           <p class="font-bold">BLOQUE - Partie generique insuffisante</p>
-          <p class="text-sm mt-1">
-            La partie generique (HSE + Qualite) doit etre a 100% pour poursuivre l'evaluation.
-          </p>
+          <p class="text-sm mt-1">La partie generique (HSE + Qualite) doit etre a 100% pour poursuivre l'evaluation.</p>
         </div>
-        <div
-          v-else-if="session.decision === 'FAILED'"
-          class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800"
-        >
+        <div v-else-if="session.decision === 'FAILED'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
           <p class="font-bold">Echec</p>
-          <p class="text-sm mt-1">
-            Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.
-          </p>
+          <p class="text-sm mt-1">Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.</p>
         </div>
-        <div
-          v-else-if="session.decision === 'PASSED_GENERIC'"
-          class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800"
-        >
-          <p class="font-bold">Partie Generique reussie</p>
-          <p class="text-sm mt-1">
-            Score: {{ session.genericPercentage }}%. L'operateur peut maintenant passer la Partie
-            Production.
-          </p>
-        </div>
-        <div
-          v-else-if="session.decision?.startsWith('PASSED_')"
-          class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800"
-        >
+        <div v-else-if="session.decision?.startsWith('PASSED_')" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800">
           <p class="font-bold">Reussi - Niveau {{ session.niveau }}</p>
-          <p v-if="session.niveau === 'L'" class="text-sm mt-1">
-            Pour passer au niveau U: evaluation Animation requise apres 1 an d'anciennete.
-          </p>
+          <p v-if="session.niveau === 'L'" class="text-sm mt-1">Pour passer au niveau U: evaluation Animation requise apres 1 an d'anciennete.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VIEW 2: No session - show pending evaluations from completed 12j suivi ====== -->
+    <div v-else>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Evaluations a effectuer</h1>
+          <p class="text-sm text-gray-500 mt-1">Operateurs ayant reussi le suivi 12j et necessitant une evaluation</p>
+        </div>
+        <button @click="loadPendingEvaluations" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200">
+          Rafraichir
+        </button>
+      </div>
+
+      <div v-if="loading" class="text-center py-12 text-gray-400">Chargement...</div>
+
+      <div v-else-if="pendingEvaluations.length === 0" class="bg-white rounded-xl border p-12 text-center mt-4">
+        <svg class="w-16 h-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="mt-4 text-gray-400 text-lg">Aucun operateur en attente d'evaluation</p>
+        <p class="text-sm text-gray-300 mt-1">Les operateurs apparaitront ici apres reussite du suivi 12 jours</p>
+      </div>
+
+      <div v-else class="space-y-3 mt-4">
+        <div v-for="pe in pendingEvaluations" :key="pe.formationId" class="bg-white rounded-xl border p-5 hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-gray-900 text-lg">{{ pe.operatorName }}</h3>
+              <p class="text-sm text-gray-500">{{ pe.operatorEmployeeId }} | Poste: {{ pe.workstationName }} | Anciennete: {{ pe.seniorityMonths }} mois</p>
+            </div>
+            <button @click="goToStartEvaluation(pe)"
+              class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium">
+              Commencer l'evaluation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual start form -->
+      <div class="bg-white rounded-xl border p-6 mt-8">
+        <h2 class="text-lg font-bold mb-4">Demarrer une evaluation manuellement</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="text-sm font-medium text-gray-700">Operateur</label>
+            <select v-model="startForm.operatorId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+              <option :value="null">-- Selectionner --</option>
+              <option v-for="op in operators" :key="op.id" :value="op.id">{{ op.lastName }} {{ op.firstName }} ({{ op.employeeId }})</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Template</label>
+            <select v-model="startForm.templateId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+              <option :value="null">-- Selectionner --</option>
+              <option v-for="tpl in validatedTemplates" :key="tpl.id" :value="tpl.id">{{ tpl.name }} ({{ tpl.type }})</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button @click="manualStart" :disabled="!startForm.operatorId || !startForm.templateId" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50 w-full">
+              Demarrer
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
+  <style scoped>
+.save-pop-enter-active {
+  transition: all 0.3s ease-out;
+}
+.save-pop-leave-active {
+  transition: all 0.4s ease-in;
+}
+.save-pop-enter-from {
+  opacity: 0;
+  transform: translateY(6px) scale(0.9);
+}
+.save-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+</style>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { evaluationApi } from '@/api/endpoints'
+import { evaluationApi, operatorsApi } from '@/api/endpoints'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const session = ref(null)
 const templateSections = ref([])
 const answers = reactive({})
+const loading = ref(true)
 const saving = ref(false)
-const startingProduction = ref(false)
+const saveSuccess = ref(false)
+const pendingEvaluations = ref([])
+const operators = ref([])
+const validatedTemplates = ref([])
 
-const sessionStatusClass = (s) =>
-  ({
-    IN_PROGRESS: 'bg-blue-100 text-blue-700',
-    PASSED: 'bg-green-100 text-green-700',
-    FAILED: 'bg-red-100 text-red-700',
-    BLOCKED: 'bg-red-100 text-red-700',
-  })[s] || 'bg-gray-100 text-gray-700'
+const startForm = reactive({ operatorId: null, templateId: null, formationId: null })
 
-const sessionStatusLabel = (s) =>
-  ({
-    IN_PROGRESS: 'En cours',
-    PASSED: 'Reussi',
-    FAILED: 'Echoue',
-    BLOCKED: 'Bloque',
-  })[s] || s
+const sessionStatusClass = (s) => ({
+  IN_PROGRESS: 'bg-blue-100 text-blue-700',
+  PASSED: 'bg-green-100 text-green-700',
+  FAILED: 'bg-red-100 text-red-700',
+  BLOCKED: 'bg-red-100 text-red-700',
+}[s] || 'bg-gray-100 text-gray-700')
 
-const niveauClass = (n) =>
-  ({ I: 'text-amber-600', L: 'text-blue-600', U: 'text-green-600' })[n] || 'text-gray-400'
+const sessionStatusLabel = (s) => ({
+  IN_PROGRESS: 'En cours',
+  PASSED: 'Reussi',
+  FAILED: 'Echoue',
+  BLOCKED: 'Bloque',
+}[s] || s)
 
-function setAnswer(questionId, value) {
-  answers[questionId] = value
+const niveauClass = (n) => ({ I: 'text-amber-600', L: 'text-blue-600', U: 'text-green-600' }[n] || 'text-gray-400')
+
+const roleLabel = (role) => ({
+  CHEF_EQUIPE: "Chef d'Equipe",
+  AGENT_QUALITE: 'Agent Qualite',
+  RESP_HSE: 'Resp. HSE',
+  RESP_QUALITE: 'Resp. Qualite',
+}[role] || role)
+
+const canAnswerQuestion = (validatorRole) => {
+  return authStore.hasAnyRole([validatorRole])
 }
-function getAnswerForQuestion(questionId) {
-  return answers[questionId]
+
+// Collect all questions flat from templateSections
+const allQuestions = computed(() => {
+  const qs = []
+  for (const section of templateSections.value) {
+    if (section.questions) {
+      for (const q of section.questions) {
+        qs.push(q)
+      }
+    }
+  }
+  return qs
+})
+
+// Role completion status: which roles have all their questions answered
+const roleCompletionStatus = computed(() => {
+  const roleMap = {}
+  for (const q of allQuestions.value) {
+    const role = q.validatorRole
+    if (!role) continue
+    if (!roleMap[role]) {
+      roleMap[role] = { role, total: 0, answered: 0 }
+    }
+    roleMap[role].total++
+    if (answers[q.id] !== undefined) {
+      roleMap[role].answered++
+    }
+  }
+  return Object.values(roleMap).map(r => ({
+    ...r,
+    completed: r.answered === r.total && r.total > 0,
+  }))
+})
+
+// Check if ALL questions are answered (auto-complete trigger)
+const allQuestionsAnswered = computed(() => {
+  if (allQuestions.value.length === 0) return false
+  return allQuestions.value.every(q => answers[q.id] !== undefined)
+})
+
+function setAnswer(questionId, value) { answers[questionId] = value }
+function getAnswerForQuestion(questionId) { return answers[questionId] }
+
+async function loadPendingEvaluations() {
+  loading.value = true
+  try {
+    const res = await evaluationApi.getAllPendingEvaluations()
+    pendingEvaluations.value = res.data || []
+  } catch (e) { console.error('Error loading pending', e) }
+  loading.value = false
+}
+
+async function loadDropdowns() {
+  const [opsRes, tplRes] = await Promise.allSettled([
+    operatorsApi.getActive(),
+    evaluationApi.getTemplates()
+  ])
+  if (opsRes.status === 'fulfilled') operators.value = opsRes.value.data || []
+  if (tplRes.status === 'fulfilled') validatedTemplates.value = (tplRes.value.data || []).filter(t => t.status === 'VALIDATED')
+}
+
+function goToStartEvaluation(pe) {
+  startForm.operatorId = pe.operatorId
+  startForm.formationId = pe.formationId
+  const tpl = validatedTemplates.value.find(t => t.type === 'POSTE_PRODUCTION')
+  if (tpl) startForm.templateId = tpl.id
+  manualStart()
+}
+
+async function manualStart() {
+  if (!startForm.operatorId || !startForm.templateId) return
+  saving.value = true
+  try {
+    const payload = {
+      operatorId: startForm.operatorId,
+      templateId: startForm.templateId,
+    }
+    if (startForm.formationId) payload.formationId = startForm.formationId
+    const res = await evaluationApi.startEvaluation(payload)
+    const newSessionId = res.data.sessionId
+    router.push(`/evaluation/session/${newSessionId}`)
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
+  saving.value = false
 }
 
 async function loadSessionDetail() {
@@ -366,66 +358,45 @@ async function loadSessionDetail() {
   try {
     const [sessionRes, templateRes] = await Promise.all([
       evaluationApi.getSessionDetail(session.value.id || route.params.id),
-      evaluationApi.getTemplateDetail(session.value.templateId),
+      evaluationApi.getTemplateDetail(session.value.templateId)
     ])
     session.value = sessionRes.data
     const sections = templateRes.data?.sections || []
     templateSections.value = sections
     if (sessionRes.data?.answers) {
-      for (const a of sessionRes.data.answers) {
-        answers[a.questionId] = a.answer
-      }
+      for (const a of sessionRes.data.answers) { answers[a.questionId] = a.answer }
     }
-  } catch (e) {
-    console.error('Error loading session', e)
-  }
+  } catch (e) { console.error('Error loading session', e) }
 }
 
 async function saveAnswers() {
   if (!session.value) return
   saving.value = true
+  saveSuccess.value = false
   try {
     const answerList = Object.entries(answers).map(([questionId, answer]) => ({
-      questionId: Number(questionId),
-      answer,
+      questionId: Number(questionId), answer
     }))
     await evaluationApi.submitAnswers(session.value.id, answerList)
+
+    // Show inline confirmation near the button (no page scroll)
+    saveSuccess.value = true
+    setTimeout(() => { saveSuccess.value = false }, 2500)
+
+    // Auto-complete: if all questions answered, automatically complete the evaluation
+    if (allQuestionsAnswered.value) {
+      try {
+        const res = await evaluationApi.completeEvaluation(session.value.id)
+        session.value = { ...session.value, ...res.data }
+        toast.info('Evaluation completee automatiquement')
+      } catch (e) {
+        toast.error('Erreur completion: ' + (e.response?.data?.message || e.message))
+      }
+    }
   } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.message || e.message))
+    toast.error('Erreur: ' + (e.response?.data?.message || e.message))
   }
   saving.value = false
-}
-
-async function completeEval() {
-  if (!session.value) return
-  if (!confirm("Terminer l'evaluation ? Cette action est definitive.")) return
-  saving.value = true
-  try {
-    await saveAnswers()
-    const res = await evaluationApi.completeEvaluation(session.value.id)
-    session.value = { ...session.value, ...res.data }
-  } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.message || e.message))
-  }
-  saving.value = false
-}
-
-async function startProductionSession() {
-  if (!session.value?.nextTemplateId) return
-  startingProduction.value = true
-  try {
-    const res = await evaluationApi.startEvaluation({
-      operatorId: session.value.operatorId,
-      templateId: session.value.nextTemplateId,
-      formationId: session.value.formationId,
-      mode: 'INITIAL',
-      nextTemplateId: null,
-    })
-    router.push('/evaluation/session/' + res.data.sessionId)
-  } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.error || e.response?.data?.message || e.message))
-    startingProduction.value = false
-  }
 }
 
 onMounted(async () => {
@@ -434,12 +405,12 @@ onMounted(async () => {
       const res = await evaluationApi.getSessionDetail(route.params.id)
       session.value = res.data
       await loadSessionDetail()
-    } catch (e) {
-      console.error('Error loading session', e)
-      router.push('/evaluation/initial')
-    }
-  } else {
-    router.push('/evaluation/initial')
+      loading.value = false
+      return
+    } catch (e) { /* fall through to pending list */ }
   }
+  await Promise.all([loadPendingEvaluations(), loadDropdowns()])
 })
+
+
 </script>

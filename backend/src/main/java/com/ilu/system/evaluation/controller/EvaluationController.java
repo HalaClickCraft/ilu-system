@@ -269,4 +269,10 @@ public class EvaluationController {
         }
         return ResponseEntity.ok(evaluationService.getDoubleFailures());
     }
+    // ======================== EVALUATION HISTORY ========================
+
+    @GetMapping("/history")
+    public ResponseEntity<Map<String, Object>> getEvaluationHistory() {
+        return ResponseEntity.ok(evaluationService.getEvaluationHistory());
+    }
 }
