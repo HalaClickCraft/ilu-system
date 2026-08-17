@@ -7,6 +7,11 @@ import java.time.LocalDate;
 @Table(name = "operators")
 public class Operator {
 
+    public enum OperatorType {
+        NOUVEAU_RECRU,
+        DEJA_EN_POSTE
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,6 +44,10 @@ public class Operator {
     @JoinColumn(name = "team_id")
     private Team team;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "operator_type")
+    private OperatorType operatorType = OperatorType.NOUVEAU_RECRU;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getEmployeeId() { return employeeId; }
@@ -59,4 +68,6 @@ public class Operator {
     public void setActive(Boolean active) { this.active = active; }
     public Team getTeam() { return team; }
     public void setTeam(Team team) { this.team = team; }
+    public OperatorType getOperatorType() { return operatorType != null ? operatorType : OperatorType.NOUVEAU_RECRU; }
+    public void setOperatorType(OperatorType operatorType) { this.operatorType = operatorType; }
 }

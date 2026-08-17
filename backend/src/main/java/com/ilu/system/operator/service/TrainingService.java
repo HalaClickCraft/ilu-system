@@ -466,6 +466,9 @@ public class TrainingService {
         if (roles.contains("ADMIN") || roles.contains("RESP_QUALITE")) {
             return true;
         }
+        if (roles.contains("RESP_HSE")) {
+            return false;
+        }
         Zone zone = formation.getWorkstation().getZone();
         return zone != null && zone.getProject() != null
                 && projectMemberRepo.existsByProjectIdAndEmployeeId(zone.getProject().getId(), employeeId);

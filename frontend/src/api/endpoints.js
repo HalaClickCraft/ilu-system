@@ -73,7 +73,7 @@ export const evaluationApi = {
   // Questions
   addQuestion: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions`, data),
   updateQuestion: (questionId, data) => api.put(`/evaluation/questions/${questionId}`, data),
-  deleteQuestion: (questionId) => api.delete(`/evaluation/questions/${questionId}`),
+  deleteQuestion: (questionId, templateId) => api.delete(`/evaluation/questions/${questionId}`, { params: { templateId } }),
 
   // Question Validation (Responsable)
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
@@ -89,7 +89,9 @@ export const evaluationApi = {
   // Auto-trigger: operators who passed 12j suivi
   getPendingForOperator: (operatorId) => api.get(`/evaluation/pending/operator/${operatorId}`),
   getAllPendingEvaluations: () => api.get('/evaluation/pending/all'),
+    resolveTemplates: (operatorId, formationId) => api.get('/evaluation/initial/resolve-templates', { params: { operatorId, formationId } }),
 
   // Polyvalence Matrix
   getMatrix: () => api.get('/evaluation/matrix'),
+  getDoubleFailures: () => api.get('/evaluation/double-failures'),
 }

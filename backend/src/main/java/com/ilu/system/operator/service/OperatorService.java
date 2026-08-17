@@ -36,6 +36,15 @@ public class OperatorService {
         op.setRole(request.getRole());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
+        String typeValue = request.getOperatorType();
+        if (typeValue == null || typeValue.isBlank()) {
+            typeValue = "NOUVEAU_RECRU";
+        }
+        try {
+            op.setOperatorType(Operator.OperatorType.valueOf(typeValue));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Type operateur invalide: " + typeValue);
+        }
         op.setActive(true);
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
@@ -55,6 +64,13 @@ public class OperatorService {
         if (request.getRole() != null) op.setRole(request.getRole());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
+        if (request.getOperatorType() != null && !request.getOperatorType().isBlank()) {
+            try {
+                op.setOperatorType(Operator.OperatorType.valueOf(request.getOperatorType()));
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Type operateur invalide: " + request.getOperatorType());
+            }
+        }
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
         return operatorRepository.save(op);

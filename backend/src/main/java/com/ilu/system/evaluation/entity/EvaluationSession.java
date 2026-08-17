@@ -2,7 +2,6 @@ package com.ilu.system.evaluation.entity;
 
 import com.ilu.system.operator.entity.FormationAssignment;
 import com.ilu.system.operator.entity.Operator;
-import com.ilu.system.operator.entity.WorkstationFormation;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,10 +23,6 @@ public class EvaluationSession {
     private FormationAssignment formation;
 
     @ManyToOne
-    @JoinColumn(name = "workstation_formation_id")
-    private WorkstationFormation practicalFormation;
-
-    @ManyToOne
     @JoinColumn(name = "template_id", nullable = false)
     private EvaluationTemplate template;
 
@@ -41,7 +36,6 @@ public class EvaluationSession {
     @Column(nullable = false)
     private SessionStatus status = SessionStatus.IN_PROGRESS;
 
-    // Generic part scores (HSE + Quality)
     @Column(name = "generic_total")
     private Integer genericTotal = 0;
 
@@ -51,7 +45,6 @@ public class EvaluationSession {
     @Column(name = "generic_percentage")
     private Double genericPercentage = 0.0;
 
-    // Production part scores
     @Column(name = "production_total")
     private Integer productionTotal = 0;
 
@@ -61,17 +54,6 @@ public class EvaluationSession {
     @Column(name = "production_percentage")
     private Double productionPercentage = 0.0;
 
-    // Animation part scores (FIX P1-3)
-    @Column(name = "animation_total")
-    private Integer animationTotal = 0;
-
-    @Column(name = "animation_correct")
-    private Integer animationCorrect = 0;
-
-    @Column(name = "animation_percentage")
-    private Double animationPercentage = 0.0;
-
-    // Overall
     @Column(name = "total_questions")
     private Integer totalQuestions = 0;
 
@@ -89,6 +71,12 @@ public class EvaluationSession {
     @Column(name = "operator_seniority_months")
     private Long operatorSeniorityMonths;
 
+    @Column(name = "mode", length = 20)
+    private String mode;
+
+    @Column(name = "next_template_id")
+    private Long nextTemplateId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -103,23 +91,16 @@ public class EvaluationSession {
         this.createdAt = LocalDateTime.now();
     }
 
-    /**
-     * FIX P2-1: Removed unused COMPLETED status.
-     * Only IN_PROGRESS, PASSED, FAILED, BLOCKED are used in the codebase.
-     */
     public enum SessionStatus {
-        IN_PROGRESS, PASSED, FAILED, BLOCKED
+        IN_PROGRESS, COMPLETED, PASSED, FAILED, BLOCKED
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Operator getOperator() { return operator; }
     public void setOperator(Operator operator) { this.operator = operator; }
     public FormationAssignment getFormation() { return formation; }
     public void setFormation(FormationAssignment formation) { this.formation = formation; }
-    public WorkstationFormation getPracticalFormation() { return practicalFormation; }
-    public void setPracticalFormation(WorkstationFormation practicalFormation) { this.practicalFormation = practicalFormation; }
     public EvaluationTemplate getTemplate() { return template; }
     public void setTemplate(EvaluationTemplate template) { this.template = template; }
     public Long getEvaluatorId() { return evaluatorId; }
@@ -140,12 +121,6 @@ public class EvaluationSession {
     public void setProductionCorrect(Integer productionCorrect) { this.productionCorrect = productionCorrect; }
     public Double getProductionPercentage() { return productionPercentage; }
     public void setProductionPercentage(Double productionPercentage) { this.productionPercentage = productionPercentage; }
-    public Integer getAnimationTotal() { return animationTotal; }
-    public void setAnimationTotal(Integer animationTotal) { this.animationTotal = animationTotal; }
-    public Integer getAnimationCorrect() { return animationCorrect; }
-    public void setAnimationCorrect(Integer animationCorrect) { this.animationCorrect = animationCorrect; }
-    public Double getAnimationPercentage() { return animationPercentage; }
-    public void setAnimationPercentage(Double animationPercentage) { this.animationPercentage = animationPercentage; }
     public Integer getTotalQuestions() { return totalQuestions; }
     public void setTotalQuestions(Integer totalQuestions) { this.totalQuestions = totalQuestions; }
     public Integer getCorrectAnswers() { return correctAnswers; }
@@ -158,6 +133,10 @@ public class EvaluationSession {
     public void setNiveau(String niveau) { this.niveau = niveau; }
     public Long getOperatorSeniorityMonths() { return operatorSeniorityMonths; }
     public void setOperatorSeniorityMonths(Long operatorSeniorityMonths) { this.operatorSeniorityMonths = operatorSeniorityMonths; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
+    public Long getNextTemplateId() { return nextTemplateId; }
+    public void setNextTemplateId(Long nextTemplateId) { this.nextTemplateId = nextTemplateId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }

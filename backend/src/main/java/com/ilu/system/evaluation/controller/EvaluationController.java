@@ -38,11 +38,8 @@ public class EvaluationController {
                 .orElse(Set.of());
     }
 
-    private boolean hasAnyTemplateRole(Authentication authentication) {
-        Set<String> roles = getCurrentRoles(authentication);
-        return roles.contains("ADMIN") || roles.contains("AGENT_QUALITE")
-                || roles.contains("RESP_HSE") || roles.contains("RESP_QUALITE")
-                || roles.contains("CHEF_EQUIPE");
+    private boolean hasRole(Authentication authentication, String role) {
+        return getCurrentRoles(authentication).contains(role);
     }
 
     // ======================== TEMPLATE MANAGEMENT ========================
@@ -51,7 +48,7 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> createTemplate(
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-        if (!hasAnyTemplateRole(authentication)) {
+                if (!hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_HSE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         Long userId = getCurrentUserId(authentication);
@@ -83,14 +80,14 @@ public class EvaluationController {
             @PathVariable Long templateId,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-        if (!hasAnyTemplateRole(authentication)) {
+                if (!hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_HSE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         return ResponseEntity.ok(evaluationService.addSection(
                 templateId,
                 (String) body.get("title"),
                 body.get("displayOrder") != null ? Integer.valueOf(body.get("displayOrder").toString()) : null,
-                (String) body.get("complementaryQuestions")
+                body.get("complementaryQuestions") != null ? body.get("complementaryQuestions").toString() : null
         ));
     }
 
@@ -99,62 +96,59 @@ public class EvaluationController {
             @PathVariable Long templateId,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-        if (!hasAnyTemplateRole(authentication)) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         Long userId = getCurrentUserId(authentication);
-        Set<String> userRoles = getCurrentRoles(authentication);
         return ResponseEntity.ok(evaluationService.addQuestion(
                 templateId,
                 body.get("sectionId") != null ? Long.valueOf(body.get("sectionId").toString()) : null,
                 (String) body.get("questionText"),
                 (String) body.get("expectedAnswer"),
-                (String) body.get("complementaryQuestions"),
                 body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null,
-                userRoles,
+                (String) body.get("validatorRole"),
+                body.get("complementaryQuestions") != null ? body.get("complementaryQuestions").toString() : null,
                 userId
         ));
     }
-
-    // ======================== QUESTION EDIT & DELETE (ownership enforced in service) ========================
 
     @PutMapping("/questions/{questionId}")
     public ResponseEntity<Map<String, Object>> updateQuestion(
             @PathVariable Long questionId,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-        if (!hasAnyTemplateRole(authentication)) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
-        Long userId = getCurrentUserId(authentication);
+
         return ResponseEntity.ok(evaluationService.updateQuestion(
                 questionId,
-                (String) body.get("questionText"),
-                (String) body.get("expectedAnswer"),
-                (String) body.get("complementaryQuestions"),
+                body.get("questionText") != null ? (String) body.get("questionText") : null,
+                body.get("expectedAnswer") != null ? (String) body.get("expectedAnswer") : null,
+                body.get("validatorRole") != null ? (String) body.get("validatorRole") : null,
                 body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null,
                 body.get("sectionId") != null ? Long.valueOf(body.get("sectionId").toString()) : null,
-                userId
+                body.get("templateId") != null ? Long.valueOf(body.get("templateId").toString()) : null,
+                body.get("complementaryQuestions") != null ? (String) body.get("complementaryQuestions") : null
         ));
     }
 
     @DeleteMapping("/questions/{questionId}")
     public ResponseEntity<Map<String, Object>> deleteQuestion(
             @PathVariable Long questionId,
+            @RequestParam(required = false) Long templateId,
             Authentication authentication) {
-        if (!hasAnyTemplateRole(authentication)) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
-        Long userId = getCurrentUserId(authentication);
-        return ResponseEntity.ok(evaluationService.deleteQuestion(questionId, userId));
+        return ResponseEntity.ok(evaluationService.deleteQuestion(questionId, templateId));
     }
 
-    // ======================== QUESTION VALIDATION (RESP_QUALITE only) ========================
+    // ======================== QUESTION VALIDATION (Responsable) ========================
 
     @GetMapping("/questions/pending")
     public ResponseEntity<List<Map<String, Object>>> getPendingQuestions(Authentication authentication) {
-        Set<String> roles = getCurrentRoles(authentication);
-        if (!roles.contains("RESP_QUALITE")) {
+        if (!hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(List.of());
         }
         return ResponseEntity.ok(evaluationService.getPendingQuestions());
@@ -164,9 +158,8 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> validateQuestion(
             @PathVariable Long questionId,
             Authentication authentication) {
-        Set<String> roles = getCurrentRoles(authentication);
-        if (!roles.contains("RESP_QUALITE")) {
-            return ResponseEntity.status(403).body(Map.of("error", "Seul le resp qualite peut valider"));
+        if (!hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Seule la responsable Qualite peut valider une question"));
         }
         Long userId = getCurrentUserId(authentication);
         return ResponseEntity.ok(evaluationService.validateQuestion(questionId, userId));
@@ -177,9 +170,8 @@ public class EvaluationController {
             @PathVariable Long questionId,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-        Set<String> roles = getCurrentRoles(authentication);
-        if (!roles.contains("RESP_QUALITE")) {
-            return ResponseEntity.status(403).body(Map.of("error", "Seul le resp qualite peut rejeter"));
+        if (!hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Seule la responsable Qualite peut rejeter une question"));
         }
         Long userId = getCurrentUserId(authentication);
         return ResponseEntity.ok(evaluationService.rejectQuestion(questionId, userId, (String) body.get("reason")));
@@ -191,12 +183,24 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> validateTemplate(
             @PathVariable Long templateId,
             Authentication authentication) {
-        Set<String> roles = getCurrentRoles(authentication);
-        if (!roles.contains("RESP_QUALITE") && !roles.contains("RESP_HSE")) {
-            return ResponseEntity.status(403).body(Map.of("error", "Seul le responsable peut valider le template"));
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Seul le chef d'equipe ou la responsable Qualite peut valider le template"));
         }
         Long userId = getCurrentUserId(authentication);
         return ResponseEntity.ok(evaluationService.validateTemplate(templateId, userId));
+    }
+
+    // ======================== INITIAL EVALUATION ========================
+
+    /**
+     * Auto-resolve templates for INITIAL evaluation flow.
+     * Returns the generic template (global, no workstation) and production template (matched by workstation).
+     */
+    @GetMapping("/initial/resolve-templates")
+    public ResponseEntity<Map<String, Object>> resolveTemplatesForInitial(
+            @RequestParam Long operatorId,
+            @RequestParam Long formationId) {
+        return ResponseEntity.ok(evaluationService.resolveTemplatesForInitial(operatorId, formationId));
     }
 
     // ======================== EVALUATION SESSION ========================
@@ -210,7 +214,9 @@ public class EvaluationController {
                 Long.valueOf(body.get("operatorId").toString()),
                 Long.valueOf(body.get("templateId").toString()),
                 body.get("formationId") != null ? Long.valueOf(body.get("formationId").toString()) : null,
-                userId
+                userId,
+                body.get("mode") != null ? body.get("mode").toString() : null,
+                body.get("nextTemplateId") != null ? Long.valueOf(body.get("nextTemplateId").toString()) : null
         );
         return ResponseEntity.ok(result);
     }
@@ -254,5 +260,13 @@ public class EvaluationController {
     @GetMapping("/matrix")
     public ResponseEntity<Map<String, Object>> getPolyvalenceMatrix() {
         return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix());
+    }
+
+    @GetMapping("/double-failures")
+    public ResponseEntity<List<Map<String, Object>>> getDoubleFailures(Authentication authentication) {
+        if (!hasRole(authentication, "ADMIN") && !hasRole(authentication, "RH") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR")) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(evaluationService.getDoubleFailures());
     }
 }

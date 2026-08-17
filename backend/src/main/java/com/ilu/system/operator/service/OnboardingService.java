@@ -328,7 +328,8 @@ public class OnboardingService {
             dto.setCompletionPercentage(totalModuleCount > 0
                     ? Math.round((double) completed / totalModuleCount * 100.0 * 10.0) / 10.0
                     : 0.0);
-            dto.setOnboardingComplete(completed == totalModuleCount && totalModuleCount > 0);
+            boolean dejaEnPoste = op.getOperatorType() == Operator.OperatorType.DEJA_EN_POSTE;
+            dto.setOnboardingComplete(dejaEnPoste || (completed == totalModuleCount && totalModuleCount > 0));
 
             Map<String, OperatorOnboardingSummaryDto.DepartmentProgress> deptProgress = new LinkedHashMap<>();
             for (Map.Entry<String, List<Long>> entry : deptModuleIds.entrySet()) {
@@ -369,6 +370,12 @@ public class OnboardingService {
     // ==================== CHECK COMPLETION (for formation system) ====================
 
     public boolean isOnboardingComplete(Long operatorId) {
+        Operator operator = operatorRepository.findById(operatorId)
+                .orElse(null);
+        if (operator != null && operator.getOperatorType() == Operator.OperatorType.DEJA_EN_POSTE) {
+            return true;
+        }
+
         Set<Long> moduleIds = moduleRepo.findAll().stream()
                 .map(OnboardingModule::getId)
                 .collect(Collectors.toSet());
@@ -382,7 +389,14 @@ public class OnboardingService {
     public Map<Long, Boolean> getOnboardingStatusForOperators(List<Long> operatorIds) {
         Map<Long, Boolean> result = new LinkedHashMap<>();
         long totalModules = moduleRepo.count();
+        Map<Long, Operator> operatorsById = operatorRepository.findAllById(operatorIds).stream()
+                .collect(Collectors.toMap(Operator::getId, o -> o));
         for (Long opId : operatorIds) {
+            Operator operator = operatorsById.get(opId);
+            if (operator != null && operator.getOperatorType() == Operator.OperatorType.DEJA_EN_POSTE) {
+                result.put(opId, true);
+                continue;
+            }
             if (totalModules == 0) {
                 result.put(opId, false);
             } else {
