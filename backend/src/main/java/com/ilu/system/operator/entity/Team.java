@@ -1,5 +1,6 @@
 package com.ilu.system.operator.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ilu.system.structure.entity.Project;
 import jakarta.persistence.*;
 import java.util.List;
@@ -22,9 +23,15 @@ public class Team {
     @Column(name = "team_leader_employee_id")
     private String teamLeaderEmployeeId;
 
+    // FIX: Added @JsonIgnore to prevent infinite JSON serialization loop
+    // Team -> operators -> each Operator -> team -> Team -> operators -> ...
+    @JsonIgnore
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     private List<Operator> operators;
 
+    // FIX: Added @JsonIgnore to prevent potential loop through
+    // Team -> projects -> Project -> zones -> Zone -> project -> ...
+    @JsonIgnore
     @ManyToMany
     @JoinTable(
         name = "team_projects",

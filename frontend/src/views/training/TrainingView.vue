@@ -323,8 +323,8 @@ const operatorGroups = computed(() => {
       group.currentFormation = { workstationName: f.workstationName, daysWithData: f.daysWithData }
     }
     if (f.status === 'COMPLETED') { group.completed++; group.hasCompletedFormation = true }
-    if (f.status === 'FAILED') { group.hasCompletedFormation = true }
-    if (f.status === 'FAILED') group.failed++
+    if (f.status === 'COMPLETED') { group.hasCompletedFormation = true; group.completed++ }
+if (f.status === 'FAILED') group.failed++
   }
   return Array.from(map.values())
 })
@@ -401,9 +401,10 @@ const load = async () => {
     try {
       const evalRes = await evaluationApi.getHistory()
       const completedFormations = new Set(formations.value.filter(f => f.status === 'COMPLETED').map(f => f.operatorId + '-' + f.workstationId))
-      evalEnRetard.value = (evalRes.data || []).filter(s =>
-        s.status === 'COMPLETED' && !completedFormations.has((s.operatorId || s.operator?.id) + '-' + (s.formationId || ''))
-      )
+     const evalData = Array.isArray(evalRes.data) ? evalRes.data : (evalRes.data?.content || evalRes.data?.items || [])
+evalEnRetard.value = evalData.filter(s =>
+  s.status === 'COMPLETED' && !completedFormations.has((s.operatorId || s.operator?.id) + '-' + (s.formationId || ''))
+)
     } catch (e) {
       console.error('Error loading eval retard', e)
     }

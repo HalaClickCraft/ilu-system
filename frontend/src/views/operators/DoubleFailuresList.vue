@@ -3,14 +3,15 @@
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Signalements RH — Opérateurs en Double Échec</h1>
       <p class="text-sm text-gray-500 mt-1">
-        Liste des opérateurs ayant échoué 2 fois (suivi de formation ou évaluation finale) sur un même poste de travail. 
+        Liste des opérateurs ayant échoué 2 fois (suivi de formation ou évaluation finale) sur un même poste de travail.
         Ces dossiers nécessitent un traitement administratif RH (fin de contrat, réaffectation, etc.) en dehors de l'application.
       </p>
     </div>
 
     <!-- Loading state -->
+    <!-- FIX: Changed border-emerald-250 (invalid) to border-emerald-200 (valid Tailwind class) -->
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="w-8 h-8 border-4 border-emerald-250 border-t-emerald-600 rounded-full animate-spin"></div>
+      <div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
     </div>
 
     <!-- Empty state -->
@@ -46,7 +47,8 @@
                 {{ item.workstationName }}
               </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-red-650">
+            <!-- FIX: Changed text-red-650 (invalid) to text-red-600 (valid Tailwind class) -->
+            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-red-600">
               {{ item.failedCount }}
             </td>
             <td class="px-6 py-4 text-xs text-gray-600">

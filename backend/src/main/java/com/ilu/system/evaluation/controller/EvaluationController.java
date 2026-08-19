@@ -24,8 +24,6 @@ public class EvaluationController {
         this.userRepo = userRepo;
     }
 
-    // ======================== HELPERS ========================
-
     private Long getCurrentUserId(Authentication authentication) {
         return userRepo.findByEmployeeId(authentication.getName())
                 .map(User::getId)
@@ -41,8 +39,6 @@ public class EvaluationController {
     private boolean hasRole(Authentication authentication, String role) {
         return getCurrentRoles(authentication).contains(role);
     }
-
-    // ======================== TEMPLATE MANAGEMENT ========================
 
     @PostMapping("/templates")
     public ResponseEntity<Map<String, Object>> createTemplate(
@@ -72,8 +68,6 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> getTemplateWithQuestions(@PathVariable Long templateId) {
         return ResponseEntity.ok(evaluationService.getTemplateWithQuestions(templateId));
     }
-
-    // ======================== SECTIONS & QUESTIONS ========================
 
     @PostMapping("/templates/{templateId}/sections")
     public ResponseEntity<Map<String, Object>> addSection(
@@ -120,7 +114,6 @@ public class EvaluationController {
         if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
-
         return ResponseEntity.ok(evaluationService.updateQuestion(
                 questionId,
                 body.get("questionText") != null ? (String) body.get("questionText") : null,
@@ -143,8 +136,6 @@ public class EvaluationController {
         }
         return ResponseEntity.ok(evaluationService.deleteQuestion(questionId, templateId));
     }
-
-    // ======================== QUESTION VALIDATION (Responsable) ========================
 
     @GetMapping("/questions/pending")
     public ResponseEntity<List<Map<String, Object>>> getPendingQuestions(Authentication authentication) {
@@ -177,8 +168,6 @@ public class EvaluationController {
         return ResponseEntity.ok(evaluationService.rejectQuestion(questionId, userId, (String) body.get("reason")));
     }
 
-    // ======================== TEMPLATE VALIDATION ========================
-
     @PostMapping("/templates/{templateId}/validate")
     public ResponseEntity<Map<String, Object>> validateTemplate(
             @PathVariable Long templateId,
@@ -190,20 +179,12 @@ public class EvaluationController {
         return ResponseEntity.ok(evaluationService.validateTemplate(templateId, userId));
     }
 
-    // ======================== INITIAL EVALUATION ========================
-
-    /**
-     * Auto-resolve templates for INITIAL evaluation flow.
-     * Returns the generic template (global, no workstation) and production template (matched by workstation).
-     */
     @GetMapping("/initial/resolve-templates")
     public ResponseEntity<Map<String, Object>> resolveTemplatesForInitial(
             @RequestParam Long operatorId,
             @RequestParam Long formationId) {
         return ResponseEntity.ok(evaluationService.resolveTemplatesForInitial(operatorId, formationId));
     }
-
-    // ======================== EVALUATION SESSION ========================
 
     @PostMapping("/sessions/start")
     public ResponseEntity<Map<String, Object>> startEvaluation(
@@ -242,8 +223,6 @@ public class EvaluationController {
         return ResponseEntity.ok(evaluationService.getSessionDetail(sessionId));
     }
 
-    // ======================== AUTO-TRIGGER ENDPOINTS ========================
-
     @GetMapping("/pending/operator/{operatorId}")
     public ResponseEntity<List<Map<String, Object>>> getPendingEvaluationsForOperator(
             @PathVariable Long operatorId) {
@@ -255,21 +234,20 @@ public class EvaluationController {
         return ResponseEntity.ok(evaluationService.getAllPendingEvaluations());
     }
 
-    // ======================== POLYVALENCE MATRIX ========================
-
     @GetMapping("/matrix")
     public ResponseEntity<Map<String, Object>> getPolyvalenceMatrix() {
         return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix());
     }
 
+    // FIX: Added CHEF_EQUIPE and AGENT_QUALITE to the role check.
+    // Previously these roles got 403 and the list appeared empty.
     @GetMapping("/double-failures")
     public ResponseEntity<List<Map<String, Object>>> getDoubleFailures(Authentication authentication) {
-        if (!hasRole(authentication, "ADMIN") && !hasRole(authentication, "RH") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR")) {
+        if (!hasRole(authentication, "ADMIN") && !hasRole(authentication, "RH") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "SUPERVISEUR")) {
             return ResponseEntity.status(403).build();
         }
         return ResponseEntity.ok(evaluationService.getDoubleFailures());
     }
-    // ======================== EVALUATION HISTORY ========================
 
     @GetMapping("/history")
     public ResponseEntity<Map<String, Object>> getEvaluationHistory() {

@@ -6,7 +6,6 @@
         <p class="text-sm text-gray-500 mt-1">Indicateur de polyvalence: Minimum 6 personnes formees par poste => 6 personnes en L</p>
       </div>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <!-- FIX 5a: Always show project filter for multi-project roles -->
         <div v-if="showProjectFilter" class="flex items-center gap-2">
           <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Projet:</label>
           <select v-model="selectedProject" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[180px]">
@@ -88,7 +87,6 @@ const loading = ref(true)
 const errorMsg = ref('')
 const matrixData = ref({ operators: [], workstations: [] })
 
-// Project filter
 const projects = ref([])
 const teams = ref([])
 const allOperatorsData = ref([])
@@ -97,7 +95,6 @@ const selectedProject = ref('')
 const isMultiProjectRole = computed(() =>
   authStore.hasAnyRole(['RESP_QUALITE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_HSE', 'ADMIN', 'RH'])
 )
-// FIX 5a: Show project filter whenever user has multi-project role (even with 1 project, for consistency)
 const showProjectFilter = computed(() => isMultiProjectRole.value && projectList.value.length >= 1)
 const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
 
@@ -118,9 +115,6 @@ const getOperatorProjectIds = (operatorId) => {
   return projList ? projList.map(p => p.id) : []
 }
 
-// FIX 4c: Only filter by project — do NOT filter out operators with past exit dates.
-// Operators with past exit date but active=true STILL appear.
-// Only active=false (deactivated) operators are excluded by the backend.
 const filteredMatrixOperators = computed(() => {
   if (!selectedProject.value) return matrixData.value.operators || []
   const pid = Number(selectedProject.value)
@@ -195,25 +189,30 @@ const niveauBgClass = (n) => ({
   U: 'bg-green-600 text-white'
 }[n] || 'bg-gray-100 text-gray-400 border border-gray-200')
 
+// FIX: Backend returns dates already formatted as dd/MM/yyyy strings.
+// Do NOT try to parse them with new Date() — just return as-is.
+// Only attempt formatting if the input looks like an ISO date string.
 function formatDate(dateStr) {
   if (!dateStr) return '-'
+  if (typeof dateStr !== 'string') return String(dateStr)
+  // If already formatted (contains /), return as-is
+  if (dateStr.includes('/')) return dateStr
+  // Try parsing ISO format (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
   try {
     const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   } catch {
     return dateStr
   }
 }
 
-// FIX 1a: Always display I, L, or U — never numbers.
-// Maps all possible backend formats (NIVEAU_1/2/3, 1/2/3, I/L/U) to I/L/U letters.
 function formatNiveau(level) {
   if (!level) return ''
   const upper = level.toUpperCase().trim()
   if (upper === 'I' || upper === 'NIVEAU_1' || upper === '1') return 'I'
   if (upper === 'L' || upper === 'NIVEAU_2' || upper === '2') return 'L'
   if (upper === 'U' || upper === 'NIVEAU_3' || upper === '3') return 'U'
-  // For any other value, return first char if it's I/L/U
   if (['I', 'L', 'U'].includes(upper.charAt(0))) return upper.charAt(0)
   return level
 }
