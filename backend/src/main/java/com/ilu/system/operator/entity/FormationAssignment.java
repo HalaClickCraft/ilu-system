@@ -3,6 +3,7 @@ package com.ilu.system.operator.entity;
 import com.ilu.system.structure.entity.Workstation;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "formation_assignments")
@@ -11,11 +12,13 @@ public class FormationAssignment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "operator_id", nullable = false)
     private Operator operator;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "workstation_id", nullable = false)
     private Workstation workstation;

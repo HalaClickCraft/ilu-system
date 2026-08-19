@@ -20,13 +20,13 @@ const routes = [
     component: MainLayout,
     meta: { requiresAuth: true },
     children: [
-      // Dashboard routes (role-based redirect handled in component)
+      // Dashboard
       {
         path: '',
         name: 'dashboard',
         component: () => import('@/views/dashboard/DashboardRouter.vue'),
       },
-      // Operator routes
+      // Operators
       {
         path: 'operators',
         name: 'operators',
@@ -37,53 +37,64 @@ const routes = [
         name: 'operator-detail',
         component: () => import('@/views/operators/OperatorDetail.vue'),
       },
-      // Training routes
+      // Training
       {
         path: 'training',
         name: 'training',
         component: () => import('@/views/training/TrainingView.vue'),
-        meta: {
-          roles: ['ADMIN', 'RH', 'AGENT_QUALITE', 'RESP_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'],
-        },
+        meta: { roles: ['ADMIN', 'RH', 'AGENT_QUALITE', 'RESP_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'] },
       },
       {
         path: 'training/:id',
         name: 'formation-detail',
         component: () => import('@/views/training/FormationDetail.vue'),
       },
-      // Structure routes
+      // Structure
       {
         path: 'structure',
         name: 'structure',
         component: () => import('@/views/structure/StructureView.vue'),
       },
-      // Admin routes
+      {
+        path: 'teams',
+        name: 'teams',
+        component: () => import('@/views/structure/TeamsView.vue'),
+      },
+      // Admin
       {
         path: 'admin/users',
         name: 'admin-users',
         component: () => import('@/views/admin/UsersList.vue'),
         meta: { roles: ['ADMIN'] },
       },
-      // HR routes
+      // RH
       {
         path: 'rh/recrutement',
         name: 'rh-recrutement',
         component: () => import('@/views/operators/OperatorsList.vue'),
         meta: { roles: ['ADMIN', 'RH'] },
       },
-      // Teams route
-      { path: 'teams', name: 'teams', component: () => import('@/views/structure/TeamsView.vue') },
-
+      // Onboarding
       {
         path: 'onboarding',
         name: 'onboarding',
         component: () => import('@/views/onboarding/OnboardingView.vue'),
       },
-      // Evaluation routes
+      // Evaluation
       {
         path: 'evaluation/initial',
         name: 'evaluation-initial',
         component: () => import('@/views/evaluation/EvaluationInitial.vue'),
+      },
+      {
+        path: 'evaluation/matrix',
+        name: 'evaluation-matrix',
+        component: () => import('@/views/evaluation/PolyvalenceMatrix.vue'),
+      },
+      {
+        path: 'evaluation/history',
+        name: 'evaluation-history',
+        component: () => import('@/views/evaluation/EvaluationHistory.vue'),
       },
       {
         path: 'evaluation/templates',
@@ -108,10 +119,12 @@ const routes = [
         name: 'evaluation-session',
         component: () => import('@/views/evaluation/EvaluationSession.vue'),
       },
+      // Double echecs (RH + Admin + Qualite + Chef Equipe + Agent Qualite + Superviseur)
       {
-        path: 'evaluation/matrix',
-        name: 'evaluation-matrix',
-        component: () => import('@/views/evaluation/PolyvalenceMatrix.vue'),
+        path: 'evaluation/double-failures',
+        name: 'evaluation-double-failures',
+        component: () => import('@/views/operators/DoubleFailuresList.vue'),
+        meta: { roles: ['ADMIN', 'RH', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'] },
       },
     ],
   },

@@ -359,6 +359,29 @@ public class EvaluationService {
             seniorityMonths = Period.between(operator.getHireDate(), LocalDate.now()).toTotalMonths();
         }
 
+        // Check for existing IN_PROGRESS session for same operator + template to prevent duplicates
+        Optional<EvaluationSession> existingSession = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
+                .filter(s -> s.getTemplate().getId().equals(templateId)
+                        && s.getStatus() == EvaluationSession.SessionStatus.IN_PROGRESS)
+                .findFirst();
+
+        if (existingSession.isPresent()) {
+                EvaluationSession es = existingSession.get();
+                Map<String, Object> existingResult = new LinkedHashMap<>();
+                existingResult.put("sessionId", es.getId());
+                existingResult.put("operatorName", operator.getLastName() + " " + operator.getFirstName());
+                existingResult.put("templateName", template.getName());
+                existingResult.put("templateType", template.getType().name());
+                existingResult.put("totalQuestions", questionRepo.findValidatedQuestionsByTemplate(templateId).size());
+                existingResult.put("seniorityMonths", seniorityMonths);
+                existingResult.put("status", "IN_PROGRESS");
+                existingResult.put("mode", es.getMode());
+                existingResult.put("nextTemplateId", es.getNextTemplateId());
+                existingResult.put("resumed", true);
+                existingResult.put("message", "Session existante reprise");
+                return existingResult;
+        }
+
         EvaluationSession session = new EvaluationSession();
         session.setOperator(operator);
         session.setTemplate(template);
@@ -769,13 +792,16 @@ public class EvaluationService {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
                 .filter(s -> s.getTemplate().getWorkstation() != null
                         && s.getTemplate().getWorkstation().getId().equals(workstationId)
-                        && s.getStatus() == EvaluationSession.SessionStatus.PASSED)
+                        && (s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                            || s.getStatus() == EvaluationSession.SessionStatus.COMPLETED))
                 .findFirst();
     }
 
     private Optional<EvaluationSession> getLatestPassedGenericSession(Long operatorId) {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
-                .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.PASSED)
+                .filter(s -> (s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                            || s.getStatus() == EvaluationSession.SessionStatus.COMPLETED)
+                        && s.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON)
                 .filter(s -> {
                     List<EvaluationAnswer> ans = answerRepo.findBySessionId(s.getId());
                     long genTotal = ans.stream()
@@ -813,7 +839,7 @@ public class EvaluationService {
             EvaluationSession genericSession = latestGen.get();
             row.put("genericLevel", "U");
             row.put("genericMode", genericSession.getMode() != null ? genericSession.getMode() : "INITIAL");
-            row.put("genericDate", genericSession.getCompletedAt() != null ? genericSession.getCompletedAt().format(dtf) : genericSession.getCreatedAt().format(dtf));
+            row.put("genericDate", genericSession.getCompletedAt() != null ? genericSession.getCompletedAt().format(dtf) : (genericSession.getCreatedAt() != null ? genericSession.getCreatedAt().format(dtf) : LocalDate.now().format(dtf)));
 
             Map<Long, Map<String, Object>> wsDataMap = new LinkedHashMap<>();
             for (Workstation ws : workstations) {
@@ -825,7 +851,7 @@ public class EvaluationService {
                     lvl = ("NON_APTE".equals(lvl) || "-".equals(lvl) || "NON_VALIDE".equals(lvl)) ? "" : lvl;
                     wsVal.put("level", lvl);
                     wsVal.put("mode", s.getMode() != null ? s.getMode() : "INITIAL");
-                    wsVal.put("date", s.getCompletedAt() != null ? s.getCompletedAt().format(dtf) : s.getCreatedAt().format(dtf));
+                    wsVal.put("date", s.getCompletedAt() != null ? s.getCompletedAt().format(dtf) : (s.getCreatedAt() != null ? s.getCreatedAt().format(dtf) : LocalDate.now().format(dtf)));
                 } else {
                     wsVal.put("level", "");
                     wsVal.put("mode", "");

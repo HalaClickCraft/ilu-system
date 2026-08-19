@@ -333,9 +333,7 @@
       </div>
     </div>
 
-    <!-- ================================================== -->
-    <!-- TAB 3: HISTORY                                     -->
-    <!-- ================================================== -->
+    <!-- TAB 3: HISTORY -->
     <div v-if="activeTab === 'history'">
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -353,113 +351,55 @@
         </div>
       </div>
 
-      <!-- COMPLETED -->
-      <div class="mb-6">
+      <!-- COMPLETED: DEJA EN POSTE -->
+      <div v-if="historyCompletedDeja.length > 0" class="mb-6">
         <h2 class="text-lg font-semibold text-green-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          Onboarding Terminé ({{ historyData.completedCount }})
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          Onboarding Terminé - Déjà en Poste ({{ historyCompletedDeja.length }})
         </h2>
         <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table v-if="historyData.completedOperators && historyData.completedOperators.length > 0" class="w-full text-sm">
-            <thead>
-              <tr class="bg-green-50 border-b border-green-200">
-                <th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[200px]">Opérateur</th>
-                <th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[120px]">Matricule</th>
-                <th
-                  v-for="dept in departmentNames"
-                  :key="'hc-'+dept"
-                  class="text-center px-3 py-3 font-semibold text-green-800 min-w-[110px]"
-                >{{ dept }}</th>
-                <th class="text-center px-3 py-3 font-semibold text-green-800 min-w-[70px]">Statut</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr
-                v-for="op in historyData.completedOperators"
-                :key="op.operatorId"
-                class="hover:bg-green-50/50 cursor-pointer"
-                @click="goToDetail(op.operatorId)"
-              >
-                <td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td>
-                <td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td>
-                <td v-for="dept in departmentNames" :key="'hc2-'+dept" class="text-center px-3 py-3">
-                  <span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-green-600 font-medium">
-                    {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
-                  </span>
-                </td>
-                <td class="text-center px-3 py-3">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                    &#10003; Prêt
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="text-center py-10 text-gray-400">
-            Aucun opérateur n'a terminé l'onboarding
-          </div>
+          <table class="w-full text-sm"><thead><tr class="bg-green-50 border-b border-green-200"><th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hcd-'+dept" class="text-center px-3 py-3 font-semibold text-green-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-green-800 min-w-[70px]">Statut</th></tr></thead>
+          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyCompletedDeja" :key="op.operatorId" class="hover:bg-green-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hcd2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-green-600 font-medium">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">&#10003; Prêt</span></td></tr></tbody></table>
         </div>
       </div>
 
-      <!-- PENDING -->
-      <div>
-        <h2 class="text-lg font-semibold text-orange-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-          </svg>
-          En Cours ({{ historyData.pendingCount }})
+      <!-- COMPLETED: NOUVEAUX RECRUS -->
+      <div v-if="historyCompletedNouveaux.length > 0" class="mb-6">
+        <h2 class="text-lg font-semibold text-blue-700 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          Onboarding Terminé - Nouveaux Recrus ({{ historyCompletedNouveaux.length }})
         </h2>
         <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table v-if="historyData.pendingOperators && historyData.pendingOperators.length > 0" class="w-full text-sm">
-            <thead>
-              <tr class="bg-orange-50 border-b border-orange-200">
-                <th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[200px]">Opérateur</th>
-                <th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[120px]">Matricule</th>
-                <th
-                  v-for="dept in departmentNames"
-                  :key="'hp-'+dept"
-                  class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[110px]"
-                >{{ dept }}</th>
-                <th class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[100px]">Reste</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr
-                v-for="op in historyData.pendingOperators"
-                :key="op.operatorId"
-                class="hover:bg-orange-50/50 cursor-pointer"
-                @click="goToDetail(op.operatorId)"
-              >
-                <td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td>
-                <td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td>
-                <td v-for="dept in departmentNames" :key="'hp2-'+dept" class="text-center px-3 py-3">
-                  <span
-                    v-if="op.departmentProgress && op.departmentProgress[dept]"
-                    class="text-xs font-medium"
-                    :class="op.departmentProgress[dept].departmentComplete
-                      ? 'text-green-600'
-                      : op.departmentProgress[dept].completed > 0
-                        ? 'text-yellow-600'
-                        : 'text-gray-400'"
-                  >
-                    {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
-                  </span>
-                </td>
-                <td class="text-center px-3 py-3">
-                  <span class="text-orange-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span>
-                  <span class="text-xs text-gray-400"> restants</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="text-center py-10 text-gray-400">
-            Tous les opérateurs ont terminé leur onboarding !
-          </div>
+          <table class="w-full text-sm"><thead><tr class="bg-blue-50 border-b border-blue-200"><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hcn-'+dept" class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[70px]">Statut</th></tr></thead>
+          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyCompletedNouveaux" :key="op.operatorId" class="hover:bg-blue-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hcn2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-green-600 font-medium">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">&#10003; Prêt formation</span></td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- PENDING: DEJA EN POSTE -->
+      <div v-if="historyDejaEnPoste.length > 0" class="mb-6">
+        <h2 class="text-lg font-semibold text-orange-700 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+          En Cours - Déjà en Poste ({{ historyDejaEnPoste.length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table class="w-full text-sm"><thead><tr class="bg-orange-50 border-b border-orange-200"><th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hpd-'+dept" class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[100px]">Reste</th></tr></thead>
+          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyDejaEnPoste" :key="op.operatorId" class="hover:bg-orange-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hpd2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-xs font-medium" :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="text-orange-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span><span class="text-xs text-gray-400"> restants</span></td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- PENDING: NOUVEAUX RECRUS -->
+      <div v-if="historyNouveauxRecrus.length > 0">
+        <h2 class="text-lg font-semibold text-blue-700 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+          En Cours - Nouveaux Recrus ({{ historyNouveauxRecrus.length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table class="w-full text-sm"><thead><tr class="bg-blue-50 border-b border-blue-200"><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hpn-'+dept" class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[100px]">Reste</th></tr></thead>
+          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyNouveauxRecrus" :key="op.operatorId" class="hover:bg-blue-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hpn2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-xs font-medium" :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="text-blue-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span><span class="text-xs text-gray-400"> restants</span></td></tr></tbody></table>
         </div>
       </div>
     </div>
+
 
   </div>
 </template>
@@ -498,6 +438,20 @@ const validatingModuleId = ref(null);
 
 // Current user roles
 const userRoles = computed(() => authStore.user?.roles || []);
+
+// Split operators by type in history
+const historyNouveauxRecrus = computed(() => {
+  return (historyData.value.pendingOperators || []).filter(op => op.operatorType === 'NOUVEAU_RECRU')
+})
+const historyDejaEnPoste = computed(() => {
+  return (historyData.value.pendingOperators || []).filter(op => op.operatorType === 'DEJA_EN_POSTE')
+})
+const historyCompletedNouveaux = computed(() => {
+  return (historyData.value.completedOperators || []).filter(op => op.operatorType === 'NOUVEAU_RECRU')
+})
+const historyCompletedDeja = computed(() => {
+  return (historyData.value.completedOperators || []).filter(op => op.operatorType === 'DEJA_EN_POSTE')
+})
 
 // Department column names from summary data
 const departmentNames = computed(() => {

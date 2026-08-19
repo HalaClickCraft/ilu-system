@@ -9,7 +9,7 @@
     <div v-if="session">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Evaluation: {{ session.operatorName }}</h1>
+          <h1 class="text-2xl font-bold text-gray-900">Évaluation: {{ session.operatorName }}</h1>
           <p class="text-sm text-gray-500 mt-1">
             Template: {{ session.templateName }}
             <span v-if="session.formationId"> | Formation #{{ session.formationId }}</span>
@@ -105,7 +105,7 @@
         <h2 class="text-lg font-bold mb-4">Resultats</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-gray-50 rounded-lg p-4 text-center">
-            <p class="text-xs text-gray-500">Partie Generique (HSE+Q)</p>
+            <p class="text-xs text-gray-500">Partie Générique (HSE+Q)</p>
             <p class="text-xl font-bold" :class="session.genericPercentage >= 100 ? 'text-green-600' : 'text-red-600'">{{ session.genericPercentage }}%</p>
             <p class="text-xs text-gray-400">{{ session.genericCorrect }}/{{ session.genericTotal }}</p>
           </div>
@@ -125,16 +125,16 @@
           </div>
         </div>
         <div v-if="session.decision === 'BLOCKED_GENERIC'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p class="font-bold">BLOQUE - Partie generique insuffisante</p>
-          <p class="text-sm mt-1">La partie generique (HSE + Qualite) doit etre a 100% pour poursuivre l'evaluation.</p>
+          <p class="font-bold">BLOQUE - Partie générique insuffisante</p>
+          <p class="text-sm mt-1">La partie générique (HSE + Qualité) doit etre a 100% pour poursuivre l'évaluation.</p>
         </div>
         <div v-else-if="session.decision === 'FAILED'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
           <p class="font-bold">Echec</p>
           <p class="text-sm mt-1">Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.</p>
         </div>
         <div v-else-if="session.decision?.startsWith('PASSED_')" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800">
-          <p class="font-bold">Reussi - Niveau {{ session.niveau }}</p>
-          <p v-if="session.niveau === 'L'" class="text-sm mt-1">Pour passer au niveau U: evaluation Animation requise apres 1 an d'anciennete.</p>
+          <p class="font-bold">Réussi - Niveau {{ session.niveau }}</p>
+          <p v-if="session.niveau === 'L'" class="text-sm mt-1">Pour passer au niveau U: évaluation Animation requise apres 1 an d'anciennete.</p>
         </div>
       </div>
     </div>
@@ -143,8 +143,8 @@
     <div v-else>
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Evaluations a effectuer</h1>
-          <p class="text-sm text-gray-500 mt-1">Operateurs ayant reussi le suivi 12j et necessitant une evaluation</p>
+          <h1 class="text-2xl font-bold text-gray-900">Évaluations a effectuer</h1>
+          <p class="text-sm text-gray-500 mt-1">Opérateurs ayant réussi le suivi 12j et necessitant une évaluation</p>
         </div>
         <button @click="loadPendingEvaluations" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200">
           Rafraichir
@@ -155,8 +155,8 @@
 
       <div v-else-if="pendingEvaluations.length === 0" class="bg-white rounded-xl border p-12 text-center mt-4">
         <svg class="w-16 h-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <p class="mt-4 text-gray-400 text-lg">Aucun operateur en attente d'evaluation</p>
-        <p class="text-sm text-gray-300 mt-1">Les operateurs apparaitront ici apres reussite du suivi 12 jours</p>
+        <p class="mt-4 text-gray-400 text-lg">Aucun operateur en attente d'évaluation</p>
+        <p class="text-sm text-gray-300 mt-1">Les operateurs apparaitront ici apres réussite du suivi 12 jours</p>
       </div>
 
       <div v-else class="space-y-3 mt-4">
@@ -168,7 +168,7 @@
             </div>
             <button @click="goToStartEvaluation(pe)"
               class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium">
-              Commencer l'evaluation
+              Commencer l'évaluation
             </button>
           </div>
         </div>
@@ -176,10 +176,10 @@
 
       <!-- Manual start form -->
       <div class="bg-white rounded-xl border p-6 mt-8">
-        <h2 class="text-lg font-bold mb-4">Demarrer une evaluation manuellement</h2>
+        <h2 class="text-lg font-bold mb-4">Demarrer une évaluation manuellement</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="text-sm font-medium text-gray-700">Operateur</label>
+            <label class="text-sm font-medium text-gray-700">Opérateur</label>
             <select v-model="startForm.operatorId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
               <option :value="null">-- Selectionner --</option>
               <option v-for="op in operators" :key="op.id" :value="op.id">{{ op.lastName }} {{ op.firstName }} ({{ op.employeeId }})</option>
@@ -249,18 +249,18 @@ const sessionStatusClass = (s) => ({
 
 const sessionStatusLabel = (s) => ({
   IN_PROGRESS: 'En cours',
-  PASSED: 'Reussi',
-  FAILED: 'Echoue',
-  BLOCKED: 'Bloque',
+  PASSED: 'Réussi',
+  FAILED: 'Échoué',
+  BLOCKED: 'Bloqué',
 }[s] || s)
 
 const niveauClass = (n) => ({ I: 'text-amber-600', L: 'text-blue-600', U: 'text-green-600' }[n] || 'text-gray-400')
 
 const roleLabel = (role) => ({
-  CHEF_EQUIPE: "Chef d'Equipe",
+  CHEF_EQUIPE: "Chef d'Équipe",
   AGENT_QUALITE: 'Agent Qualite',
   RESP_HSE: 'Resp. HSE',
-  RESP_QUALITE: 'Resp. Qualite',
+  RESP_QUALITE: 'Resp. Qualité',
 }[role] || role)
 
 const canAnswerQuestion = (validatorRole) => {
@@ -388,13 +388,13 @@ async function saveAnswers() {
       try {
         const res = await evaluationApi.completeEvaluation(session.value.id)
         session.value = { ...session.value, ...res.data }
-        toast.info('Evaluation completee automatiquement')
+        saveSuccess.value = true
       } catch (e) {
-        toast.error('Erreur completion: ' + (e.response?.data?.message || e.message))
+        console.error('Erreur completion:', e)
       }
     }
   } catch (e) {
-    toast.error('Erreur: ' + (e.response?.data?.message || e.message))
+    console.error('Erreur sauvegarde:', e)
   }
   saving.value = false
 }

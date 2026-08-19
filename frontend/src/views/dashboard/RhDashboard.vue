@@ -13,7 +13,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">Total Operateurs</p>
+            <p class="text-sm font-medium text-gray-500">Total Opérateurs</p>
             <p class="text-3xl font-bold text-blue-600 mt-1">{{ operators.length }}</p>
           </div>
           <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -24,7 +24,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">Operateurs Actifs</p>
+            <p class="text-sm font-medium text-gray-500">Opérateurs Actifs</p>
             <p class="text-3xl font-bold text-emerald-600 mt-1">{{ activeCount }}</p>
           </div>
           <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
@@ -59,7 +59,7 @@
     <!-- Team Distribution & Recent Hires -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Repartition par Equipe</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Repartition par Équipe</h2>
         <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
         <div v-else-if="teamDistribution.length > 0" class="space-y-3">
           <div v-for="team in teamDistribution" :key="team.name" class="flex items-center gap-3">
@@ -98,7 +98,7 @@
       <div v-if="loading" class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
       <div v-else-if="absentOperators.length > 0" class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Operateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th><th class="text-left py-3 px-4 font-medium text-gray-500">Motif</th><th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th></tr></thead>
+          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Opérateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th><th class="text-left py-3 px-4 font-medium text-gray-500">Motif</th><th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th></tr></thead>
           <tbody>
             <tr v-for="op in absentOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
               <td class="py-3 px-4 font-medium">{{ op.firstName }} {{ op.lastName }}</td>
@@ -124,7 +124,7 @@
       </router-link>
       <router-link to="/teams" class="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition group">
         <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition"><svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></div>
-        <div><p class="text-sm font-medium text-gray-700">Gestion Equipes</p><p class="text-xs text-gray-400">Organiser les equipes</p></div>
+        <div><p class="text-sm font-medium text-gray-700">Gestion Équipes</p><p class="text-xs text-gray-400">Organiser les équipes</p></div>
       </router-link>
     </div>
   </div>

@@ -2,7 +2,8 @@
   <div class="space-y-6">
     <div v-if="loading" class="py-20 text-center text-gray-400">Chargement...</div>
     <template v-else-if="formation">
-      <div class="flex items-center gap-4">
+      <BreadcrumbNav :crumbs="[{ label: 'Formation', to: '/training' }, { label: formation.workstationName || 'Détail' }]" />
+    <div class="flex items-center gap-4">
         <button @click="$router.push('/training')" class="text-gray-400 hover:text-gray-600">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -13,7 +14,7 @@
             ></path>
           </svg>
         </button>
-        <h1 class="text-2xl font-bold text-gray-900">Evaluation formation</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Évaluation formation</h1>
         <span
           class="rounded-full px-2.5 py-0.5 text-xs font-medium"
           :class="statusClass(formation.status)"
@@ -29,7 +30,7 @@
 
       <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p class="text-xs text-gray-500">Operateur</p>
+          <p class="text-xs text-gray-500">Opérateur</p>
           <p class="mt-1 text-sm font-semibold">{{ formation.operatorName }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -45,13 +46,13 @@
           <p class="mt-1 text-sm font-semibold" :class="cadenceColor">{{ averageCadence }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p class="text-xs text-gray-500">Defauts total</p>
+          <p class="text-xs text-gray-500">Défauts total</p>
           <p class="mt-1 text-sm font-semibold" :class="defectsColor">
             {{ totalDefects }} / {{ formation.qualityObjective ?? 7 }}
           </p>
         </div>
         <div class="rounded-xl border border-purple-200 bg-purple-50 p-4 shadow-sm">
-          <p class="text-xs font-medium text-purple-600">Objectif qualite</p>
+          <p class="text-xs font-medium text-purple-600">Objectif qualité</p>
           <div v-if="canEditQuality && editingQO" class="mt-1 flex gap-1">
             <input
               v-model.number="editQOValue"
@@ -85,7 +86,7 @@
           <div>
             <h2 class="text-sm font-semibold">Saisie des donnees (J1 - J12)</h2>
             <p class="mt-1 text-xs text-gray-500">
-              Chef d'equipe : cadence - Agent qualite : defauts
+              Chef d'équipe : cadence - Agent qualité : défauts
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -173,7 +174,7 @@
                 <td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td>
               </tr>
               <tr>
-                <td class="px-3 py-2 text-xs font-medium">Nombre de defauts</td>
+                <td class="px-3 py-2 text-xs font-medium">Nombre de défauts</td>
                 <td v-for="day in 12" :key="'defects' + day" class="px-1 py-2 text-center">
                   <input
                     v-if="canEditDefects && canEdit"
@@ -205,7 +206,7 @@
               </tr>
               <tr>
                 <td colspan="14" class="bg-blue-50/30 px-3 py-2 text-xs text-blue-700">
-                  L'evaluation est automatique uniquement lorsque les deux mesures sont presentes
+                  L'évaluation est automatique uniquement lorsque les deux mesures sont presentes
                   pour les 12 jours.
                 </td>
               </tr>
@@ -229,10 +230,10 @@
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   ></path>
                 </svg>
-                Suivi reussi - Evaluation disponible
+                Suivi réussi - Évaluation disponible
               </h3>
               <p class="text-sm text-emerald-700 mt-1">
-                Cet operateur a reussi le suivi 12 jours. Lancez l'evaluation pour determiner le
+                Cet operateur a réussi le suivi 12 jours. Lancez l'évaluation pour determiner le
                 niveau de polyvalence.
               </p>
             </div>
@@ -240,7 +241,7 @@
               @click="goToEvaluation"
               class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium"
             >
-              Passer a l'evaluation
+              Passer a l'évaluation
             </button>
           </div>
         </div>
@@ -255,7 +256,7 @@
           class="mt-4 mx-4 mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4"
         >
           <p class="text-sm text-blue-700 font-medium">
-            Evaluation deja effectuee pour cette formation.
+            Évaluation déjà effectuee pour cette formation.
           </p>
         </div>
       </div>
@@ -264,7 +265,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Chart as ChartJS,
@@ -354,7 +355,7 @@ const defectsColor = computed(() =>
     : 'text-red-600',
 )
 const statusLabel = (status) =>
-  ({ IN_PROGRESS: 'En cours', COMPLETED: 'Reussie', FAILED: 'Echouee' })[status] || status
+  ({ IN_PROGRESS: 'En cours', COMPLETED: 'Réussie', FAILED: 'Échouée' })[status] || status
 const statusClass = (status) =>
   ({
     IN_PROGRESS: 'bg-amber-100 text-amber-700',
@@ -455,7 +456,7 @@ const checkPendingEvaluation = async () => {
 }
 
 const goToEvaluation = () => {
-  router.push({ name: 'evaluation-session', params: { id: 'new' } })
+  router.push('/evaluation/initial')
 }
 
 const load = async () => {
@@ -542,22 +543,29 @@ const saveQualityObjective = async () => {
     await refreshFormation()
   } catch (requestError) {
     error.value =
-      requestError.response?.data?.message || "Impossible de mettre a jour l'objectif qualite."
+      requestError.response?.data?.message || "Impossible de mettre a jour l'objectif qualité."
   }
 }
 
-const resetFormation = async () => {
-  try {
-    await trainingApi.resetFormation(route.params.id)
-    evalResult.value = null
+// FIX 1b: Watch for route changes (e.g. back/forward navigation) to reload and re-render chart
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    loading.value = true
+    error.value = ''
     dirtyDays.clear()
-    await load()
-    renderChart()
-  } catch (requestError) {
-    error.value =
-      requestError.response?.data?.message || 'Impossible de reinitialiser la formation.'
+    hasCheckedPending.value = false
+    pendingEvalForThisOperator.value = []
+    try {
+      await load()
+    } catch (requestError) {
+      error.value = requestError.response?.data?.message || 'Impossible de charger la formation.'
+    } finally {
+      loading.value = false
+      await nextTick()
+      renderChart()
+    }
   }
-}
+})
 
 onBeforeUnmount(() => {
   if (chartInstance) chartInstance.destroy()
@@ -566,12 +574,12 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   try {
     await load()
-    await nextTick()
-    renderChart()
   } catch (requestError) {
     error.value = requestError.response?.data?.message || 'Impossible de charger la formation.'
   } finally {
     loading.value = false
+    await nextTick()
+    renderChart()
   }
 })
 </script>

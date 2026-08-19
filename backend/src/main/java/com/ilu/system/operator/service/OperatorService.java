@@ -36,6 +36,10 @@ public class OperatorService {
         op.setRole(request.getRole());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
+        if (request.getExitDate() != null && !request.getExitDate().isBlank())
+            op.setExitDate(LocalDate.parse(request.getExitDate()));
+        if (request.getAbsenceReason() != null && !request.getAbsenceReason().isBlank())
+            op.setAbsenceReason(request.getAbsenceReason());
         String typeValue = request.getOperatorType();
         if (typeValue == null || typeValue.isBlank()) {
             typeValue = "NOUVEAU_RECRU";
@@ -64,6 +68,16 @@ public class OperatorService {
         if (request.getRole() != null) op.setRole(request.getRole());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
+        // FIX 4a: Handle exitDate save
+        if (request.getExitDate() != null && !request.getExitDate().isBlank()) {
+            op.setExitDate(LocalDate.parse(request.getExitDate()));
+        } else if (request.getExitDate() != null && request.getExitDate().isBlank()) {
+            op.setExitDate(null);
+        }
+        // Handle absenceReason
+        if (request.getAbsenceReason() != null) {
+            op.setAbsenceReason(request.getAbsenceReason().isBlank() ? null : request.getAbsenceReason());
+        }
         if (request.getOperatorType() != null && !request.getOperatorType().isBlank()) {
             try {
                 op.setOperatorType(Operator.OperatorType.valueOf(request.getOperatorType()));

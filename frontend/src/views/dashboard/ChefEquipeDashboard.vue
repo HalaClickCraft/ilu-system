@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Chef d'Equipe</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Chef d'Équipe</h1>
         <p class="text-gray-500 mt-1">Suivi quotidien des operateurs et formations de la zone</p>
       </div>
       <div class="text-sm text-gray-400">{{ currentDate }}</div>
@@ -13,7 +13,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">Operateurs dans la Zone</p>
+            <p class="text-sm font-medium text-gray-500">Opérateurs dans la Zone</p>
             <p class="text-3xl font-bold text-emerald-600 mt-1">{{ activeOperators.length }}</p>
           </div>
           <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
@@ -35,8 +35,13 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">Niveau ILU Moyen</p>
-            <p class="text-3xl font-bold text-blue-600 mt-1">{{ averageLevel }}</p>
+            <p class="text-sm font-medium text-gray-500">Niveaux ILU</p>
+            <div class="flex items-center gap-2 mt-1">
+              <span v-if="iluCounts.I > 0" class="text-lg font-bold text-amber-600">I:{{ iluCounts.I }}</span>
+              <span v-if="iluCounts.L > 0" class="text-lg font-bold text-blue-600">L:{{ iluCounts.L }}</span>
+              <span v-if="iluCounts.U > 0" class="text-lg font-bold text-green-600">U:{{ iluCounts.U }}</span>
+              <span v-if="iluCounts.none > 0" class="text-lg font-bold text-gray-400">-:{{ iluCounts.none }}</span>
+            </div>
           </div>
           <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
@@ -74,7 +79,7 @@
               <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700">{{ op.initials }}</div>
               <div>
                 <p class="text-sm font-medium text-gray-900">{{ op.name }}</p>
-                <p class="text-xs text-gray-500">{{ op.workstationName }} - Nv.{{ op.achievedLevel }}/{{ op.targetLevel }}</p>
+                <p class="text-xs text-gray-500">{{ op.workstationName }} - Nv.{{ formatNiveauTarget(op.targetLevel) }}</p>
               </div>
             </div>
             <span class="text-xs font-medium px-2 py-1 rounded-full" :class="op.dayCount >= 12 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">Jour {{ op.dayCount }}/12</span>
@@ -92,7 +97,7 @@
       <!-- Team List -->
       <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">Equipe - Postes et Niveaux</h2>
+          <h2 class="text-lg font-semibold text-gray-900">Équipe - Postes et Niveaux ILU</h2>
           <router-link to="/operators" class="text-sm text-emerald-600 hover:underline">Voir tout</router-link>
         </div>
         <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
@@ -100,7 +105,7 @@
           <table class="w-full text-sm">
             <thead class="bg-gray-50">
               <tr>
-                <th class="text-left py-2.5 px-3 font-medium text-gray-500">Operateur</th>
+                <th class="text-left py-2.5 px-3 font-medium text-gray-500">Opérateur</th>
                 <th class="text-left py-2.5 px-3 font-medium text-gray-500">Poste</th>
                 <th class="text-center py-2.5 px-3 font-medium text-gray-500">Niveau ILU</th>
                 <th class="text-center py-2.5 px-3 font-medium text-gray-500">Statut</th>
@@ -115,7 +120,7 @@
                 </td>
                 <td class="py-2.5 px-3 text-gray-600">{{ getWorkstation(op) }}</td>
                 <td class="py-2.5 px-3 text-center">
-                  <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" :class="getLevelClass(op)">{{ getLevel(op) }}</span>
+                  <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" :class="getLevelClass(op)">{{ getIluLevel(op) }}</span>
                 </td>
                 <td class="py-2.5 px-3 text-center">
                   <span class="text-xs font-medium px-2 py-0.5 rounded-full" :class="getStatusClass(op)">{{ getStatus(op) }}</span>
@@ -157,7 +162,7 @@
               <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             </div>
             <div>
-              <p class="text-sm font-medium text-gray-700">Affecter Operateur</p>
+              <p class="text-sm font-medium text-gray-700">Affecter Opérateur</p>
               <p class="text-xs text-gray-400">Assigner a un poste</p>
             </div>
           </router-link>
@@ -184,7 +189,7 @@
       <div v-else-if="recentTrackings.length > 0" class="space-y-2">
         <div v-for="t in recentTrackings" :key="t.id" class="flex items-center justify-between p-3 rounded-lg bg-gray-50">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" :class="t.dailyLevel >= 3 ? 'bg-emerald-100 text-emerald-700' : t.dailyLevel >= 1 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'">{{ t.dailyLevel }}</div>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" :class="getDailyLevelClass(t.dailyLevel)">{{ getDailyLevelLabel(t.dailyLevel) }}</div>
             <div>
               <p class="text-sm font-medium text-gray-900">{{ t.operatorName }}</p>
               <p class="text-xs text-gray-500">{{ t.workstationName }} - {{ t.trackingDate }}</p>
@@ -200,16 +205,67 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { trainingApi, operatorsApi } from '@/api/endpoints.js'
+import { trainingApi, operatorsApi, evaluationApi } from '@/api/endpoints.js'
 
 const loading = ref(true)
 const operators = ref([])
 const formations = ref([])
 const allTrackings = ref([])
+const matrixData = ref(null)
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeOperators = computed(() => operators.value.filter(o => o.active !== false))
 const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
+
+// Build ILU level lookup from matrix data: operatorId -> workstationId -> level
+const iluLookup = computed(() => {
+  const lookup = {}
+  if (!matrixData.value?.operators) return lookup
+  for (const row of matrixData.value.operators) {
+    if (!row.workstations) continue
+    for (const [wsId, wsData] of Object.entries(row.workstations)) {
+      if (wsData.level) {
+        if (!lookup[row.operatorId]) lookup[row.operatorId] = {}
+        lookup[row.operatorId][wsId] = wsData.level
+      }
+    }
+  }
+  return lookup
+})
+
+// ILU counts for KPI card
+const iluCounts = computed(() => {
+  const counts = { I: 0, L: 0, U: 0, none: 0 }
+  for (const op of activeOperators.value) {
+    const level = getIluLevel(op)
+    if (level === 'I') counts.I++
+    else if (level === 'L') counts.L++
+    else if (level === 'U') counts.U++
+    else counts.none++
+  }
+  return counts
+})
+
+// Get ILU level (I/L/U) for an operator at their current workstation
+function getIluLevel(op) {
+  // Find the active formation for this operator to get workstationId
+  const f = activeFormations.value.find(fo => fo.operatorId === op.id)
+  if (!f) return '-'
+  const wsId = f.workstationId
+  if (!wsId) return '-'
+  // Look up from evaluation matrix
+  const opLevels = iluLookup.value[op.id]
+  if (opLevels && opLevels[wsId]) return opLevels[wsId]
+  return '-'
+}
+
+function getLevelClass(op) {
+  const level = getIluLevel(op)
+  if (level === 'U') return 'bg-green-100 text-green-700'
+  if (level === 'L') return 'bg-blue-100 text-blue-700'
+  if (level === 'I') return 'bg-amber-100 text-amber-700'
+  return 'bg-gray-100 text-gray-500'
+}
 
 // Operators currently in their 12-day integration period
 const integrationOperators = computed(() => {
@@ -233,13 +289,6 @@ const integrationOperators = computed(() => {
       trackingDays: getTrackingDaysForFormation(f.id),
     }
   })
-})
-
-const averageLevel = computed(() => {
-  const active = activeFormations.value
-  if (active.length === 0) return '0'
-  const sum = active.reduce((s, f) => s + (f.achievedLevel || 0), 0)
-  return (sum / active.length).toFixed(1)
 })
 
 const todayTrackingsCount = computed(() => {
@@ -276,19 +325,6 @@ function getDayClass(op, day) {
   return 'bg-gray-100 text-gray-400'
 }
 
-function getLevel(op) {
-  const f = activeFormations.value.find(fo => fo.operatorId === op.id)
-  return f ? (f.achievedLevel || 0) : '-'
-}
-
-function getLevelClass(op) {
-  const level = getLevel(op)
-  if (typeof level !== 'number') return 'bg-gray-100 text-gray-500'
-  if (level >= 4) return 'bg-emerald-100 text-emerald-700'
-  if (level >= 2) return 'bg-amber-100 text-amber-700'
-  return 'bg-red-100 text-red-700'
-}
-
 function getWorkstation(op) {
   const f = formations.value.find(fo => fo.operatorId === op.id && fo.status === 'IN_PROGRESS')
   return f ? f.workstationName : '-'
@@ -318,6 +354,27 @@ function getStatusClass(op) {
   return 'bg-amber-100 text-amber-700'
 }
 
+function formatNiveauTarget(level) {
+  if (level === 3 || level === '3' || level === 'U') return 'U'
+  if (level === 2 || level === '2' || level === 'L') return 'L'
+  if (level === 1 || level === '1' || level === 'I') return 'I'
+  return level || 'L'
+}
+
+function getDailyLevelClass(level) {
+  if (level >= 3) return 'bg-green-100 text-green-700'
+  if (level >= 2) return 'bg-blue-100 text-blue-700'
+  if (level >= 1) return 'bg-amber-100 text-amber-700'
+  return 'bg-gray-100 text-gray-500'
+}
+
+function getDailyLevelLabel(level) {
+  if (level >= 3) return 'U'
+  if (level >= 2) return 'L'
+  if (level >= 1) return 'I'
+  return '-'
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -328,6 +385,13 @@ onMounted(async () => {
     const trackingPromises = activeFormations.value.map(fo => trainingApi.getTracking(fo.id))
     const trackingResults = await Promise.all(trackingPromises)
     allTrackings.value = trackingResults.flatMap(r => r.data).sort((a, b) => b.trackingDate?.localeCompare(a.trackingDate))
+    // Fetch ILU matrix data for Niveau I/L/U display
+    try {
+      const matrixRes = await evaluationApi.getMatrix()
+      matrixData.value = matrixRes.data
+    } catch (e) {
+      console.error('Error loading ILU matrix:', e)
+    }
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 </script>

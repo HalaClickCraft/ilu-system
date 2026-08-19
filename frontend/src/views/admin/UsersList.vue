@@ -63,7 +63,7 @@
             </div>
           </div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
-          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Creer</button></div>
+          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Créer</button></div>
         </form>
       </div>
     </div>
@@ -101,7 +101,7 @@ const availableRoles = [
 { value: 'DEPT_DGT_MANUFACTURING', label: 'Dept DGT Manufacturing' },
 ]
 
-const roleLabel = (r) => ({ ADMIN: 'Admin', RH: 'RH', RESP_QUALITE: 'Resp. Qualite', RESP_HSE: 'Resp. HSE', AGENT_QUALITE: 'Agent Qualite', CHEF_EQUIPE: 'Chef d\'Equipe', SUPERVISEUR: 'Superviseur' })[r] || r
+const roleLabel = (r) => ({ ADMIN: 'Admin', RH: 'RH', RESP_QUALITE: 'Resp. Qualite', RESP_HSE: 'Resp. HSE', AGENT_QUALITE: 'Agent Qualité', CHEF_EQUIPE: 'Chef d\'Équipe', SUPERVISEUR: 'Superviseur' })[r] || r
 
 const fetchUsers = async () => { loading.value = true; try { users.value = (await usersApi.getAll()).data } catch (e) { console.error(e) } finally { loading.value = false } }
 

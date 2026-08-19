@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div><h1 class="text-2xl font-bold text-gray-900">Equipes</h1><p class="text-gray-500 mt-1">Gestion des equipes et repartition des operateurs</p></div>
+      <div><h1 class="text-2xl font-bold text-gray-900">Équipes</h1><p class="text-gray-500 mt-1">Gestion des équipes et repartition des operateurs</p></div>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
@@ -12,7 +12,7 @@
           <h3 class="font-semibold text-gray-900">{{ team.name }}</h3>
           <span class="text-sm text-gray-500">{{ team.operatorCount || 0 }} operateurs</span>
         </div>
-       <p v-if="team.teamLeader" class="text-sm text-gray-500 mb-3">Chef d'equipe: <span class="font-medium text-gray-700">{{ team.teamLeader }}</span></p>
+       <p v-if="team.teamLeader" class="text-sm text-gray-500 mb-3">Chef d'équipe: <span class="font-medium text-gray-700">{{ team.teamLeader }}</span></p>
 <div v-if="team.projects?.length" class="flex flex-wrap gap-1 mb-3">
   <span v-for="p in team.projects" :key="p.id" class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{{ p.name }}</span>
 </div>
@@ -24,11 +24,11 @@
           </div>
           <p v-if="team.operators.length > 5" class="text-xs text-gray-400 pl-2">+ {{ team.operators.length - 5 }} autres...</p>
         </div>
-        <div v-else class="text-sm text-gray-400">Aucun operateur dans cette equipe</div>
+        <div v-else class="text-sm text-gray-400">Aucun operateur dans cette équipe</div>
       </div>
     </div>
 
-    <div v-if="!loading && teams.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">Aucune equipe configuree</div>
+    <div v-if="!loading && teams.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">Aucune équipe configuree</div>
   </div>
 </template>
 <script setup>
@@ -42,7 +42,7 @@ const fetchTeams = async () => {
   loading.value = true
   try {
     const r = await structureApi.getTeams()
-    teams.value = r.data.map(t => ({ ...t, operatorCount: t.operators?.length || 0 }))
+    teams.value = (r.data || []).map(t => ({ ...t, operatorCount: t.operators?.length || 0 }))
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 

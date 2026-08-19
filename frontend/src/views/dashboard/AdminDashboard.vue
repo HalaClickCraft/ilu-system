@@ -13,7 +13,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-500">Total Operateurs</p>
+            <p class="text-sm font-medium text-gray-500">Total Opérateurs</p>
             <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.totalOperators ?? 0 }}</p>
           </div>
           <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -66,7 +66,7 @@
       </div>
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <div class="flex items-center justify-between">
-          <div><p class="text-sm text-gray-500">Total Equipes</p><p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.totalTeams ?? 0 }}</p></div>
+          <div><p class="text-sm text-gray-500">Total Équipes</p><p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.totalTeams ?? 0 }}</p></div>
           <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></div>
         </div>
       </div>
@@ -106,7 +106,7 @@
           </div>
           <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
             <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0"><svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-            <div><p class="text-sm font-medium text-gray-900">{{ stats.operatorsCertified ?? 0 }} certifications terminees</p><p class="text-xs text-gray-500 mt-0.5">Operateurs ayant atteint le niveau cible</p></div>
+            <div><p class="text-sm font-medium text-gray-900">{{ stats.operatorsCertified ?? 0 }} certifications terminees</p><p class="text-xs text-gray-500 mt-0.5">Opérateurs ayant atteint le niveau cible</p></div>
           </div>
           <div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
             <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0"><svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
@@ -122,7 +122,7 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <router-link to="/operators" class="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 transition group">
           <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition"><svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg></div>
-          <span class="text-sm font-medium text-gray-700">Gestion Operateurs</span>
+          <span class="text-sm font-medium text-gray-700">Gestion Opérateurs</span>
         </router-link>
         <router-link to="/training" class="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition group">
           <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>

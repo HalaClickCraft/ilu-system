@@ -19,7 +19,7 @@
           <div class="flex items-center gap-2">
             <button @click.stop="showAddZone(project.id)" class="text-sm text-emerald-600 hover:underline">+ Zone</button>
             <button @click.stop="showAddMember(project.id)" class="text-sm text-blue-600 hover:underline">+ Affecter</button>
-            <button @click.stop="deleteProject(project.id)" class="text-gray-400 hover:text-red-600 transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+            <button @click.stop="openEditProject(project)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button @click.stop="deleteProject(project.id)" class="text-gray-400 hover:text-red-600 transition" title="Supprimer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
           </div>
         </div>
         <div v-if="expandedProjects.has(project.id)" class="border-t border-gray-100">
@@ -50,7 +50,7 @@
                 <div v-for="ws in zone.workstations" :key="ws.id" class="p-3 rounded-lg border border-gray-200 hover:border-emerald-300 transition">
                   <div class="flex items-center justify-between">
                     <div><p class="text-sm font-medium text-gray-900">{{ ws.name }}</p><p class="text-xs text-gray-500">{{ ws.type || 'Non defini' }}</p></div>
-                    <button @click="deleteWorkstation(ws.id)" class="text-gray-400 hover:text-red-600 transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    <button @click="openEditWorkstation(ws)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button @click="deleteWorkstation(ws.id)" class="text-gray-400 hover:text-red-600 transition" title="Supprimer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                   </div>
                   <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
                     <div><span class="text-gray-400">Cadence:</span> <span class="font-medium">{{ ws.targetCadence || '-' }}</span></div>
@@ -75,7 +75,7 @@
         <form @submit.prevent="createProject" class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom du projet</label><input v-model="projectForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
-          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateProject = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Creer</button></div>
+          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateProject = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Créer</button></div>
         </form>
       </div>
     </div>
@@ -89,10 +89,10 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Filtrer par role</label>
             <select v-model="memberForm.filterRole" @change="memberForm.employeeId = ''" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
               <option value="" disabled>Choisir un role</option>
-              <option value="CHEF_EQUIPE">Chef d'Equipe</option>
-              <option value="AGENT_QUALITE">Agent Qualite</option>
+              <option value="CHEF_EQUIPE">Chef d'Équipe</option>
+              <option value="AGENT_QUALITE">Agent Qualité</option>
               <option value="SUPERVISEUR">Superviseur</option>
-              <option value="RESP_QUALITE">Resp Qualite</option>
+              <option value="RESP_QUALITE">Resp Qualité</option>
               <option value="RESP_HSE">Resp HSE</option>
             </select>
           </div>
@@ -140,11 +140,42 @@
         </form>
       </div>
     </div>
+    <!-- Edit Project Modal -->
+    <div v-if="showEditProjectModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showEditProjectModal = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Modifier le Projet</h2>
+        <form @submit.prevent="updateProject" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom du projet</label><input v-model="editProjectForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showEditProjectModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Workstation Modal -->
+    <div v-if="showEditWsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showEditWsModal = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Modifier le Poste</h2>
+        <form @submit.prevent="updateWorkstation" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="editWsForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><input v-model="editWsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Cadence cible</label><input v-model.number="editWsForm.targetCadence" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Versatilité</label><input v-model.number="editWsForm.versatilityTarget" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Niveau ILU cible</label><select v-model="editWsForm.targetIluLevel" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"><option value="I">I - Initiation</option><option value="L">L - Logique</option><option value="U">U - Unité</option></select></div>
+          </div>
+          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showEditWsModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <ConfirmDialog :visible="confirmData.visible" :title="confirmData.title" :message="confirmData.message" :type="confirmData.type" @confirm="handleConfirm" @cancel="handleCancel" />
   </div>
 </template>
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { structureApi } from '@/api/endpoints'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const projects = ref([])
 const loading = ref(true)
@@ -179,11 +210,11 @@ const fetchProjects = async () => { loading.value = true; try { projects.value =
 const fetchAvailableUsers = async () => { try { availableUsers.value = (await structureApi.getAvailableUsers()).data } catch (e) { console.error(e) } }
 
 const createProject = async () => { creating.value = true; error.value = ''; try { await structureApi.createProject({ name: projectForm.value.name }); showCreateProject.value = false; projectForm.value = { name: '' }; fetchProjects() } catch (e) { const msg = e.response?.data?.message || e.message || 'Erreur inconnue'; error.value = msg; alert('Erreur: ' + msg + ' (status: ' + (e.response?.status || 'n/a') + ')'); console.error(e) } finally { creating.value = false } }
-const deleteProject = async (id) => { if (!confirm('Supprimer ce projet ?')) return; try { await structureApi.deleteProject(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteProject = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le projet', message: 'Cette action est irreversible. Voulez-vous continuer ?', type: 'danger' }; pendingDeleteAction.value = () => deleteProjectConfirmed(id); return; try { await structureApi.deleteProject(id); fetchProjects() } catch (e) { console.error(e) } }
 
 const showAddZone = (projectId) => { zoneForm.value = { name: '', projectId }; showZoneModal.value = true }
 const createZone = async () => { creating.value = true; try { await structureApi.createZone(zoneForm.value.projectId, { name: zoneForm.value.name }); showZoneModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
-const deleteZone = async (id) => { if (!confirm('Supprimer cette zone ?')) return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteZone = async (id) => { confirmData.value = { visible: true, title: 'Supprimer la zone', message: 'Voulez-vous supprimer cette zone et tous ses postes ?', type: 'danger' }; pendingDeleteAction.value = () => deleteZoneConfirmed(id); return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
 
 const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
 const addMember = async () => {
@@ -199,13 +230,35 @@ const addMember = async () => {
   } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false }
 }
 const removeMember = async (memberId) => {
-  if (!confirm('Retirer ce membre du projet ?')) return
+  confirmData.value = { visible: true, title: 'Retirer le membre', message: 'Voulez-vous retirer ce membre du projet ?', type: 'danger' }; pendingDeleteAction.value = () => removeMemberConfirmed(memberId); return
   try { await structureApi.deleteMember(memberId); fetchProjects() } catch (e) { console.error(e) }
 }
 
 const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; showWorkstationModal.value = true }
 const createWorkstation = async () => { creating.value = true; try { await structureApi.createWorkstation(wsForm.value); showWorkstationModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
-const deleteWorkstation = async (id) => { if (!confirm('Supprimer ce poste ?')) return; try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteWorkstation = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le poste', message: 'Voulez-vous supprimer ce poste de travail ?', type: 'danger' }; pendingDeleteAction.value = () => deleteWorkstationConfirmed(id); return; try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
+
+const confirmData = ref({ visible: false, title: '', message: '', type: 'danger' })
+const pendingDeleteAction = ref(null)
+const handleConfirm = () => { confirmData.value.visible = false; if (pendingDeleteAction.value) { pendingDeleteAction.value(); pendingDeleteAction.value = null } }
+const handleCancel = () => { confirmData.value.visible = false; pendingDeleteAction.value = null }
+
+const deleteProjectConfirmed = async (id) => { try { await structureApi.deleteProject(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteZoneConfirmed = async (id) => { try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteWorkstationConfirmed = async (id) => { try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
+const removeMemberConfirmed = async (memberId) => { try { await structureApi.deleteMember(memberId); fetchProjects() } catch (e) { console.error(e) } }
+
+// Edit Project
+const showEditProjectModal = ref(false)
+const editProjectForm = ref({ id: null, name: '' })
+const openEditProject = (project) => { editProjectForm.value = { id: project.id, name: project.name }; showEditProjectModal.value = true }
+const updateProject = async () => { creating.value = true; try { await structureApi.updateProject(editProjectForm.value.id, { name: editProjectForm.value.name }); showEditProjectModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
+
+// Edit Workstation
+const showEditWsModal = ref(false)
+const editWsForm = ref({ id: null, name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I' })
+const openEditWorkstation = (ws) => { editWsForm.value = { id: ws.id, name: ws.name, type: ws.type || '', targetCadence: ws.targetCadence, versatilityTarget: ws.versatilityTarget, targetIluLevel: ws.targetIluLevel || 'I' }; showEditWsModal.value = true }
+const updateWorkstation = async () => { creating.value = true; try { await structureApi.updateWorkstation(editWsForm.value.id, editWsForm.value); showEditWsModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 
 onMounted(fetchProjects)
 </script>

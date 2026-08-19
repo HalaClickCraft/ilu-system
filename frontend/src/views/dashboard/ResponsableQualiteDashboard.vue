@@ -2,8 +2,8 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Responsable Qualite</h1>
-        <p class="text-gray-500 mt-1">Pilotage de la qualite et metriques de performance ILU</p>
+        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Responsable Qualité</h1>
+        <p class="text-gray-500 mt-1">Pilotage de la qualité et metriques de performance ILU</p>
       </div>
       <div class="text-sm text-gray-400">{{ currentDate }}</div>
     </div>
@@ -39,7 +39,7 @@
     <!-- Workstation Quality Overview -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">Qualite par Poste de Travail</h2>
+        <h2 class="text-lg font-semibold text-gray-900">Qualité par Poste de Travail</h2>
         <router-link to="/structure" class="text-sm text-emerald-600 hover:underline">Voir la structure</router-link>
       </div>
       <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
@@ -91,7 +91,7 @@
       </div>
 
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Postes a Risque Qualite</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Postes a Risque Qualité</h2>
         <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
         <div v-else-if="riskWorkstations.length > 0" class="space-y-2 max-h-80 overflow-y-auto">
           <div v-for="ws in riskWorkstations" :key="ws.name" class="p-3 rounded-lg border" :class="ws.rate < 30 ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'">

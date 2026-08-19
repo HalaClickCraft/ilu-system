@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Gestion des Templates d'Evaluation</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Gestion des Templates d'Évaluation</h1>
         <p class="text-sm text-gray-500 mt-1">
-          Creer et gerer les templates de questions par poste
+          Créer et gérer les templates de questions par poste
         </p>
       </div>
       <button
@@ -418,7 +418,7 @@
               v-model="newTemplate.type"
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1"
             >
-              <option value="GENERIC_COMMON">Partie Generique</option>
+              <option value="GENERIC_COMMON">Partie Générique</option>
               <option value="POSTE_PRODUCTION">Poste - Production</option>
               <option value="ANIMATION">Animation (L vers U)</option>
             </select>
@@ -438,7 +438,7 @@
               @click="createTemplate"
               class="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-sm hover:bg-emerald-700"
             >
-              Creer
+              Créer
             </button>
             <button
               @click="showCreateModal = false"
@@ -507,7 +507,7 @@ const countByType = (type) => {
 
 const typeLabel = (type) => {
   const map = {
-    GENERIC_COMMON: 'Partie Generique',
+    GENERIC_COMMON: 'Partie Générique',
     POSTE_PRODUCTION: 'Production',
     ANIMATION: 'Animation',
   }
@@ -623,7 +623,7 @@ async function selectTemplate(tpl) {
       }
     }
   } catch (e) {
-    console.error('Error loading template detail', e)
+    console.error('Error loading template détail', e)
   }
 }
 

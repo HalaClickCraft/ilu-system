@@ -5,9 +5,9 @@
       <button @click="goBack" class="text-sm text-blue-600 hover:underline mb-2 inline-block">
         &larr; Retour aux templates
       </button>
-      <h1 class="text-2xl font-bold text-gray-800">Evaluation : {{ templateName }}</h1>
+      <h1 class="text-2xl font-bold text-gray-800">Évaluation : {{ templateName }}</h1>
       <p v-if="sessionInfo.operatorName" class="text-gray-600 mt-1">
-        Operateur : <strong>{{ sessionInfo.operatorName }}</strong>
+        Opérateur : <strong>{{ sessionInfo.operatorName }}</strong>
       </p>
       <p class="text-sm text-gray-500 mt-1">
         {{ totalAnswered }} / {{ totalQuestions }} questions repondues
@@ -83,13 +83,13 @@
       <button @click="confirmFinish" :disabled="totalAnswered < totalQuestions"
         class="flex-1 py-3 rounded-lg font-medium transition-all"
         :class="totalAnswered >= totalQuestions ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'">
-        Terminer l'evaluation
+        Terminer l'évaluation
       </button>
     </div>
 
     <!-- RESULTS PAGE -->
     <div v-if="showResults" class="bg-white rounded-xl shadow-lg p-8">
-      <h2 class="text-2xl font-bold text-center mb-6">Resultats de l'evaluation</h2>
+      <h2 class="text-2xl font-bold text-center mb-6">Resultats de l'évaluation</h2>
 
       <div class="rounded-xl p-6 mb-6 text-center text-white text-lg font-bold" :class="resultBannerClass">
         {{ resultMessage }}
@@ -97,7 +97,7 @@
 
       <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="bg-blue-50 rounded-lg p-4 text-center">
-          <p class="text-sm text-blue-600 mb-1">Partie Generique (HSE + Qualite)</p>
+          <p class="text-sm text-blue-600 mb-1">Partie Générique (HSE + Qualité)</p>
           <p class="text-3xl font-bold text-blue-800">{{ results.genericPercentage ?? '-' }}%</p>
           <p class="text-sm text-gray-500">{{ results.genericCorrect ?? 0 }} / {{ results.genericTotal ?? 0 }}</p>
         </div>

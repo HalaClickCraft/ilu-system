@@ -2,8 +2,8 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Agent Qualite</h1>
-        <p class="text-gray-500 mt-1">Controle qualite et suivi des niveaux ILU</p>
+        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord Agent Qualité</h1>
+        <p class="text-gray-500 mt-1">Controle qualité et suivi des niveaux ILU</p>
       </div>
       <div class="text-sm text-gray-400">{{ currentDate }}</div>
     </div>
@@ -66,13 +66,13 @@
     <!-- Active Formations Table -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">Formations Actives - Controle Qualite</h2>
+        <h2 class="text-lg font-semibold text-gray-900">Formations Actives - Controle Qualité</h2>
         <router-link to="/training" class="text-sm text-emerald-600 hover:underline">Voir toutes les formations</router-link>
       </div>
       <div v-if="loading" class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
       <div v-else-if="activeFormations.length > 0" class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Operateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Poste</th><th class="text-left py-3 px-4 font-medium text-gray-500">Atteint</th><th class="text-left py-3 px-4 font-medium text-gray-500">Cible</th><th class="text-left py-3 px-4 font-medium text-gray-500">Ecart</th><th class="text-right py-3 px-4 font-medium text-gray-500">Action</th></tr></thead>
+          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Opérateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Poste</th><th class="text-left py-3 px-4 font-medium text-gray-500">Atteint</th><th class="text-left py-3 px-4 font-medium text-gray-500">Cible</th><th class="text-left py-3 px-4 font-medium text-gray-500">Ecart</th><th class="text-right py-3 px-4 font-medium text-gray-500">Action</th></tr></thead>
           <tbody>
             <tr v-for="f in activeFormations" :key="f.id" class="border-b border-gray-50 hover:bg-gray-50">
               <td class="py-3 px-4 font-medium">{{ f.operatorName }}</td>
@@ -80,7 +80,7 @@
               <td class="py-3 px-4 font-medium">{{ f.achievedLevel ?? 0 }}</td>
               <td class="py-3 px-4">{{ f.targetLevel }}</td>
               <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="gapClass(f)">{{ gapLabel(f) }}</span></td>
-              <td class="py-3 px-4 text-right"><router-link :to="'/training/' + f.id" class="text-emerald-600 hover:underline text-sm">Details</router-link></td>
+              <td class="py-3 px-4 text-right"><router-link :to="'/training/' + f.id" class="text-emerald-600 hover:underline text-sm">Détails</router-link></td>
             </tr>
           </tbody>
         </table>
