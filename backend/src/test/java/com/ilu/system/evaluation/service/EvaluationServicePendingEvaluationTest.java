@@ -12,6 +12,7 @@ import com.ilu.system.operator.repository.FormationAssignmentRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Workstation;
+import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,8 @@ class EvaluationServicePendingEvaluationTest {
     private WorkstationFormationRepository formationRepo;
     @Mock
     private UserRepository userRepo;
+    @Mock
+    private ProjectRepository projectRepo;
 
     private EvaluationService evaluationService;
 
@@ -57,7 +60,7 @@ class EvaluationServicePendingEvaluationTest {
         evaluationService = new EvaluationService(
                 templateRepo, sectionRepo, questionRepo, sessionRepo,
                 answerRepo, operatorRepo, workstationRepo, assignmentRepo,
-                formationRepo, userRepo
+                formationRepo, userRepo, projectRepo
         );
     }
 

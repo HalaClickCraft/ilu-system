@@ -10,13 +10,10 @@ import com.ilu.system.operator.entity.WorkstationFormation;
 import com.ilu.system.operator.repository.FormationAssignmentRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
+import com.ilu.system.structure.entity.Project;
 import com.ilu.system.structure.entity.Workstation;
+import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
-import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
-import com.ilu.system.evaluation.repository.EvaluationQuestionRepository;
-import com.ilu.system.evaluation.repository.EvaluationSectionRepository;
-import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
-import com.ilu.system.evaluation.repository.EvaluationTemplateRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 @Service
 public class EvaluationService {
@@ -42,6 +40,7 @@ public class EvaluationService {
     private final FormationAssignmentRepository assignmentRepo;
     private final WorkstationFormationRepository formationRepo;
     private final UserRepository userRepo;
+        private final ProjectRepository projectRepo;
 
     public EvaluationService(EvaluationTemplateRepository templateRepo,
                              EvaluationSectionRepository sectionRepo,
@@ -52,7 +51,8 @@ public class EvaluationService {
                              WorkstationRepository workstationRepo,
                              FormationAssignmentRepository assignmentRepo,
                              WorkstationFormationRepository formationRepo,
-                             UserRepository userRepo) {
+                             UserRepository userRepo,
+                             ProjectRepository projectRepo) {
         this.templateRepo = templateRepo;
         this.sectionRepo = sectionRepo;
         this.questionRepo = questionRepo;
@@ -63,6 +63,7 @@ public class EvaluationService {
         this.assignmentRepo = assignmentRepo;
         this.formationRepo = formationRepo;
         this.userRepo = userRepo;
+        this.projectRepo = projectRepo;
     }
 
     // ======================== TEMPLATE CRUD ========================
@@ -815,9 +816,37 @@ public class EvaluationService {
                 .findFirst();
     }
 
-    public Map<String, Object> getPolyvalenceMatrix() {
-        List<Operator> operators = operatorRepo.findAll();
-        List<Workstation> workstations = workstationRepo.findAll();
+public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
+        List<Workstation> workstations;
+        String projectName = null;
+
+        if (projectId != null) {
+            Optional<Project> projectOpt = projectRepo.findById(projectId);
+            if (projectOpt.isEmpty()) {
+                Map<String, Object> empty = new LinkedHashMap<>();
+                empty.put("workstations", new ArrayList<>());
+                empty.put("operators", new ArrayList<>());
+                return empty;
+            }
+            projectName = projectOpt.get().getName();
+            workstations = workstationRepo.findByProjectId(projectId);
+        } else {
+            workstations = workstationRepo.findAll();
+        }
+
+        // Only keep operators who have at least one formation on a workstation in this project
+        Set<Long> wsIds = workstations.stream().map(Workstation::getId).collect(Collectors.toSet());
+        List<Long> operatorIds = new ArrayList<>();
+        if (!wsIds.isEmpty()) {
+            operatorIds = formationRepo.findAll().stream()
+                    .filter(wf -> wsIds.contains(wf.getWorkstation().getId()))
+                    .map(wf -> wf.getOperator().getId())
+                    .distinct()
+                    .collect(Collectors.toList());
+        }
+        List<Operator> operators = operatorIds.isEmpty()
+                ? new ArrayList<>()
+                : operatorRepo.findAllById(operatorIds);
 
         List<Map<String, Object>> rows = new ArrayList<>();
         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -877,11 +906,11 @@ public class EvaluationService {
                 .collect(Collectors.toList());
 
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("projectName", projectName);
         result.put("workstations", wsInfo);
         result.put("operators", rows);
         return result;
     }
-
     // ======================== GETTERS ========================
 
     public List<Map<String, Object>> getAllTemplates() {
@@ -1188,12 +1217,12 @@ public class EvaluationService {
                         Map<String, Object> fMap = new LinkedHashMap<>();
                         fMap.put("type", "Suivi de Formation (12j)");
                         fMap.put("date", f.getEndDate() != null ? f.getEndDate().format(dtf) : (f.getStartDate() != null ? f.getStartDate().format(dtf) : ""));
-                        fMap.put("details", "Moyenne cadence ou défauts hors objectifs");
+                        fMap.put("details", "Moyenne cadence ou defauts hors objectifs");
                         failures.add(fMap);
                     }
                     for (EvaluationSession s : sessions) {
                         Map<String, Object> sMap = new LinkedHashMap<>();
-                        sMap.put("type", "Évaluation " + (s.getMode() != null ? s.getMode() : "INITIAL"));
+                        sMap.put("type", "Evaluation " + (s.getMode() != null ? s.getMode() : "INITIAL"));
                         String dStr = s.getCompletedAt() != null ? s.getCompletedAt().format(dtf) : (s.getCreatedAt() != null ? s.getCreatedAt().format(dtf) : "");
                         sMap.put("date", dStr);
                         sMap.put("details", "Score insuffisant: " + (s.getScorePercentage() != null ? s.getScorePercentage() : 0.0) + "%");
@@ -1206,4 +1235,5 @@ public class EvaluationService {
         }
         return list;
     }
+
 }

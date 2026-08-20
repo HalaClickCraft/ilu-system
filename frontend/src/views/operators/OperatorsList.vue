@@ -258,6 +258,22 @@
             </select>
           </div>
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Motif d'absence</label><input v-model="editForm.absenceReason" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+          <hr class="border-gray-200" />
+          <p class="text-sm font-medium text-gray-700">Affectation</p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Projet</label>
+            <select v-model="editForm.projectId" @change="editForm.zoneId = ''" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option value="">-- Aucun --</option>
+              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Zone</label>
+            <select v-model="editForm.zoneId" :disabled="!editForm.projectId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-gray-100">
+              <option value="">-- Aucune --</option>
+              <option v-for="z in editProjectZones" :key="z.id" :value="z.id">{{ z.name }}</option>
+            </select>
+          </div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
           <div class="flex justify-end gap-3 pt-2">
             <button type="button" @click="showEditModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button>
@@ -296,11 +312,14 @@ const form = ref({
   projectId: '', zoneId: '', workstationId: '',
 })
 
-// Multi-project roles that need project grouping
+// Roles that legitimately work across several projects and therefore need
+// the "grouped by project" view + project filter (RH/Superviseur/Qualite/Admin...).
 const isMultiProjectRole = computed(() =>
   auth.hasAnyRole(['RESP_QUALITE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_HSE', 'ADMIN', 'RH'])
 )
-// FIX 5a: Show project filter whenever user has multi-project role
+// Chef d'equipe is scoped to a single project (his own) - see myProjectIds below.
+const isChefEquipeRole = computed(() => auth.hasAnyRole(['CHEF_EQUIPE']))
+
 const showProjectFilter = computed(() => isMultiProjectRole.value && projectList.value.length >= 1)
 const showProjectColumn = computed(() => isMultiProjectRole.value)
 
@@ -315,36 +334,42 @@ const teamList = computed(() => {
   return teams.value.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
 })
 
-// Build a map: teamId -> project names
-const teamProjectMap = computed(() => {
-  const map = {}
-  for (const team of teams.value) {
-    if (team.projects && team.projects.length) {
-      map[team.id] = team.projects.map(p => p.name)
-    }
-  }
-  return map
+// Project(s) led by the current chef d'equipe (based on project membership),
+// used to restrict what he can see to only his own project's operators.
+const myProjectIds = computed(() => {
+  const empId = auth.user?.employeeId
+  return new Set(
+    projects.value
+      .filter(p => p.members?.some(m => m.employeeId === empId))
+      .map(p => p.id)
+  )
 })
 
-// Get project names for a single operator
+// Project name(s) for a single operator - now sourced directly from the
+// operator's own project assignment (op.project), not the old broken
+// Team -> team_projects link.
 const getOperatorProjects = (op) => {
-  if (!op.team?.id) return []
-  return teamProjectMap.value[op.team.id] || []
+  return op.project ? [op.project.name] : []
 }
+
+// Base operator list, scoped by role:
+// - Chef d'equipe: only operators of the project(s) he leads
+// - Everyone else with access to this page: unrestricted (further filtered below)
+const scopedOperators = computed(() => {
+  if (isChefEquipeRole.value && !isMultiProjectRole.value) {
+    return operators.value.filter(op => op.project && myProjectIds.value.has(op.project.id))
+  }
+  return operators.value
+})
 
 // Operators filtered by search, project, and team
 const filteredOperators = computed(() => {
-  let result = operators.value
+  let result = scopedOperators.value
 
   // Filter by project
   if (selectedProjectFilter.value) {
     const pid = Number(selectedProjectFilter.value)
-    result = result.filter(op => {
-      const projNames = getOperatorProjects(op)
-      if (!projNames.length) return false
-      const pName = projects.value.find(p => p.id === pid)?.name
-      return projNames.includes(pName)
-    })
+    result = result.filter(op => op.project?.id === pid)
   }
 
   // Filter by team
@@ -364,20 +389,18 @@ const filteredOperators = computed(() => {
   return result
 })
 
-// Group operators by project (for the default view)
+// Group operators by project - name of the project, then each operator underneath.
+// Used for multi-project roles (RH, Superviseur, Qualite, Admin...) to see
+// "who works with who" per project at a glance.
 const groupedByProject = computed(() => {
   const groups = {}
   for (const op of filteredOperators.value) {
-    const projNames = getOperatorProjects(op)
-    if (projNames.length > 0) {
-      for (const pName of projNames) {
-        if (!groups[pName]) groups[pName] = { projectName: pName, projectId: projects.value.find(p => p.name === pName)?.id, operators: [] }
-        groups[pName].operators.push(op)
-      }
-    } else {
-      if (!groups['_none']) groups['_none'] = { projectName: 'Sans projet', projectId: null, operators: [] }
-      groups['_none'].operators.push(op)
+    const proj = op.project
+    const key = proj ? proj.id : '_none'
+    if (!groups[key]) {
+      groups[key] = { projectName: proj ? proj.name : 'Sans projet', projectId: proj ? proj.id : null, operators: [] }
     }
+    groups[key].operators.push(op)
   }
   return Object.values(groups).sort((a, b) => {
     if (!a.projectId) return 1
@@ -459,6 +482,7 @@ const createOperator = async () => {
       employeeId: form.value.employeeId, role: form.value.role,
       operatorType: form.value.operatorType || 'NOUVEAU_RECRU',
       hireDate: form.value.hireDate || null, exitDate: form.value.exitDate || null,
+      projectId: form.value.projectId || null, zoneId: form.value.zoneId || null,
       workstationId: form.value.workstationId || null,
     }
     await operatorsApi.create(payload)
@@ -482,10 +506,24 @@ const handleCancel = () => { confirmData.value.visible = false; pendingAction.va
 
 // Edit Operator
 const showEditModal = ref(false)
-const editForm = ref({ id: null, lastName: '', firstName: '', employeeId: '', role: '', operatorType: '', hireDate: '', exitDate: '', absenceReason: '' })
-const openEditModal = (op) => { editForm.value = { id: op.id, lastName: op.lastName, firstName: op.firstName, employeeId: op.employeeId, role: op.role || '', operatorType: op.operatorType || 'NOUVEAU_RECRU', hireDate: op.hireDate?.slice(0, 10) || '', exitDate: op.exitDate?.slice(0, 10) || '', absenceReason: op.absenceReason || '' }; showEditModal.value = true }
+const editForm = ref({ id: null, lastName: '', firstName: '', employeeId: '', role: '', operatorType: '', hireDate: '', exitDate: '', absenceReason: '', projectId: '', zoneId: '' })
+const editProjectZones = computed(() => {
+  if (!editForm.value.projectId) return []
+  return projects.value.find(p => p.id === editForm.value.projectId)?.zones || []
+})
+const openEditModal = (op) => { editForm.value = { id: op.id, lastName: op.lastName, firstName: op.firstName, employeeId: op.employeeId, role: op.role || '', operatorType: op.operatorType || 'NOUVEAU_RECRU', hireDate: op.hireDate?.slice(0, 10) || '', exitDate: op.exitDate?.slice(0, 10) || '', absenceReason: op.absenceReason || '', projectId: op.project?.id || '', zoneId: op.zone?.id || '' }; showEditModal.value = true }
 // FIX 4a: Update now sends exitDate and absenceReason to backend
-const updateOperator = async () => { creating.value = true; error.value = ''; try { await operatorsApi.update(editForm.value.id, editForm.value); showEditModal.value = false; fetchOperators() } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false } }
+const updateOperator = async () => {
+  creating.value = true; error.value = ''
+  try {
+    await operatorsApi.update(editForm.value.id, { ...editForm.value, projectId: editForm.value.projectId || null, zoneId: editForm.value.zoneId || null })
+    showEditModal.value = false
+    fetchOperators()
+  } catch (e) {
+    error.value = e.response?.data?.message || e.message || 'Erreur inconnue'
+    alert('Erreur: ' + error.value)
+  } finally { creating.value = false }
+}
 
 onMounted(async () => {
   await Promise.allSettled([fetchOperators(), fetchProjects(), fetchTeams()])

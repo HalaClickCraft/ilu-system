@@ -161,15 +161,7 @@
 
     <div v-if="showDailyBatch" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showDailyBatch = false">
       <form class="mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-6 shadow-xl" @submit.prevent="saveDailyBatch">
-        <div class="mb-4 flex items-start justify-between"><div><h2 class="text-lg font-semibold">Saisie quotidienne groupée</h2><p class="text-sm text-gray-500">Saisie pour les formations en cours du jour choisi.</p></div><div class="flex flex-wrap gap-1.5">
-          <button v-for="day in 12" :key="day" type="button" @click="batchDay = day"
-            class="w-10 h-10 rounded-lg text-xs font-bold border-2 transition-colors"
-            :class="batchDay === day
-              ? 'border-emerald-600 bg-emerald-600 text-white'
-              : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:bg-emerald-50'">
-            J{{ day }}
-          </button>
-        </div></div>
+        <div class="mb-4"><h2 class="text-lg font-semibold">Saisie quotidienne groupée</h2><p class="text-sm text-gray-500">Le jour de suivi de chaque opérateur est calculé automatiquement (J = jours déjà saisis + 1). Vous pouvez le corriger si besoin.</p></div>
         <div v-if="isMultiProjectRole" class="mb-4 flex flex-wrap gap-2">
           <select v-model="batchFilterProject" class="px-2 py-1.5 border border-gray-200 rounded-lg text-xs" @change="batchFilterZone=''; batchFilterWorkstation=''">
             <option value="">Tous les projets</option>
@@ -184,7 +176,37 @@
             <option v-for="w in allWorkstationsList" :key="w.id" :value="w.id">{{ w.name }}</option>
           </select>
         </div>
-        <table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left">Opérateur</th><th class="px-3 py-2 text-left">Poste</th><th v-if="canEditCadence" class="px-3 py-2 text-left">Cadence</th><th v-if="canEditDefects" class="px-3 py-2 text-left">Défauts</th></tr></thead><tbody><tr v-for="formation in batchFilteredFormations" :key="formation.id" class="border-b"><td class="px-3 py-2">{{ formation.operatorName }}</td><td class="px-3 py-2 text-gray-500">{{ formation.workstationName }}</td><td v-if="canEditCadence" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].cadence" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td><td v-if="canEditDefects" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].defauts" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td></tr></tbody></table>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-3 py-2 text-left">Opérateur</th>
+              <th class="px-3 py-2 text-left">Poste</th>
+              <th class="px-3 py-2 text-left">Jour</th>
+              <th v-if="canEditCadence" class="px-3 py-2 text-left">Cadence</th>
+              <th v-if="canEditDefects" class="px-3 py-2 text-left">Défauts</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="formation in batchFilteredFormations" :key="formation.id" class="border-b">
+              <td class="px-3 py-2">{{ formation.operatorName }}</td>
+              <td class="px-3 py-2 text-gray-500">{{ formation.workstationName }}</td>
+              <td class="px-3 py-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="inline-flex h-7 w-10 items-center justify-center rounded-md bg-emerald-50 text-xs font-bold text-emerald-700 border border-emerald-200">
+                    J{{ batchEntries[formation.id]?.dayNumber }}
+                  </span>
+                  <input v-model.number="batchEntries[formation.id].dayNumber" type="number" min="1" max="12"
+                    class="w-14 rounded border border-gray-300 px-1.5 py-1 text-xs" title="Corriger le jour si besoin">
+                </div>
+              </td>
+              <td v-if="canEditCadence" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].cadence" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td>
+              <td v-if="canEditDefects" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].defauts" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td>
+            </tr>
+            <tr v-if="!batchFilteredFormations.length">
+              <td colspan="5" class="px-3 py-6 text-center text-gray-400 text-sm">Aucune formation en cours à saisir (toutes les formations en cours ont déjà leurs 12 jours - passez à l'évaluation).</td>
+            </tr>
+          </tbody>
+        </table>
         <div class="mt-5 flex justify-end gap-3"><button type="button" @click="showDailyBatch = false" class="px-4 py-2 text-sm text-gray-600">Annuler</button><button :disabled="savingBatch" type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">Enregistrer la saisie</button></div>
       </form>
     </div>
@@ -213,7 +235,6 @@ const showDailyBatch = ref(false)
 const search = ref('')
 const activeTab = ref('ALL')
 const error = ref('')
-const batchDay = ref(1)
 const batchEntries = reactive({})
 const form = reactive({ projectId: '', zoneId: '', workstationId: '', operatorIds: [] })
 const expandedOperators = ref(new Set())
@@ -233,22 +254,11 @@ const selectedProjectName = computed(() => {
   return projects.value.find(p => p.id === Number(selectedProject.value))?.name || ''
 })
 
-// Build team->project map
-const teamProjectMap = computed(() => {
-  const map = {}
-  for (const team of teams.value) {
-    if (team.projects && team.projects.length) {
-      map[team.id] = team.projects.map(p => p.name)
-    }
-  }
-  return map
-})
-
-// Get project names for a given operator ID
+// Get project names for a given operator ID - sourced directly from the
+// operator's own project assignment (op.project).
 const getProjectNamesForOperator = (operatorId) => {
   const op = allOperatorsData.value.find(o => o.id === operatorId)
-  if (!op?.team?.id) return []
-  return teamProjectMap.value[op.team.id] || []
+  return op?.project ? [op.project.name] : []
 }
 
 const canEditCadence = computed(() => authStore.isChefEquipe)
@@ -291,7 +301,9 @@ const allWorkstationsList = computed(() => {
   return zone?.workstations || []
 })
 const batchFilteredFormations = computed(() => {
-  let result = inProgressFormations.value
+  // Only formations that still have a day left to fill (< 12 days of data).
+  // A formation with 12/12 days needs to be evaluated, not entered further.
+  let result = inProgressFormations.value.filter(f => (f.daysWithData || 0) < 12)
   if (batchFilterWorkstation.value) {
     result = result.filter(f => f.workstationId === Number(batchFilterWorkstation.value))
   } else if (batchFilterZone.value) {
@@ -430,14 +442,19 @@ const startFormation = operator => {
 }
 
 const openDailyBatch = () => {
-  for (const f of batchFilteredFormations.value) batchEntries[f.id] = { cadence: null, defauts: null }
+  // FIX: each formation now gets its own next day-to-fill (daysWithData + 1),
+  // instead of one global "batchDay" being forced onto every operator - which
+  // used to overwrite/repeat the wrong day for anyone not on day 1.
+  for (const f of batchFilteredFormations.value) {
+    batchEntries[f.id] = { cadence: null, defauts: null, dayNumber: Math.min((f.daysWithData || 0) + 1, 12) }
+  }
   showDailyBatch.value = true
 }
 
 const saveDailyBatch = async () => {
   const entries = batchFilteredFormations.value
     .map(f => ({
-      formationId: f.id, dayNumber: batchDay.value,
+      formationId: f.id, dayNumber: batchEntries[f.id].dayNumber,
       trackingDate: new Date().toISOString().slice(0, 10),
       ...(canEditCadence.value && batchEntries[f.id].cadence !== null ? { cadence: batchEntries[f.id].cadence } : {}),
       ...(canEditDefects.value && batchEntries[f.id].defauts !== null ? { defauts: batchEntries[f.id].defauts } : {}),

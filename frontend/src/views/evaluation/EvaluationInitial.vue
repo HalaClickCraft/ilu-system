@@ -183,28 +183,16 @@ const availablePostes = computed(() => {
   return (zone?.workstations || []).map(w => ({ id: w.id, name: w.name }))
 })
 
-// Build team->project map for operator project lookup
-const teamProjectMap = computed(() => {
-  const map = {}
-  for (const team of teams.value) {
-    if (team.projects && team.projects.length) {
-      map[team.id] = team.projects.map(p => p.name)
-    }
-  }
-  return map
-})
-
 const getZoneForWorkstation = (wsName) => {
   const ws = workstations.value.find(w => w.name === wsName)
   return ws?.zoneName || '-'
 }
 
 const getProjectForOperator = (operatorId) => {
-  // Find the operator in our full operators list
+  // Find the operator in our full operators list - project comes directly
+  // from the operator's own assignment (op.project).
   const op = allOperatorsData.value.find(o => o.id === operatorId)
-  if (!op?.team?.id) return '-'
-  const projNames = teamProjectMap.value[op.team.id]
-  return projNames?.length ? projNames.join(', ') : '-'
+  return op?.project?.name || '-'
 }
 
 // We need a separate list of all operators with team info for project lookup
@@ -250,8 +238,7 @@ const filteredOperators = computed(() => {
 // Get project names for an operator using the allOperators data
 const getProjectNamesForEvalOperator = (operatorId) => {
   const op = allOperatorsData.value.find(o => o.id === operatorId)
-  if (!op?.team?.id) return []
-  return teamProjectMap.value[op.team.id] || []
+  return op?.project ? [op.project.name] : []
 }
 
 async function fetchPending() {

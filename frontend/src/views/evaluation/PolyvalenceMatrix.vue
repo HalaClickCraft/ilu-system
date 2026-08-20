@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">MATRICE DE POLYVALENCE KJ92</h1>
+        <h1 class="text-2xl font-bold text-gray-900">MATRICE DE POLYVALENCE{{ selectedProjectName ? ' — ' + selectedProjectName : '' }}</h1>
         <p class="text-sm text-gray-500 mt-1">Indicateur de polyvalence: Minimum 6 personnes formees par poste => 6 personnes en L</p>
       </div>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -47,7 +47,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <template v-for="op in filteredMatrixOperators" :key="op.operatorId">
+            <template v-for="op in matrixData.operators" :key="op.operatorId">
               <tr class="hover:bg-gray-50">
                 <td rowspan="2" class="px-4 py-3 sticky left-0 bg-white z-10 font-bold text-gray-900 border-r border-gray-200">
                   {{ op.operatorName }}
@@ -64,7 +64,7 @@
                 </td>
               </tr>
             </template>
-            <tr v-if="!filteredMatrixOperators?.length"><td colspan="99" class="px-4 py-8 text-center text-gray-400">Aucun operateur trouve</td></tr>
+            <tr v-if="!matrixData.operators?.length"><td colspan="99" class="px-4 py-8 text-center text-gray-400">Aucun operateur trouve</td></tr>
           </tbody>
           <tfoot v-if="matrixData.operators?.length" class="bg-gray-100 border-t-2 border-gray-300 font-medium">
             <tr class="border-b"><td colspan="2" class="px-4 py-3 text-left font-semibold text-amber-700 bg-amber-50/50">Nombres de personnes au niveau I</td><td v-for="col in allColumns" :key="col.id + '-sumI'" class="px-2 py-3 text-center font-bold text-amber-700 bg-amber-50/30 border-r border-gray-200">{{ getCountPerNiveau(col, 'I') }}</td><td class="bg-gray-100"></td></tr>
@@ -79,7 +79,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { evaluationApi, structureApi, operatorsApi } from '@/api/endpoints'
+import { evaluationApi, structureApi } from '@/api/endpoints'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -88,40 +88,14 @@ const errorMsg = ref('')
 const matrixData = ref({ operators: [], workstations: [] })
 
 const projects = ref([])
-const teams = ref([])
-const allOperatorsData = ref([])
 const selectedProject = ref('')
+const selectedProjectName = ref('')
 
 const isMultiProjectRole = computed(() =>
-  authStore.hasAnyRole(['RESP_QUALITE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_HSE', 'ADMIN', 'RH'])
+  authStore.hasAnyRole(['RESP_QUALITE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_HSE', 'ADMIN', 'RH', 'CHEF_EQUIPE'])
 )
 const showProjectFilter = computed(() => isMultiProjectRole.value && projectList.value.length >= 1)
 const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
-
-const teamProjectMap = computed(() => {
-  const map = {}
-  for (const team of teams.value) {
-    if (team.projects && team.projects.length) {
-      map[team.id] = team.projects.map(p => ({ id: p.id, name: p.name }))
-    }
-  }
-  return map
-})
-
-const getOperatorProjectIds = (operatorId) => {
-  const op = allOperatorsData.value.find(o => o.id === operatorId)
-  if (!op?.team?.id) return []
-  const projList = teamProjectMap.value[op.team.id]
-  return projList ? projList.map(p => p.id) : []
-}
-
-const filteredMatrixOperators = computed(() => {
-  if (!selectedProject.value) return matrixData.value.operators || []
-  const pid = Number(selectedProject.value)
-  return (matrixData.value.operators || []).filter(op =>
-    getOperatorProjectIds(op.operatorId).includes(pid)
-  )
-})
 
 const workstations = computed(() => matrixData.value.workstations || [])
 
@@ -180,7 +154,7 @@ function getTrainedCount(op) {
 }
 
 function getCountPerNiveau(col, niveau) {
-  return (filteredMatrixOperators.value || []).filter(op => getColumnLevel(op, col) === niveau).length
+  return (matrixData.value.operators || []).filter(op => getColumnLevel(op, col) === niveau).length
 }
 
 const niveauBgClass = (n) => ({
@@ -189,15 +163,10 @@ const niveauBgClass = (n) => ({
   U: 'bg-green-600 text-white'
 }[n] || 'bg-gray-100 text-gray-400 border border-gray-200')
 
-// FIX: Backend returns dates already formatted as dd/MM/yyyy strings.
-// Do NOT try to parse them with new Date() — just return as-is.
-// Only attempt formatting if the input looks like an ISO date string.
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   if (typeof dateStr !== 'string') return String(dateStr)
-  // If already formatted (contains /), return as-is
   if (dateStr.includes('/')) return dateStr
-  // Try parsing ISO format (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
   try {
     const d = new Date(dateStr)
     if (isNaN(d.getTime())) return dateStr
@@ -222,8 +191,10 @@ async function loadMatrix() {
   errorMsg.value = ''
   if (!authStore.user && authStore.isAuthenticated) authStore.restoreFromToken()
   try {
-    const res = await evaluationApi.getMatrix()
+    const projectId = selectedProject.value ? Number(selectedProject.value) : null
+    const res = await evaluationApi.getMatrix(projectId)
     matrixData.value = res.data || { operators: [], workstations: [] }
+    selectedProjectName.value = res.data?.projectName || ''
   } catch (e) {
     console.error('Error loading matrix', e)
     errorMsg.value = e.response?.data?.error || e.response?.data?.message || e.message || 'Erreur inconnue'
@@ -231,19 +202,25 @@ async function loadMatrix() {
   loading.value = false
 }
 
-async function loadAll() {
-  await loadMatrix()
-  if (isMultiProjectRole.value) {
-    const [projRes, teamsRes, opsRes] = await Promise.allSettled([
-      structureApi.getAll(),
-      structureApi.getTeams(),
-      operatorsApi.getAll(),
-    ])
-    if (projRes.status === 'fulfilled') projects.value = projRes.value.data || []
-    if (teamsRes.status === 'fulfilled') teams.value = teamsRes.value.data || []
-    if (opsRes.status === 'fulfilled') allOperatorsData.value = opsRes.value.data || []
+async function loadProjects() {
+  if (!isMultiProjectRole.value) return
+  try {
+    const res = await structureApi.getAll()
+    projects.value = res.data || []
+    if (projects.value.length === 1) {
+      selectedProject.value = projects.value[0].id
+    }
+  } catch (e) {
+    console.error('Error loading projects', e)
   }
 }
 
-onMounted(loadAll)
+watch(selectedProject, () => {
+  loadMatrix()
+})
+
+onMounted(async () => {
+  await loadProjects()
+  await loadMatrix()
+})
 </script>

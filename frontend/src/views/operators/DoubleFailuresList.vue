@@ -14,12 +14,23 @@
       <div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
     </div>
 
+    <!-- Error state (previously silently swallowed and shown as "empty") -->
+    <div v-else-if="loadError" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+      <p class="text-red-700 font-semibold">Impossible de charger la liste</p>
+      <p class="text-red-500 text-sm mt-1">{{ loadError }}</p>
+      <button @click="fetchFailures" class="mt-3 bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700">Réessayer</button>
+    </div>
+
     <!-- Empty state -->
     <div v-else-if="failures.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
       <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p class="text-sm">Aucun opérateur en situation de double échec pour le moment.</p>
+      <p class="text-xs text-gray-400 mt-2">
+        Cette liste n'affiche un opérateur que s'il a échoué <strong>deux fois sur le même poste</strong>
+        (suivi 12 jours ou évaluation). Un seul échec, ou deux échecs sur deux postes différents, n'y apparaît pas.
+      </p>
     </div>
 
     <!-- Table content -->
@@ -72,14 +83,24 @@ import { evaluationApi } from '@/api/endpoints'
 
 const failures = ref([])
 const loading = ref(true)
+const loadError = ref('')
 
 async function fetchFailures() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await evaluationApi.getDoubleFailures()
     failures.value = res.data || []
   } catch (err) {
     console.error('Error fetching double failures:', err)
+    // FIX: don't silently swallow the error - a 403 (missing role) or 500
+    // used to render the exact same "no failures" empty state, making a
+    // real problem indistinguishable from a genuinely empty list.
+    if (err.response?.status === 403) {
+      loadError.value = "Vous n'avez pas les droits pour consulter cette liste."
+    } else {
+      loadError.value = err.response?.data?.message || err.message || 'Erreur inconnue lors du chargement.'
+    }
   } finally {
     loading.value = false
   }

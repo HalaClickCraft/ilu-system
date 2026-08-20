@@ -35,7 +35,7 @@ export const trainingApi = {
   saveDailyBatch: (entries) => api.post('/training/daily-batch', { entries }),
   autoEvaluate: (formationId) => api.post(`/training/formations/${formationId}/auto-evaluate`),
   getChartData: (formationId) => api.get(`/training/formations/${formationId}/chart-data`),
-  resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
+    resetFormation: (formationId) => api.post(`/training/formations/${formationId}/reset`),
   setQualityObjective: (formationId, qualityObjective) => api.put(`/training/formations/${formationId}/quality-objective`, { qualityObjective }),
   setWorkstationQualityObjective: (workstationId, qualityObjective) => api.put(`/training/workstations/${workstationId}/quality-objective`, { qualityObjective }),
   getStatistics: () => api.get('/training/statistics'),
@@ -57,8 +57,6 @@ export const structureApi = {
   addMember: (projectId, data) => api.post(`/structure/projects/${projectId}/members`, null, { params: data }),
   updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
   deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
-  getTeams: () => api.get('/teams'),
-  getAvailableUsers: () => api.get('/structure/users-available'),
 }
 
 export const evaluationApi = {
@@ -73,8 +71,6 @@ export const evaluationApi = {
 
   // Questions
   addQuestion: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions`, data),
-  updateQuestion: (questionId, data) => api.put(`/evaluation/questions/${questionId}`, data),
-  deleteQuestion: (questionId, templateId) => api.delete(`/evaluation/questions/${questionId}`, { params: { templateId } }),
 
   // Question Validation (Responsable)
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
@@ -90,12 +86,16 @@ export const evaluationApi = {
   // Auto-trigger: operators who passed 12j suivi
   getPendingForOperator: (operatorId) => api.get(`/evaluation/pending/operator/${operatorId}`),
   getAllPendingEvaluations: () => api.get('/evaluation/pending/all'),
-    resolveTemplates: (operatorId, formationId) => api.get('/evaluation/initial/resolve-templates', { params: { operatorId, formationId } }),
+
+  // Initial Evaluation
+  resolveTemplates: (operatorId, formationId) => api.get('/evaluation/initial/resolve-templates', { params: { operatorId, formationId } }),
 
   // Polyvalence Matrix
-  getMatrix: () => api.get('/evaluation/matrix'),
-  getDoubleFailures: () => api.get('/evaluation/double-failures'),
+  getMatrix: (projectId) => api.get('/evaluation/matrix', { params: projectId ? { projectId } : {} }),
 
-    // Evaluation History
+  // Evaluation History
   getHistory: () => api.get('/evaluation/history'),
+
+  // Double Failures
+  getDoubleFailures: () => api.get('/evaluation/double-failures'),
 }

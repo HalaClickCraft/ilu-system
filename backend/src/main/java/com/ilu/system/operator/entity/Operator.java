@@ -1,5 +1,8 @@
 package com.ilu.system.operator.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.ilu.system.structure.entity.Project;
+import com.ilu.system.structure.entity.Zone;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
@@ -44,6 +47,18 @@ public class Operator {
     @JoinColumn(name = "team_id")
     private Team team;
 
+    // Direct project/zone assignment (replaces the old, never-populated
+    // Team -> team_projects link that all project/zone filtering used to rely on).
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "project_id")
+    @JsonIgnoreProperties({"zones", "members", "createdBy"})
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "zone_id")
+    @JsonIgnoreProperties({"workstations", "project", "createdBy"})
+    private Zone zone;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "operator_type")
     private OperatorType operatorType = OperatorType.NOUVEAU_RECRU;
@@ -68,6 +83,10 @@ public class Operator {
     public void setActive(Boolean active) { this.active = active; }
     public Team getTeam() { return team; }
     public void setTeam(Team team) { this.team = team; }
+    public Project getProject() { return project; }
+    public void setProject(Project project) { this.project = project; }
+    public Zone getZone() { return zone; }
+    public void setZone(Zone zone) { this.zone = zone; }
     public OperatorType getOperatorType() { return operatorType != null ? operatorType : OperatorType.NOUVEAU_RECRU; }
     public void setOperatorType(OperatorType operatorType) { this.operatorType = operatorType; }
 }

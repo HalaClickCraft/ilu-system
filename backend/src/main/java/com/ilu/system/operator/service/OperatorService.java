@@ -3,6 +3,8 @@ package com.ilu.system.operator.service;
 import com.ilu.system.operator.dto.*;
 import com.ilu.system.operator.entity.*;
 import com.ilu.system.operator.repository.*;
+import com.ilu.system.structure.repository.ProjectRepository;
+import com.ilu.system.structure.repository.ZoneRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
@@ -13,14 +15,19 @@ import java.util.stream.Collectors;
 public class OperatorService {
     private final OperatorRepository operatorRepository;
     private final TeamRepository teamRepository;
+    private final ProjectRepository projectRepository;
+    private final ZoneRepository zoneRepository;
     private final WorkstationFormationRepository workstationFormationRepository;
     private final FormationAssignmentRepository formationAssignmentRepository;
 
     public OperatorService(OperatorRepository operatorRepository, TeamRepository teamRepository,
+                           ProjectRepository projectRepository, ZoneRepository zoneRepository,
                            WorkstationFormationRepository workstationFormationRepository,
                            FormationAssignmentRepository formationAssignmentRepository) {
         this.operatorRepository = operatorRepository;
         this.teamRepository = teamRepository;
+        this.projectRepository = projectRepository;
+        this.zoneRepository = zoneRepository;
         this.workstationFormationRepository = workstationFormationRepository;
         this.formationAssignmentRepository = formationAssignmentRepository;
     }
@@ -52,6 +59,10 @@ public class OperatorService {
         op.setActive(true);
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
+        if (request.getProjectId() != null)
+            op.setProject(projectRepository.findById(request.getProjectId()).orElseThrow(() -> new RuntimeException("Projet non trouve")));
+        if (request.getZoneId() != null)
+            op.setZone(zoneRepository.findById(request.getZoneId()).orElseThrow(() -> new RuntimeException("Zone non trouvee")));
         return operatorRepository.save(op);
     }
 
@@ -87,6 +98,12 @@ public class OperatorService {
         }
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
+        if (request.getProjectId() != null) {
+            op.setProject(projectRepository.findById(request.getProjectId()).orElseThrow(() -> new RuntimeException("Projet non trouve")));
+        }
+        if (request.getZoneId() != null) {
+            op.setZone(zoneRepository.findById(request.getZoneId()).orElseThrow(() -> new RuntimeException("Zone non trouvee")));
+        }
         return operatorRepository.save(op);
     }
 

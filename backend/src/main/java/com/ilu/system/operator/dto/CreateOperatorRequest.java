@@ -8,6 +8,8 @@ public class CreateOperatorRequest {
     private String exitDate;
     private String absenceReason;
     private Long teamId;
+    private Long projectId;
+    private Long zoneId;
     private String operatorType;
     public String getEmployeeId() { return employeeId; } public void setEmployeeId(String v) { this.employeeId = v; }
     public String getLastName() { return lastName; } public void setLastName(String v) { this.lastName = v; }
@@ -17,5 +19,7 @@ public class CreateOperatorRequest {
     public String getExitDate() { return exitDate; } public void setExitDate(String v) { this.exitDate = v; }
     public String getAbsenceReason() { return absenceReason; } public void setAbsenceReason(String v) { this.absenceReason = v; }
     public Long getTeamId() { return teamId; } public void setTeamId(Long v) { this.teamId = v; }
+    public Long getProjectId() { return projectId; } public void setProjectId(Long v) { this.projectId = v; }
+    public Long getZoneId() { return zoneId; } public void setZoneId(Long v) { this.zoneId = v; }
     public String getOperatorType() { return operatorType; } public void setOperatorType(String v) { this.operatorType = v; }
 }

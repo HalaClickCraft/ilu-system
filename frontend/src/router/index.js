@@ -59,6 +59,7 @@ const routes = [
         path: 'teams',
         name: 'teams',
         component: () => import('@/views/structure/TeamsView.vue'),
+        meta: { roles: ['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'] },
       },
       // Admin
       {

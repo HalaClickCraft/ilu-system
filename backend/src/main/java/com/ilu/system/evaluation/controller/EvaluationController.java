@@ -235,8 +235,9 @@ public class EvaluationController {
     }
 
     @GetMapping("/matrix")
-    public ResponseEntity<Map<String, Object>> getPolyvalenceMatrix() {
-        return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix());
+    public ResponseEntity<Map<String, Object>> getPolyvalenceMatrix(
+            @RequestParam(name = "projectId", required = false) Long projectId) {
+        return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix(projectId));
     }
 
     // FIX: Added CHEF_EQUIPE and AGENT_QUALITE to the role check.
