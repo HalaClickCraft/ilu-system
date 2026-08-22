@@ -40,6 +40,12 @@ public class EvaluationController {
         return getCurrentRoles(authentication).contains(role);
     }
 
+    private boolean canRunEvaluation(Authentication authentication) {
+        Set<String> roles = getCurrentRoles(authentication);
+        return roles.contains("ADMIN") || roles.contains("CHEF_EQUIPE") || roles.contains("AGENT_QUALITE")
+                || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR");
+    }
+
     @PostMapping("/templates")
     public ResponseEntity<Map<String, Object>> createTemplate(
             @RequestBody Map<String, Object> body,
@@ -190,6 +196,7 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> startEvaluation(
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
+        if (!canRunEvaluation(authentication)) return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         Long userId = getCurrentUserId(authentication);
         Map<String, Object> result = evaluationService.startEvaluation(
                 Long.valueOf(body.get("operatorId").toString()),
@@ -197,7 +204,8 @@ public class EvaluationController {
                 body.get("formationId") != null ? Long.valueOf(body.get("formationId").toString()) : null,
                 userId,
                 body.get("mode") != null ? body.get("mode").toString() : null,
-                body.get("nextTemplateId") != null ? Long.valueOf(body.get("nextTemplateId").toString()) : null
+                body.get("nextTemplateId") != null ? Long.valueOf(body.get("nextTemplateId").toString()) : null,
+                body.get("planningId") != null ? Long.valueOf(body.get("planningId").toString()) : null
         );
         return ResponseEntity.ok(result);
     }
@@ -207,6 +215,7 @@ public class EvaluationController {
             @PathVariable Long sessionId,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
+        if (!canRunEvaluation(authentication)) return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         Long userId = getCurrentUserId(authentication);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> answers = (List<Map<String, Object>>) body.get("answers");
@@ -214,7 +223,8 @@ public class EvaluationController {
     }
 
     @PostMapping("/sessions/{sessionId}/complete")
-    public ResponseEntity<Map<String, Object>> completeEvaluation(@PathVariable Long sessionId) {
+    public ResponseEntity<Map<String, Object>> completeEvaluation(@PathVariable Long sessionId, Authentication authentication) {
+        if (!canRunEvaluation(authentication)) return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         return ResponseEntity.ok(evaluationService.completeEvaluation(sessionId));
     }
 

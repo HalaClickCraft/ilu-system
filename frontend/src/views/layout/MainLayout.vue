@@ -44,12 +44,27 @@
           <span v-if="sidebarOpen">Onboarding</span>
         </router-link>
 
+        <router-link v-if="canAccessRecyclage" to="/recyclage" class="nav-item" :class="{ active: $route.path === '/recyclage' }">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span v-if="sidebarOpen">Recyclage</span>
+        </router-link>
+
+        <router-link v-if="canAccessRecyclage" to="/recyclage/calendar" class="nav-item" :class="{ active: $route.path === '/recyclage/calendar' }">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>
+          <span v-if="sidebarOpen">Calendrier recyclage</span>
+        </router-link>
+
+        <router-link v-if="canManageAbsences" to="/absences" class="nav-item" :class="{ active: $route.path === '/absences' }">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM8 15h8"></path></svg>
+          <span v-if="sidebarOpen">Absences et départs</span>
+        </router-link>
+
         <!-- ===== SECTION: EVALUATION ===== -->
         <div v-if="showEvaluationSection" class="mt-2">
           <div v-if="sidebarOpen" class="px-4 pt-3 pb-1"><span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Evaluation</span></div>
           <div v-else class="my-2 mx-4 border-t border-slate-700"></div>
 
-          <router-link to="/evaluation/initial" class="nav-item" :class="{ active: $route.path === '/evaluation/initial' || $route.path.startsWith('/evaluation/session') }">
+          <router-link to="/evaluation/initial" class="nav-item" :class="{ active: $route.path === '/evaluation/initial' }">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span v-if="sidebarOpen">Evaluation Initiale</span>
           </router-link>
@@ -156,6 +171,12 @@ const canAccessEvaluation = computed(() =>
 const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE']))
 const showDoubleFailures = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'RH', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'])
+)
+const canAccessRecyclage = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'])
+)
+const canManageAbsences = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'])
 )
 // "Repartition Projets" - who works on which project. Primarily for RH/Superviseur
 // (need it to affect people to projects) but Chef Equipe can see their own project too.

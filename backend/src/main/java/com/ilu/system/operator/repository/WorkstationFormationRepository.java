@@ -15,7 +15,7 @@ public interface WorkstationFormationRepository extends JpaRepository<Workstatio
 
     List<WorkstationFormation> findByStatus(String status);
 
-    WorkstationFormation findActiveByOperator_IdAndWorkstation_Id(Long operatorId, Long workstationId);
+    boolean existsByOperator_IdAndWorkstation_IdAndStatus(Long operatorId, Long workstationId, String status);
 
     long countByStatus(String status);
 }

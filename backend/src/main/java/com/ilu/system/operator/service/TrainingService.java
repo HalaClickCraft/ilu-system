@@ -24,6 +24,7 @@ import com.ilu.system.structure.repository.WorkstationRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
 
 import com.ilu.system.operator.service.OnboardingService;
+import com.ilu.system.recyclage.service.RecyclageService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -51,12 +52,14 @@ public class TrainingService {
     private final ProjectRepository projectRepo;
     private final ZoneRepository zoneRepo;
     private final ProjectMemberRepository projectMemberRepo;
+    private final RecyclageService recyclageService;
 
     public TrainingService(WorkstationFormationRepository formationRepo, FormationAssignmentRepository assignmentRepo,
                            DailyFormationTrackingRepository trackingRepo, OperatorRepository operatorRepo,
                            WorkstationRepository workstationRepo, TeamRepository teamRepo,
                            OnboardingService onboardingService, ProjectRepository projectRepo,
-                           ZoneRepository zoneRepo, ProjectMemberRepository projectMemberRepo) {
+                           ZoneRepository zoneRepo, ProjectMemberRepository projectMemberRepo,
+                           RecyclageService recyclageService) {
         this.formationRepo = formationRepo;
         this.assignmentRepo = assignmentRepo;
         this.trackingRepo = trackingRepo;
@@ -67,6 +70,7 @@ public class TrainingService {
         this.projectRepo = projectRepo;
         this.zoneRepo = zoneRepo;
         this.projectMemberRepo = projectMemberRepo;
+        this.recyclageService = recyclageService;
     }
 
     @Transactional
@@ -88,7 +92,7 @@ public class TrainingService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "L'operateur " + operator.getEmployeeId() + " doit terminer tous les modules theorique avant la formation pratique");
             }
-            if (formationRepo.findActiveByOperator_IdAndWorkstation_Id(operatorId, workstationId) != null) {
+            if (formationRepo.existsByOperator_IdAndWorkstation_IdAndStatus(operatorId, workstationId, "IN_PROGRESS")) {
                 continue;
             }
             WorkstationFormation formation = new WorkstationFormation();
@@ -184,8 +188,10 @@ public class TrainingService {
     public DailyFormationTracking addDailyTracking(Long formationId, DailyTrackingDto dto,
                                                     String employeeId, Set<String> roles) {
         WorkstationFormation formation = getFormation(formationId);
-                validateWorkstationAccess(formation.getWorkstation(), employeeId, roles);
-        // Allow saving for operators deja en poste (IN_PROGRESS, COMPLETED, or NOT_STARTED)
+        validateWorkstationAccess(formation.getWorkstation(), employeeId, roles);
+        if (!"IN_PROGRESS".equals(formation.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La formation est cloturee et ne peut plus etre modifiee");
+        }
         validateTrackingInput(dto, roles);
         int dayNumber = dto.getDayNumber();
         DailyFormationTracking tracking = trackingRepo.findByFormationIdAndDayNumber(formationId, dayNumber)
@@ -309,15 +315,44 @@ public class TrainingService {
         int totalDefects = days.stream().mapToInt(DailyFormationTracking::getDefects).sum();
         Integer targetCadence = formation.getWorkstation().getTargetCadence();
         int qualityObjective = formation.getQualityObjective() != null ? formation.getQualityObjective() : 7;
-        formation.setStatus(targetCadence != null && averageCadence >= targetCadence && totalDefects < qualityObjective
-                ? "COMPLETED" : "FAILED");
+        boolean completed = targetCadence != null && averageCadence >= targetCadence && totalDefects < qualityObjective;
+        formation.setStatus(completed ? "COMPLETED" : "FAILED");
         formation.setEndDate(LocalDate.now());
         formationRepo.save(formation);
+        if (completed && formation.getOperator().getOperatorType() == Operator.OperatorType.NOUVEAU_RECRU) {
+            recyclageService.generateNewHirePlanning(formation.getOperator().getId());
+        }
+        if (!completed) {
+            createSecondChanceFormationAfterTrainingFailure(formation);
+        }
+    }
+
+    private void createSecondChanceFormationAfterTrainingFailure(WorkstationFormation formation) {
+        long failures = formationRepo.findByOperator_Id(formation.getOperator().getId()).stream()
+                .filter(candidate -> formation.getWorkstation().getId().equals(candidate.getWorkstation().getId()))
+                .filter(candidate -> "FAILED".equals(candidate.getStatus()))
+                .count();
+        boolean retryAlreadyActive = formationRepo.findByOperator_Id(formation.getOperator().getId()).stream()
+                .anyMatch(candidate -> formation.getWorkstation().getId().equals(candidate.getWorkstation().getId())
+                        && "IN_PROGRESS".equals(candidate.getStatus()));
+        if (failures != 1 || retryAlreadyActive) return;
+
+        WorkstationFormation retry = new WorkstationFormation();
+        retry.setOperator(formation.getOperator());
+        retry.setWorkstation(formation.getWorkstation());
+        retry.setStartDate(LocalDate.now());
+        retry.setStatus("IN_PROGRESS");
+        retry.setAchievedLevel("0");
+        retry.setTargetLevel(formation.getTargetLevel());
+        retry.setQualityObjective(formation.getQualityObjective());
+        formationRepo.save(retry);
     }
 
     @Transactional
-    public void resetFormation(Long formationId) {
+    public void resetFormation(Long formationId, String employeeId, Set<String> roles) {
         WorkstationFormation formation = getFormation(formationId);
+        requireStarter(roles);
+        validateWorkstationAccess(formation.getWorkstation(), employeeId, roles);
         trackingRepo.deleteByFormationId(formationId);
         formation.setStatus("IN_PROGRESS");
         formation.setEndDate(null);

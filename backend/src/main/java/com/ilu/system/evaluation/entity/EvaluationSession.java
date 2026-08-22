@@ -77,6 +77,12 @@ public class EvaluationSession {
     @Column(name = "next_template_id")
     private Long nextTemplateId;
 
+    @Column(name = "planning_id")
+    private Long planningId;
+
+    @Column(name = "workstation_formation_id")
+    private Long workstationFormationId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -137,6 +143,10 @@ public class EvaluationSession {
     public void setMode(String mode) { this.mode = mode; }
     public Long getNextTemplateId() { return nextTemplateId; }
     public void setNextTemplateId(Long nextTemplateId) { this.nextTemplateId = nextTemplateId; }
+    public Long getPlanningId() { return planningId; }
+    public void setPlanningId(Long planningId) { this.planningId = planningId; }
+    public Long getWorkstationFormationId() { return workstationFormationId; }
+    public void setWorkstationFormationId(Long workstationFormationId) { this.workstationFormationId = workstationFormationId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }

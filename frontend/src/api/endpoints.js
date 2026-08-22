@@ -99,3 +99,30 @@ export const evaluationApi = {
   // Double Failures
   getDoubleFailures: () => api.get('/evaluation/double-failures'),
 }
+export const recyclageApi = {
+  getPlanning: (params) => api.get('/recyclage/planning', { params }),
+  generateAnnual: (year) => api.post('/recyclage/planning/generate-annual', null, { params: { year } }),
+  newHirePlanning: (operatorId) => api.post(`/recyclage/planning/new-hire/${operatorId}`),
+  returnFromAbsence: (operatorId) => api.post(`/recyclage/planning/return-from-absence/${operatorId}`),
+  startEvaluation: (id) => api.post(`/recyclage/planning/${id}/start-evaluation`),
+  completePlanning: (id, data) => api.put(`/recyclage/planning/${id}/complete`, data),
+  cancelPlanning: (id) => api.put(`/recyclage/planning/${id}/cancel`),
+  getCalendar: (params) => api.get('/recyclage/calendar', { params }),
+  getUpcoming: (params) => api.get('/recyclage/upcoming', { params }),
+}
+
+export const absenceApi = {
+  getAll: () => api.get('/absence'),
+  getActive: () => api.get('/absence/active'),
+  markAbsent: (data) => api.post('/absence/mark-absent', data),
+  markReturn: (data) => api.post('/absence/mark-return', data),
+  markDeparture: (data) => api.post('/absence/mark-departure', data),
+  checkOperator: (operatorId) => api.get(`/absence/check/${operatorId}`),
+}
+
+export const notificationApi = {
+  getForUser: (userId) => api.get('/notifications', { params: { userId } }),
+  getUnreadCount: (userId) => api.get('/notifications/unread-count', { params: { userId } }),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: (userId) => api.put('/notifications/read-all', null, { params: { userId } }),
+}

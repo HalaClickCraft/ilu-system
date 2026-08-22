@@ -14,6 +14,8 @@ import com.ilu.system.structure.entity.Project;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
+import com.ilu.system.recyclage.entity.RecyclagePlanning;
+import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -40,7 +42,8 @@ public class EvaluationService {
     private final FormationAssignmentRepository assignmentRepo;
     private final WorkstationFormationRepository formationRepo;
     private final UserRepository userRepo;
-        private final ProjectRepository projectRepo;
+    private final ProjectRepository projectRepo;
+    private final RecyclagePlanningRepository recyclagePlanningRepo;
 
     public EvaluationService(EvaluationTemplateRepository templateRepo,
                              EvaluationSectionRepository sectionRepo,
@@ -52,7 +55,8 @@ public class EvaluationService {
                              FormationAssignmentRepository assignmentRepo,
                              WorkstationFormationRepository formationRepo,
                              UserRepository userRepo,
-                             ProjectRepository projectRepo) {
+                             ProjectRepository projectRepo,
+                             RecyclagePlanningRepository recyclagePlanningRepo) {
         this.templateRepo = templateRepo;
         this.sectionRepo = sectionRepo;
         this.questionRepo = questionRepo;
@@ -64,6 +68,7 @@ public class EvaluationService {
         this.formationRepo = formationRepo;
         this.userRepo = userRepo;
         this.projectRepo = projectRepo;
+        this.recyclagePlanningRepo = recyclagePlanningRepo;
     }
 
     // ======================== TEMPLATE CRUD ========================
@@ -85,7 +90,8 @@ public class EvaluationService {
         template.setTargetNiveau(targetNiveau);
         template.setCreatedById(createdById);
 
-        if (workstationId != null && type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION) {
+        if (workstationId != null && (type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
+                || type == EvaluationTemplate.TemplateType.ANIMATION)) {
             Workstation ws = workstationRepo.findById(workstationId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Poste introuvable"));
             template.setWorkstation(ws);
@@ -339,7 +345,7 @@ public class EvaluationService {
     @Transactional
     public Map<String, Object> startEvaluation(Long operatorId, Long templateId,
                                                 Long formationId, Long evaluatorId,
-                                                String mode, Long nextTemplateId) {
+                                                String mode, Long nextTemplateId, Long planningId) {
         Operator operator = operatorRepo.findById(operatorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
 
@@ -351,8 +357,36 @@ public class EvaluationService {
         }
 
         FormationAssignment formation = null;
+        WorkstationFormation workstationFormation = null;
         if (formationId != null) {
-            formation = assignmentRepo.findById(formationId).orElse(null);
+            workstationFormation = formationRepo.findById(formationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Formation pratique introuvable"));
+            if (!operatorId.equals(workstationFormation.getOperator().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La formation ne correspond pas a cet operateur");
+            }
+            if (!"COMPLETED".equals(workstationFormation.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La formation pratique doit etre terminee avant l'evaluation");
+            }
+            if (template.getWorkstation() != null
+                    && !template.getWorkstation().getId().equals(workstationFormation.getWorkstation().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le template ne correspond pas au poste de la formation");
+            }
+        }
+        RecyclagePlanning planning = null;
+        if (planningId != null) {
+            planning = recyclagePlanningRepo.findById(planningId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Planning introuvable"));
+            if (!operatorId.equals(planning.getOperator().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le planning ne correspond pas a cet operateur");
+            }
+            if (template.getWorkstation() != null
+                    && !template.getWorkstation().getId().equals(planning.getWorkstation().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le template ne correspond pas au poste planifie");
+            }
+            if (planning.getStatus() != RecyclagePlanning.PlanningStatus.PLANIFIEE
+                    && planning.getStatus() != RecyclagePlanning.PlanningStatus.EN_COURS) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le planning n'est pas executable");
+            }
         }
 
         long seniorityMonths = 0;
@@ -391,8 +425,12 @@ public class EvaluationService {
         session.setOperatorSeniorityMonths(seniorityMonths);
         session.setMode(mode);
         session.setNextTemplateId(nextTemplateId);
+        session.setPlanningId(planningId);
+        session.setWorkstationFormationId(workstationFormation != null ? workstationFormation.getId() : null);
         session.setStatus(EvaluationSession.SessionStatus.IN_PROGRESS);
         sessionRepo.save(session);
+
+        markPlanningInProgress(planning, operatorId, template.getWorkstation());
 
         String evaluatorName = userRepo.findById(evaluatorId)
                 .map(User::getName).orElse("Inconnu");
@@ -436,6 +474,10 @@ public class EvaluationService {
 
             EvaluationQuestion question = questionRepo.findById(questionId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable: " + questionId));
+            if (!question.getTemplate().getId().equals(session.getTemplate().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La question n'appartient pas au template de cette session");
+            }
 
             Optional<EvaluationAnswer> existing = answerRepo.findBySessionIdAndQuestionId(sessionId, questionId);
             EvaluationAnswer evalAnswer;
@@ -545,15 +587,107 @@ public class EvaluationService {
             session.setDecision("FAILED");
             session.setCompletedAt(LocalDateTime.now());
             sessionRepo.save(session);
+            completeMatchingPlanning(session);
+            createSecondChanceFormationAfterEvaluationFailure(session);
             return buildResult(session, "Echec: Score insuffisant pour le niveau correspondant a l'anciennete");
+        }
+
+        // An operator who is already L must pass the dedicated Animation
+        // questionnaire before their production result can promote them to U.
+        if (session.getTemplate().getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
+                && "U".equals(niveau)
+                && session.getTemplate().getWorkstation() != null
+                && hasPassedLevel(session.getOperator().getId(), session.getTemplate().getWorkstation().getId(), "L")) {
+            EvaluationTemplate animationTemplate = templateRepo
+                    .findValidatedAnimationForWorkstation(session.getTemplate().getWorkstation().getId())
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Un template Animation valide est requis pour le passage L vers U sur ce poste"));
+
+            session.setNiveau("L");
+            session.setStatus(EvaluationSession.SessionStatus.PASSED);
+            session.setDecision("PENDING_ANIMATION");
+            session.setNextTemplateId(animationTemplate.getId());
+            session.setCompletedAt(LocalDateTime.now());
+            sessionRepo.save(session);
+            return buildResult(session, "Questionnaire Animation requis avant le passage au niveau U");
         }
 
         session.setStatus(EvaluationSession.SessionStatus.PASSED);
         session.setDecision("PASSED_" + niveau);
         session.setCompletedAt(LocalDateTime.now());
         sessionRepo.save(session);
+        completeMatchingPlanning(session);
 
         return buildResult(session, "Reussite: Niveau " + niveau + " atteint");
+    }
+
+    private void markPlanningInProgress(RecyclagePlanning explicitPlanning, Long operatorId, Workstation workstation) {
+        if (explicitPlanning != null) {
+            if (explicitPlanning.getStatus() == RecyclagePlanning.PlanningStatus.PLANIFIEE) {
+                explicitPlanning.setStatus(RecyclagePlanning.PlanningStatus.EN_COURS);
+                recyclagePlanningRepo.save(explicitPlanning);
+            }
+            return;
+        }
+        if (workstation == null) return;
+        recyclagePlanningRepo.findFirstByOperator_IdAndWorkstation_IdAndStatusOrderByScheduledDateAsc(
+                        operatorId, workstation.getId(), RecyclagePlanning.PlanningStatus.PLANIFIEE)
+                .ifPresent(planning -> {
+                    planning.setStatus(RecyclagePlanning.PlanningStatus.EN_COURS);
+                    recyclagePlanningRepo.save(planning);
+                });
+    }
+
+    private void completeMatchingPlanning(EvaluationSession session) {
+        Workstation workstation = session.getTemplate().getWorkstation();
+        Optional<RecyclagePlanning> planning = session.getPlanningId() != null
+                ? recyclagePlanningRepo.findById(session.getPlanningId()) : Optional.empty();
+        if (planning.isEmpty() && workstation == null) return;
+        if (planning.isEmpty()) {
+            planning = recyclagePlanningRepo.findFirstByOperator_IdAndWorkstation_IdAndStatusOrderByScheduledDateAsc(
+                    session.getOperator().getId(), workstation.getId(), RecyclagePlanning.PlanningStatus.EN_COURS);
+        }
+        if (planning.isEmpty()) {
+            planning = recyclagePlanningRepo.findFirstByOperator_IdAndWorkstation_IdAndStatusOrderByScheduledDateAsc(
+                    session.getOperator().getId(), workstation.getId(), RecyclagePlanning.PlanningStatus.PLANIFIEE);
+        }
+        planning.ifPresent(item -> {
+            item.setStatus(RecyclagePlanning.PlanningStatus.TERMINEE);
+            item.setCompletedAt(LocalDateTime.now());
+            item.setNiveauObtenu(session.getNiveau());
+            item.setEvaluationSessionId(session.getId());
+            recyclagePlanningRepo.save(item);
+        });
+    }
+
+    private void createSecondChanceFormationAfterEvaluationFailure(EvaluationSession session) {
+        Workstation workstation = session.getTemplate().getWorkstation();
+        if (workstation == null) return;
+
+        long failures = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(session.getOperator().getId()).stream()
+                .filter(candidate -> candidate.getStatus() == EvaluationSession.SessionStatus.FAILED)
+                .filter(candidate -> candidate.getTemplate() != null && candidate.getTemplate().getWorkstation() != null)
+                .filter(candidate -> workstation.getId().equals(candidate.getTemplate().getWorkstation().getId()))
+                .count();
+        if (failures != 1 || hasInProgressFormation(session.getOperator().getId(), workstation.getId())) return;
+
+        WorkstationFormation retry = new WorkstationFormation();
+        retry.setOperator(session.getOperator());
+        retry.setWorkstation(workstation);
+        retry.setStartDate(LocalDate.now());
+        retry.setStatus("IN_PROGRESS");
+        retry.setAchievedLevel("0");
+        retry.setTargetLevel(workstation.getTargetIluLevel() != null ? workstation.getTargetIluLevel() : "3");
+        retry.setQualityObjective(workstation.getQualityObjective());
+        formationRepo.save(retry);
+    }
+
+    private boolean hasInProgressFormation(Long operatorId, Long workstationId) {
+        return formationRepo.findByOperator_Id(operatorId).stream()
+                .anyMatch(formation -> workstationId.equals(formation.getWorkstation().getId())
+                        && "IN_PROGRESS".equals(formation.getStatus()));
     }
         // ======================== AUTO TEMPLATE RESOLUTION ========================
 
@@ -852,10 +986,11 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         for (Operator op : operators) {
-            Optional<EvaluationSession> latestGen = getLatestPassedGenericSession(op.getId());
-            if (latestGen.isEmpty()) {
+            // Departed and currently absent operators must not occupy a position in the matrix.
+            if (!Boolean.TRUE.equals(op.getActive())) {
                 continue;
             }
+            Optional<EvaluationSession> latestGen = getLatestPassedGenericSession(op.getId());
 
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("operatorId", op.getId());
@@ -864,11 +999,17 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
             row.put("seniorityMonths", op.getHireDate() != null
                     ? Period.between(op.getHireDate(), LocalDate.now()).toTotalMonths() : 0);
 
-            row.put("genericPassed", true);
-            EvaluationSession genericSession = latestGen.get();
-            row.put("genericLevel", "U");
-            row.put("genericMode", genericSession.getMode() != null ? genericSession.getMode() : "INITIAL");
-            row.put("genericDate", genericSession.getCompletedAt() != null ? genericSession.getCompletedAt().format(dtf) : (genericSession.getCreatedAt() != null ? genericSession.getCreatedAt().format(dtf) : LocalDate.now().format(dtf)));
+            row.put("genericPassed", latestGen.isPresent());
+            if (latestGen.isPresent()) {
+                EvaluationSession genericSession = latestGen.get();
+                row.put("genericLevel", "U");
+                row.put("genericMode", genericSession.getMode() != null ? genericSession.getMode() : "INITIAL");
+                row.put("genericDate", genericSession.getCompletedAt() != null ? genericSession.getCompletedAt().format(dtf) : (genericSession.getCreatedAt() != null ? genericSession.getCreatedAt().format(dtf) : LocalDate.now().format(dtf)));
+            } else {
+                row.put("genericLevel", "");
+                row.put("genericMode", "");
+                row.put("genericDate", "");
+            }
 
             Map<Long, Map<String, Object>> wsDataMap = new LinkedHashMap<>();
             for (Workstation ws : workstations) {
@@ -886,6 +1027,13 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
                     wsVal.put("mode", "");
                     wsVal.put("date", "");
                 }
+                recyclagePlanningRepo.findTopByOperator_IdAndWorkstation_IdAndTypeOrderByScheduledDateDesc(
+                                op.getId(), ws.getId(), RecyclagePlanning.PlanningType.RECYCLAGE)
+                        .ifPresent(recyclage -> {
+                            wsVal.put("recyclageStatus", recyclage.getStatus().name());
+                            wsVal.put("recyclageDate", recyclage.getScheduledDate().format(dtf));
+                            wsVal.put("recyclageLevel", recyclage.getNiveauObtenu());
+                        });
                 wsDataMap.put(ws.getId(), wsVal);
             }
             row.put("workstations", wsDataMap);
@@ -962,6 +1110,8 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         map.put("templateName", session.getTemplate().getName());
         map.put("templateType", session.getTemplate().getType().name());
         map.put("formationId", session.getFormation() != null ? session.getFormation().getId() : null);
+        map.put("workstationFormationId", session.getWorkstationFormationId());
+        map.put("planningId", session.getPlanningId());
         map.put("evaluatorName", session.getEvaluatorName());
         map.put("status", session.getStatus().name());
         map.put("mode", session.getMode());
@@ -1124,6 +1274,12 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         }).orElse("");
     }
 
+    private boolean hasPassedLevel(Long operatorId, Long workstationId, String niveau) {
+        return sessionRepo.findPassedByOperatorAndWorkstationAndNiveau(operatorId, workstationId, niveau)
+                .stream()
+                .anyMatch(session -> session.getTemplate().getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION);
+    }
+
     private boolean hasPassedGeneric(Long operatorId) {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
                 .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.PASSED)
@@ -1177,6 +1333,7 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         result.put("correctAnswers", session.getCorrectAnswers());
         result.put("scorePercentage", session.getScorePercentage());
         result.put("seniorityMonths", session.getOperatorSeniorityMonths());
+        result.put("nextTemplateId", session.getNextTemplateId());
         result.put("message", message);
         return result;
     }

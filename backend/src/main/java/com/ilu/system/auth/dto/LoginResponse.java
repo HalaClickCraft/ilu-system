@@ -1,11 +1,13 @@
 package com.ilu.system.auth.dto;
 import java.util.Set;
 public class LoginResponse {
+    private Long id;
     private String token;
     private String employeeId;
     private String name;
     private Boolean mustChangePassword;
     private Set<String> roles;
+    public Long getId() { return id; } public void setId(Long v) { this.id = v; }
     public String getToken() { return token; } public void setToken(String v) { this.token = v; }
     public String getEmployeeId() { return employeeId; } public void setEmployeeId(String v) { this.employeeId = v; }
     public String getName() { return name; } public void setName(String v) { this.name = v; }

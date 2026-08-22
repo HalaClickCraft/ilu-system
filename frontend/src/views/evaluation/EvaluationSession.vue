@@ -21,6 +21,12 @@
         </span>
       </div>
 
+      <div class="mt-3">
+        <span class="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">
+          {{ evaluationLabel(session.mode) }}
+        </span>
+      </div>
+
       <!-- Seniority info -->
       <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
         <p class="text-sm font-medium text-amber-800">Anciennete: {{ session.seniorityMonths }} mois</p>
@@ -132,6 +138,20 @@
           <p class="font-bold">Echec</p>
           <p class="text-sm mt-1">Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.</p>
         </div>
+        <div v-else-if="session.decision === 'PENDING_ANIMATION'" class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4 text-violet-900">
+          <p class="font-bold">Questionnaire Animation requis pour passer de L a U</p>
+          <p class="text-sm mt-1">La production est validee au niveau L. Completez le formulaire Animation pour finaliser le passage au niveau U.</p>
+          <button @click="startAnimation" :disabled="startingAnimation" class="mt-3 bg-violet-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50">
+            {{ startingAnimation ? 'Demarrage...' : 'Commencer le questionnaire Animation' }}
+          </button>
+        </div>
+        <div v-else-if="session.decision === 'PASSED_GENERIC' && session.nextTemplateId" class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-900">
+          <p class="font-bold">Partie generique reussie</p>
+          <p class="text-sm mt-1">Continuez avec les questions de production pour terminer l'evaluation initiale.</p>
+          <button @click="startProduction" :disabled="startingProduction" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+            {{ startingProduction ? 'Demarrage...' : 'Commencer les questions de production' }}
+          </button>
+        </div>
         <div v-else-if="session.decision?.startsWith('PASSED_')" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800">
           <p class="font-bold">Réussi - Niveau {{ session.niveau }}</p>
           <p v-if="session.niveau === 'L'" class="text-sm mt-1">Pour passer au niveau U: évaluation Animation requise apres 1 an d'anciennete.</p>
@@ -223,6 +243,7 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { evaluationApi, operatorsApi } from '@/api/endpoints'
+import { recyclageApi } from '@/services/recyclageApi'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -237,6 +258,8 @@ const saveSuccess = ref(false)
 const pendingEvaluations = ref([])
 const operators = ref([])
 const validatedTemplates = ref([])
+const startingAnimation = ref(false)
+const startingProduction = ref(false)
 
 const startForm = reactive({ operatorId: null, templateId: null, formationId: null })
 
@@ -255,6 +278,13 @@ const sessionStatusLabel = (s) => ({
 }[s] || s)
 
 const niveauClass = (n) => ({ I: 'text-amber-600', L: 'text-blue-600', U: 'text-green-600' }[n] || 'text-gray-400')
+
+const evaluationLabel = (mode) => ({
+  RECYCLAGE: 'Recyclage',
+  ANNUELLE: 'Évaluation annuelle',
+  NOUVELLE_RECRUE: 'Évaluation initiale',
+  ANIMATION: 'Évaluation animation',
+}[mode] || 'Évaluation')
 
 const roleLabel = (role) => ({
   CHEF_EQUIPE: "Chef d'Équipe",
@@ -397,6 +427,47 @@ async function saveAnswers() {
     console.error('Erreur sauvegarde:', e)
   }
   saving.value = false
+}
+
+async function startAnimation() {
+  if (!session.value?.nextTemplateId) return
+  startingAnimation.value = true
+  try {
+    const res = await evaluationApi.startEvaluation({
+      operatorId: session.value.operatorId,
+      templateId: session.value.nextTemplateId,
+      mode: 'ANIMATION',
+      planningId: session.value.planningId || undefined,
+    })
+    router.push({
+      name: 'evaluation-session',
+      params: { id: res.data.sessionId },
+      query: route.query,
+    })
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  } finally {
+    startingAnimation.value = false
+  }
+}
+
+async function startProduction() {
+  if (!session.value?.nextTemplateId) return
+  startingProduction.value = true
+  try {
+    const res = await evaluationApi.startEvaluation({
+      operatorId: session.value.operatorId,
+      templateId: session.value.nextTemplateId,
+      formationId: session.value.workstationFormationId || session.value.formationId || undefined,
+      mode: session.value.mode || 'NOUVELLE_RECRUE',
+      planningId: session.value.planningId || undefined,
+    })
+    router.push({ name: 'evaluation-session', params: { id: res.data.sessionId }, query: route.query })
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  } finally {
+    startingProduction.value = false
+  }
 }
 
 onMounted(async () => {

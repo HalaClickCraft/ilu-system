@@ -133,8 +133,8 @@ public class TrainingController {
     }
 
     @PostMapping("/formations/{id}/reset")
-    public ResponseEntity<Void> resetFormation(@PathVariable Long id) {
-        trainingService.resetFormation(id);
+    public ResponseEntity<Void> resetFormation(@PathVariable Long id, Authentication authentication) {
+        trainingService.resetFormation(id, authentication.getName(), roles(authentication));
         return ResponseEntity.ok().build();
     }
 

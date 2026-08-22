@@ -43,6 +43,7 @@ export const useAuthStore = defineStore('auth', {
         this.token = data.token
         localStorage.setItem('token', data.token)
         this.user = {
+          id: data.id,
           employeeId: data.employeeId,
           name: data.name,
           mustChangePassword: data.mustChangePassword,
@@ -76,6 +77,7 @@ export const useAuthStore = defineStore('auth', {
         const payload = JSON.parse(atob(token.split('.')[1]))
         const roles = payload.roles || []
         this.user = {
+          id: payload.userId || null,
           employeeId: payload.sub,
           name: payload.name || payload.sub,
           mustChangePassword: false,

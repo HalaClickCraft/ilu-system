@@ -31,6 +31,7 @@ public class AuthService {
         String token = jwtTokenProvider.generateToken(authentication);
         User user = userRepository.findByEmployeeId(request.getEmployeeId()).orElseThrow(() -> new RuntimeException("User not found"));
         LoginResponse response = new LoginResponse();
+        response.setId(user.getId());
         response.setToken(token);
         response.setEmployeeId(user.getEmployeeId());
         response.setName(user.getName());

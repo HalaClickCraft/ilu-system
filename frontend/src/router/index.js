@@ -127,6 +127,25 @@ const routes = [
         component: () => import('@/views/operators/DoubleFailuresList.vue'),
         meta: { roles: ['ADMIN', 'RH', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'] },
       },
+      {
+  path: 'recyclage',
+  name: 'recyclage',
+  component: () => import('@/views/recyclage/RecyclageView.vue'),
+  meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'] },
+},
+{
+  path: 'recyclage/calendar',
+  name: 'recyclage-calendar',
+  component: () => import('@/views/recyclage/CalendrierRecyclage.vue'),
+  meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'] },
+},
+{
+  path: 'absences',
+  name: 'absences',
+  component: () => import('@/views/absence/GestionAbsences.vue'),
+  meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'] },
+},
+
     ],
   },
 ]

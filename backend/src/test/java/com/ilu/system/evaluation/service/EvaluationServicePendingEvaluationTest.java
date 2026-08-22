@@ -11,6 +11,7 @@ import com.ilu.system.operator.entity.WorkstationFormation;
 import com.ilu.system.operator.repository.FormationAssignmentRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
+import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
@@ -52,6 +53,8 @@ class EvaluationServicePendingEvaluationTest {
     private UserRepository userRepo;
     @Mock
     private ProjectRepository projectRepo;
+    @Mock
+    private RecyclagePlanningRepository recyclagePlanningRepo;
 
     private EvaluationService evaluationService;
 
@@ -60,7 +63,7 @@ class EvaluationServicePendingEvaluationTest {
         evaluationService = new EvaluationService(
                 templateRepo, sectionRepo, questionRepo, sessionRepo,
                 answerRepo, operatorRepo, workstationRepo, assignmentRepo,
-                formationRepo, userRepo, projectRepo
+                formationRepo, userRepo, projectRepo, recyclagePlanningRepo
         );
     }
 

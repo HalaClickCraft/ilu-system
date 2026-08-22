@@ -33,9 +33,11 @@ public class JwtTokenProvider {
         // Fetch user to include roles and name in token
         List<String> roles = new ArrayList<>();
         String name = "";
+        Long userId = null;
         Optional<User> userOpt = userRepository.findByEmployeeId(userDetails.getUsername());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            userId = user.getId();
             name = user.getName();
             roles = user.getRoles().stream().map(r -> r.getLabel()).collect(Collectors.toList());
         }
@@ -44,6 +46,7 @@ public class JwtTokenProvider {
                 .subject(userDetails.getUsername())
                 .claim("roles", roles)
                 .claim("name", name)
+                .claim("userId", userId)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getSigningKey())
