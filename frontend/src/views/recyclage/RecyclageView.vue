@@ -1,5 +1,11 @@
 <template>
   <div class="space-y-6">
+    <!-- Global error banner (replaces alert()) -->
+    <div v-if="errorMsg" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start justify-between gap-3">
+      <p class="text-sm text-red-800">{{ errorMsg }}</p>
+      <button @click="errorMsg = ''" class="text-red-400 hover:text-red-600 font-bold">×</button>
+    </div>
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -58,7 +64,7 @@
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Recherche</label>
-          <input v-model="filters.search" @input="loadPlanning" type="text" placeholder="Nom operateur..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          <input v-model="filters.search" type="text" placeholder="Nom operateur..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
         </div>
       </div>
     </div>
@@ -105,17 +111,28 @@
                 <span v-else class="text-gray-300">-</span>
               </td>
               <td class="px-4 py-3 text-sm">
-                <div class="flex items-center gap-2">
-                  <button v-if="['PLANIFIEE', 'EN_COURS'].includes(item.status)" @click="startPlanningEvaluation(item)" class="text-emerald-600 hover:text-emerald-800 font-medium" title="Demarrer les questions de l'evaluation">
+                <div class="flex items-center gap-3">
+                  <button v-if="['PLANIFIEE', 'EN_COURS'].includes(item.status)" @click="startPlanningEvaluation(item)" :disabled="loading" class="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 font-medium disabled:opacity-50" title="Demarrer les questions de l'evaluation">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v14l11-7z"/></svg>
+                    Évaluer
                   </button>
-                  <button v-if="item.status === 'PLANIFIEE'" @click="cancelItem(item)" class="text-red-500 hover:text-red-700 font-medium" title="Annuler">
+                  <button v-if="item.status === 'PLANIFIEE'" @click="cancelItem(item)" :disabled="loading" class="inline-flex items-center gap-1.5 text-red-500 hover:text-red-700 font-medium disabled:opacity-50" title="Annuler">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Annuler
                   </button>
                 </div>
               </td>
             </tr>
-            <tr v-if="filteredItems.length === 0">
+            <tr v-if="loading">
+              <td colspan="8" class="px-4 py-12 text-center text-gray-400">Chargement des planifications...</td>
+            </tr>
+            <tr v-else-if="loadFailed">
+              <td colspan="8" class="px-4 py-12 text-center">
+                <p class="text-red-500 text-sm">Erreur de chargement des planifications.</p>
+                <button @click="loadPlanning" class="mt-2 text-sm text-emerald-600 hover:underline font-medium">Réessayer</button>
+              </td>
+            </tr>
+            <tr v-else-if="filteredItems.length === 0">
               <td colspan="8" class="px-4 py-12 text-center text-gray-400">Aucune planification trouvee</td>
             </tr>
           </tbody>
@@ -123,26 +140,17 @@
       </div>
     </div>
 
-    <!-- Complete Modal -->
-    <div v-if="showCompleteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCompleteModal = false">
+    <!-- Cancel confirmation modal (replaces browser confirm()) -->
+    <div v-if="cancelTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="cancelTarget = null">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-2">Completer l'Evaluation</h3>
-        <p class="text-sm text-gray-500 mb-4">
-          {{ selectedItem?.operatorName }} — {{ selectedItem?.workstationName }}
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Annuler cette planification ?</h3>
+        <p class="text-sm text-gray-500">
+          {{ cancelTarget.operatorName }} — {{ cancelTarget.workstationName }} · {{ formatDate(cancelTarget.scheduledDate) }}
         </p>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Niveau Obtenu</label>
-          <select v-model="completeData.niveauObtenu" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
-            <option value="I">I</option>
-            <option value="L">L</option>
-            <option value="U">U</option>
-            <option value="NON_VALIDE">NON_VALIDE</option>
-          </select>
-        </div>
-        <div class="flex justify-end gap-3">
-          <button @click="showCompleteModal = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-          <button @click="completeItem" :disabled="loading" class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            Confirmer
+        <div class="flex justify-end gap-3 mt-5">
+          <button @click="cancelTarget = null" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Retour</button>
+          <button @click="confirmCancel" :disabled="loading" class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+            {{ loading ? 'Annulation...' : 'Oui, annuler' }}
           </button>
         </div>
       </div>
@@ -161,11 +169,9 @@ const router = useRouter()
 const items = ref([])
 const projects = ref([])
 const loading = ref(false)
-const showGenerateModal = ref(false)
-const showCompleteModal = ref(false)
-const generateYear = ref(new Date().getFullYear())
-const selectedItem = ref(null)
-const completeData = ref({ niveauObtenu: 'I' })
+const loadFailed = ref(false)
+const errorMsg = ref('')
+const cancelTarget = ref(null)
 const showManualModal = ref(false)
 const activeOperators = ref([])
 const manualForm = ref({ projectId: null, zoneId: null, workstationId: null, operatorId: null, scheduledDate: '' })
@@ -193,16 +199,17 @@ const filteredItems = computed(() => {
 
 async function loadPlanning() {
   loading.value = true
+  loadFailed.value = false
   try {
     const params = {}
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.projectId) params.projectId = filters.value.projectId
     if (filters.value.type) params.type = filters.value.type
-    if (filters.value.search) params.search = filters.value.search
     const res = await recyclageApi.getPlanning(params)
     items.value = res.data || []
   } catch (e) {
     console.error('Error loading planning:', e)
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -225,44 +232,13 @@ async function openManualModal() {
 
 async function createManualRecyclage() {
   loading.value = true
+  errorMsg.value = ''
   try {
     await recyclageApi.createManual(manualForm.value)
     showManualModal.value = false
     await loadPlanning()
   } catch (e) {
-    alert(e.response?.data?.message || e.response?.data?.error || 'Impossible d activer le recyclage')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function generateAnnual() {
-  loading.value = true
-  try {
-    await recyclageApi.generateAnnual(generateYear.value)
-    showGenerateModal.value = false
-    await loadPlanning()
-  } catch (e) {
-    console.error('Error generating:', e)
-  } finally {
-    loading.value = false
-  }
-}
-
-function openCompleteModal(item) {
-  selectedItem.value = item
-  completeData.value = { niveauObtenu: 'I' }
-  showCompleteModal.value = true
-}
-
-async function completeItem() {
-  loading.value = true
-  try {
-    await recyclageApi.completePlanning(selectedItem.value.id, completeData.value)
-    showCompleteModal.value = false
-    await loadPlanning()
-  } catch (e) {
-    console.error('Error completing:', e)
+    errorMsg.value = e.response?.data?.message || e.response?.data?.error || "Impossible d'activer le recyclage"
   } finally {
     loading.value = false
   }
@@ -270,6 +246,7 @@ async function completeItem() {
 
 async function startPlanningEvaluation(item) {
   loading.value = true
+  errorMsg.value = ''
   try {
     const config = (await recyclageApi.startEvaluation(item.id)).data
     const session = (await evaluationApi.startEvaluation({
@@ -281,20 +258,26 @@ async function startPlanningEvaluation(item) {
     })).data
     router.push({ name: 'evaluation-session', params: { id: session.sessionId }, query: { planningId: item.id } })
   } catch (e) {
-    alert(e.response?.data?.message || e.response?.data?.error || "Impossible de demarrer les questions de l'evaluation")
+    errorMsg.value = e.response?.data?.message || e.response?.data?.error || "Impossible de demarrer les questions de l'evaluation"
   } finally {
     loading.value = false
   }
 }
 
-async function cancelItem(item) {
-  if (!confirm('Annuler cette planification?')) return
+function cancelItem(item) {
+  cancelTarget.value = item
+}
+
+async function confirmCancel() {
+  if (!cancelTarget.value) return
   loading.value = true
   try {
-    await recyclageApi.cancelPlanning(item.id)
+    await recyclageApi.cancelPlanning(cancelTarget.value.id)
+    cancelTarget.value = null
     await loadPlanning()
   } catch (e) {
     console.error('Error cancelling:', e)
+    errorMsg.value = e.response?.data?.message || "Erreur lors de l'annulation"
   } finally {
     loading.value = false
   }

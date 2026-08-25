@@ -34,10 +34,10 @@
         <table class="min-w-full border-collapse text-xs text-gray-700">
           <thead>
             <tr class="bg-gray-100 border-b border-gray-200">
-              <th rowspan="4" class="px-4 py-3 text-left font-bold text-gray-700 sticky left-0 bg-gray-100 z-20 border-r border-gray-200 min-w-[180px]">Operateur</th>
-              <th rowspan="4" class="px-3 py-2 text-center font-bold text-gray-700 border-r border-gray-200 min-w-[120px] bg-gray-100">Zone</th>
+              <th rowspan="3" class="px-4 py-3 text-left font-bold text-gray-700 sticky left-0 bg-gray-100 z-20 border-r border-gray-200 min-w-[180px]">Operateur</th>
+              <th rowspan="3" class="px-3 py-2 text-center font-bold text-gray-700 border-r border-gray-200 min-w-[120px] bg-gray-100">Zone</th>
               <th v-for="z in zones" :key="z.name" :colspan="z.workstations.length" class="px-3 py-2 text-center font-bold text-gray-800 border-r border-gray-200 bg-gray-50">{{ z.name }}</th>
-              <th rowspan="4" class="px-4 py-3 text-center font-bold text-gray-700 border-l border-gray-200 bg-gray-50 max-w-[150px] whitespace-normal">Nombre des postes sur lesquels est forme un operateur</th>
+              <th rowspan="3" class="px-4 py-3 text-center font-bold text-gray-700 border-l border-gray-200 bg-gray-50 max-w-[150px] whitespace-normal">Nombre des postes sur lesquels est forme un operateur</th>
             </tr>
             <tr class="bg-gray-100 border-b border-gray-200">
               <th v-for="col in allColumns" :key="col.id" class="px-3 py-2 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[90px]">{{ col.name }}</th>
@@ -54,18 +54,18 @@
                   <div class="text-[10px] text-gray-400 font-normal">{{ op.employeeId }} · {{ op.seniorityMonths }} mois</div>
                 </td>
                 <td class="px-3 py-2 font-medium text-gray-500 bg-gray-50 border-r border-gray-200 text-left">Date d'évaluation</td>
-                <td v-for="col in allColumns" :key="col.id + '-date'" class="px-2 py-2 text-center border-r border-gray-150 text-[10px] text-gray-600">{{ getColumnDate(op, col) }}</td>
+                <td v-for="col in allColumns" :key="col.id + '-date'" class="px-2 py-2 text-center border-r border-gray-200 text-[10px] text-gray-600">{{ getColumnDate(op, col) }}</td>
                 <td rowspan="3" class="px-4 py-3 text-center border-l border-gray-200 font-bold text-lg text-slate-800 bg-slate-50">{{ getTrainedCount(op) }}</td>
               </tr>
               <tr class="hover:bg-gray-50 border-b border-gray-300">
                 <td class="px-3 py-2 font-medium text-gray-500 bg-gray-50 border-r border-gray-200 text-left">Niveau compétence</td>
-                <td v-for="col in allColumns" :key="col.id + '-level'" class="px-2 py-2 text-center border-r border-gray-150">
+                <td v-for="col in allColumns" :key="col.id + '-level'" class="px-2 py-2 text-center border-r border-gray-200">
                   <span :class="niveauBgClass(formatNiveau(getColumnLevel(op, col)))" class="inline-block w-8 h-8 leading-8 rounded-lg text-white font-bold text-xs shadow-sm">{{ formatNiveau(getColumnLevel(op, col)) }}</span>
                 </td>
               </tr>
               <tr class="hover:bg-orange-50/30 border-b border-gray-300">
                 <td class="px-3 py-2 font-medium text-orange-700 bg-orange-50 border-r border-gray-200 text-left">Résultat recyclage</td>
-                <td v-for="col in allColumns" :key="col.id + '-recyclage'" class="px-2 py-2 text-center border-r border-gray-150 text-[10px]" :class="recyclageClass(getRecyclageStatus(op, col))">{{ getRecyclageDisplay(op, col) }}</td>
+                <td v-for="col in allColumns" :key="col.id + '-recyclage'" class="px-2 py-2 text-center border-r border-gray-200 text-[10px]" :class="recyclageClass(getRecyclageStatus(op, col))">{{ getRecyclageDisplay(op, col) }}</td>
               </tr>
             </template>
             <tr v-if="!matrixData.operators?.length"><td colspan="99" class="px-4 py-8 text-center text-gray-400">Aucun operateur trouve</td></tr>

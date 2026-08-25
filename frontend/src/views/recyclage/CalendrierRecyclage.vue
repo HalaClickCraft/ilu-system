@@ -23,10 +23,19 @@
         <h2 class="text-lg font-semibold text-gray-900">
           {{ monthNames[currentMonth] }} {{ currentYear }}
         </h2>
-        <button @click="nextMonth" class="p-2 rounded-lg hover:bg-gray-100 transition">
-          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        </button>
+        <div class="flex items-center gap-1">
+          <button @click="goToday" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 mr-1">Aujourd'hui</button>
+          <button @click="nextMonth" class="p-2 rounded-lg hover:bg-gray-100 transition">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
       </div>
+      <!-- Calendar error / loading -->
+      <div v-if="loadError" class="bg-red-50 border border-red-200 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
+        <p class="text-sm text-red-800">Erreur de chargement du calendrier.</p>
+        <button @click="loadCalendar" class="text-sm text-red-700 underline font-medium">Réessayer</button>
+      </div>
+      <div v-if="loading" class="text-center text-sm text-gray-400 py-2">Chargement...</div>
     </div>
 
     <!-- Calendar Grid -->
@@ -84,7 +93,7 @@
           <div class="flex justify-between"><span class="text-gray-500">Poste:</span><span class="font-medium">{{ selectedEvent.workstationName }}</span></div>
           <div class="flex justify-between"><span class="text-gray-500">Type:</span><span :class="isInitialType(selectedEvent.type) ? 'text-purple-700' : selectedEvent.type === 'EVALUATION_ANNUELLE_MOIS_1' ? 'text-blue-700' : 'text-orange-700'" class="font-medium">{{ typeLabel(selectedEvent.type) }}</span></div>
           <div class="flex justify-between"><span class="text-gray-500">Date:</span><span class="font-medium">{{ formatDate(selectedEvent.scheduledDate) }}</span></div>
-          <div class="flex justify-between"><span class="text-gray-500">Statut:</span><span class="font-medium">{{ selectedEvent.status }}</span></div>
+          <div class="flex justify-between"><span class="text-gray-500">Statut:</span><span class="font-medium">{{ statusLabel(selectedEvent.status) }}</span></div>
           <div v-if="selectedEvent.niveauObtenu" class="flex justify-between"><span class="text-gray-500">Niveau:</span><span class="font-bold">{{ selectedEvent.niveauObtenu }}</span></div>
         </div>
         <button @click="selectedEvent = null" class="mt-6 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">Fermer</button>
@@ -104,6 +113,8 @@ const selectedProject = ref(null)
 const currentMonth = ref(new Date().getMonth())
 const currentYear = ref(new Date().getFullYear())
 const selectedEvent = ref(null)
+const loading = ref(false)
+const loadError = ref(false)
 
 const monthNames = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre']
 const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
@@ -185,7 +196,20 @@ function nextMonth() {
   loadCalendar()
 }
 
+function goToday() {
+  const now = new Date()
+  currentMonth.value = now.getMonth()
+  currentYear.value = now.getFullYear()
+  loadCalendar()
+}
+
+function statusLabel(s) {
+  return { PLANIFIEE: 'Planifiée', EN_COURS: 'En cours', TERMINEE: 'Terminée', ANNULEE: 'Annulée' }[s] || s
+}
+
 async function loadCalendar() {
+  loading.value = true
+  loadError.value = false
   try {
     const params = { month: currentMonth.value + 1, year: currentYear.value }
     if (selectedProject.value) params.projectId = selectedProject.value
@@ -193,6 +217,10 @@ async function loadCalendar() {
     events.value = res.data || []
   } catch (e) {
     console.error('Error loading calendar:', e)
+    loadError.value = true
+    events.value = []
+  } finally {
+    loading.value = false
   }
 }
 

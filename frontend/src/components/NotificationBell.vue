@@ -40,9 +40,11 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { notificationApi } from '@/services/notificationApi'
 import { useAuthStore } from '@/stores/auth'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const isOpen = ref(false)
 const notifications = ref([])
@@ -100,6 +102,13 @@ async function handleClick(n) {
       await notificationApi.markAsRead(n.id)
       await loadNotifications()
     } catch (e) { console.error(e) }
+  }
+  // Navigate to the screen the notification is about
+  isOpen.value = false
+  if (isRecyclageNotif(n.type)) {
+    router.push('/recyclage')
+  } else if (n.type === 'ABSENCE_REPRISE' || n.type === 'ABSENCE_DEBUT') {
+    router.push('/absences')
   }
 }
 

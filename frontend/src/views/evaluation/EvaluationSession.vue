@@ -1,5 +1,15 @@
 <template>
   <div class="space-y-6">
+    <!-- Global error banner (replaces alert()) -->
+    <div v-if="errorMessage" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start justify-between gap-3">
+      <p class="text-sm text-red-800">{{ errorMessage }}</p>
+      <button @click="errorMessage = ''" class="text-red-400 hover:text-red-600 font-bold">×</button>
+    </div>
+
+    <!-- Session loading spinner -->
+    <div v-if="loadingSession" class="text-center py-12 text-gray-400">Chargement de l'évaluation...</div>
+
+    <template v-else>
     <button @click="$router.back()" class="flex items-center gap-2 text-gray-500 hover:text-gray-700">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
       Retour
@@ -34,6 +44,15 @@
           Niveau I: &lt;6 mois, score 70%+ |
           Niveau L: 6+ mois, score 81%+ |
           Niveau U: 12+ mois, score 91%+
+        </p>
+      </div>
+
+      <!-- Generic part 100% rule, shown up front for production evaluations -->
+      <div v-if="session.templateType === 'POSTE_PRODUCTION'" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+        <p class="text-sm font-medium text-blue-800">Règle de la partie commune</p>
+        <p class="text-xs text-blue-600 mt-1">
+          La partie générique (Sécurité, Qualité, gestion des non conformes) doit être réussie à
+          <strong>100%</strong>. En dessous, l'évaluation est un échec sans passage à la partie production.
         </p>
       </div>
 
@@ -92,11 +111,18 @@
         </div>
       </div>
 
-       <!-- Action buttons: only Sauvegarder, no Terminer (auto-complete) -->
-      <div v-if="session.status === 'IN_PROGRESS'" class="flex items-center gap-3 mt-4 relative">
+       <!-- Action buttons: Sauvegarder + explicit Terminer when everything is answered -->
+      <div v-if="session.status === 'IN_PROGRESS'" class="flex items-center gap-3 mt-4 relative flex-wrap">
         <button @click="saveAnswers" :disabled="saving" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
           {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
         </button>
+        <button v-if="allQuestionsAnswered" @click="showConfirmComplete = true" :disabled="saving"
+          class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
+          Terminer l'évaluation
+        </button>
+        <span class="text-sm" :class="allQuestionsAnswered ? 'text-green-700 font-medium' : 'text-gray-500'">
+          {{ answeredCount }}/{{ allQuestions.length }} questions répondues
+        </span>
         <!-- Inline save confirmation (like a copy success popup) -->
         <Transition name="save-pop">
           <span v-if="saveSuccess" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200">
@@ -131,12 +157,30 @@
           </div>
         </div>
         <div v-if="session.decision === 'BLOCKED_GENERIC'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p class="font-bold">BLOQUE - Partie générique insuffisante</p>
+          <p class="font-bold">
+            Echec{{ session.failureCount != null ? ' (' + session.failureCount + '/2)' : '' }} - Partie générique insuffisante
+          </p>
           <p class="text-sm mt-1">La partie générique (HSE + Qualité) doit etre a 100% pour poursuivre l'évaluation.</p>
+          <p v-if="session.secondChanceCreated" class="text-sm mt-2 font-medium">
+            Une formation complémentaire de 12 jours a été créée automatiquement sur ce poste.
+            L'opérateur doit la suivre puis repasser l'évaluation.
+          </p>
+          <p v-else-if="session.secondChanceCreated === false" class="text-sm mt-2 font-medium">
+            Second échec constaté : le dossier est transmis aux Ressources Humaines (fin de contrat
+            selon la procédure de formation). Aucune nouvelle évaluation n'est possible sur ce poste.
+          </p>
         </div>
         <div v-else-if="session.decision === 'FAILED'" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p class="font-bold">Echec</p>
+          <p class="font-bold">Echec{{ session.failureCount != null ? ' (' + session.failureCount + '/2)' : '' }}</p>
           <p class="text-sm mt-1">Le score de production ne permet pas d'attribuer le niveau correspondant a l'anciennete.</p>
+          <p v-if="session.secondChanceCreated" class="text-sm mt-2 font-medium">
+            Une formation complémentaire de 12 jours a été créée automatiquement sur ce poste.
+            L'opérateur doit la suivre puis repasser l'évaluation.
+          </p>
+          <p v-else-if="session.secondChanceCreated === false" class="text-sm mt-2 font-medium">
+            Second échec constaté : le dossier est transmis aux Ressources Humaines (fin de contrat
+            selon la procédure de formation). Aucune nouvelle évaluation n'est possible sur ce poste.
+          </p>
         </div>
         <div v-else-if="session.decision === 'PENDING_ANIMATION'" class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4 text-violet-900">
           <p class="font-bold">Questionnaire Animation requis pour passer de L a U</p>
@@ -220,6 +264,26 @@
         </div>
       </div>
     </div>
+    </template>
+  </div>
+
+  <!-- Confirm-final-completion modal: prevents accidental irreversible completion -->
+  <div v-if="showConfirmComplete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full">
+      <h3 class="text-lg font-bold text-gray-900">Terminer l'évaluation ?</h3>
+      <p class="text-sm text-gray-600 mt-2">
+        Toutes les questions ont une réponse. Une fois l'évaluation terminée, le résultat est
+        définitif (réussite, échec ou blocage) et ne peut plus être modifié.
+      </p>
+      <div class="flex justify-end gap-3 mt-5">
+        <button @click="showConfirmComplete = false" class="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">
+          Continuer plus tard
+        </button>
+        <button @click="finishEvaluation" :disabled="saving" class="px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+          {{ saving ? 'Validation...' : 'Oui, terminer l\'évaluation' }}
+        </button>
+      </div>
+    </div>
   </div>
   <style scoped>
 .save-pop-enter-active {
@@ -253,8 +317,11 @@ const session = ref(null)
 const templateSections = ref([])
 const answers = reactive({})
 const loading = ref(true)
+const loadingSession = ref(false)
 const saving = ref(false)
 const saveSuccess = ref(false)
+const errorMessage = ref('')
+const showConfirmComplete = ref(false)
 const pendingEvaluations = ref([])
 const operators = ref([])
 const validatedTemplates = ref([])
@@ -336,6 +403,10 @@ const allQuestionsAnswered = computed(() => {
   return allQuestions.value.every(q => answers[q.id] !== undefined)
 })
 
+const answeredCount = computed(() =>
+  allQuestions.value.filter(q => answers[q.id] !== undefined).length
+)
+
 function setAnswer(questionId, value) { answers[questionId] = value }
 function getAnswerForQuestion(questionId) { return answers[questionId] }
 
@@ -344,7 +415,10 @@ async function loadPendingEvaluations() {
   try {
     const res = await evaluationApi.getAllPendingEvaluations()
     pendingEvaluations.value = res.data || []
-  } catch (e) { console.error('Error loading pending', e) }
+  } catch (e) {
+    console.error('Error loading pending', e)
+    errorMessage.value = 'Impossible de charger les évaluations en attente. Vérifiez la connexion puis réessayez.'
+  }
   loading.value = false
 }
 
@@ -378,7 +452,7 @@ async function manualStart() {
     const newSessionId = res.data.sessionId
     router.push(`/evaluation/session/${newSessionId}`)
   } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.message || e.message))
+    errorMessage.value = 'Erreur: ' + (e.response?.data?.message || e.message)
   }
   saving.value = false
 }
@@ -412,19 +486,32 @@ async function saveAnswers() {
     // Show inline confirmation near the button (no page scroll)
     saveSuccess.value = true
     setTimeout(() => { saveSuccess.value = false }, 2500)
-
-    // Auto-complete: if all questions answered, automatically complete the evaluation
-    if (allQuestionsAnswered.value) {
-      try {
-        const res = await evaluationApi.completeEvaluation(session.value.id)
-        session.value = { ...session.value, ...res.data }
-        saveSuccess.value = true
-      } catch (e) {
-        console.error('Erreur completion:', e)
-      }
-    }
   } catch (e) {
     console.error('Erreur sauvegarde:', e)
+    errorMessage.value = 'Échec de la sauvegarde ! Les réponses ne sont PAS enregistrées. Réessayez: '
+      + (e.response?.data?.message || e.message)
+  }
+  saving.value = false
+}
+
+// Explicit final completion, always behind the confirmation modal
+async function finishEvaluation() {
+  if (!session.value) return
+  saving.value = true
+  try {
+    // persist any last unsaved answers before completing
+    const answerList = Object.entries(answers).map(([questionId, answer]) => ({
+      questionId: Number(questionId), answer
+    }))
+    if (answerList.length > 0) {
+      await evaluationApi.submitAnswers(session.value.id, answerList)
+    }
+    const res = await evaluationApi.completeEvaluation(session.value.id)
+    session.value = { ...session.value, ...res.data }
+    showConfirmComplete.value = false
+  } catch (e) {
+    console.error('Erreur completion:', e)
+    errorMessage.value = 'Erreur lors de la finalisation: ' + (e.response?.data?.message || e.message)
   }
   saving.value = false
 }
@@ -445,7 +532,7 @@ async function startAnimation() {
       query: route.query,
     })
   } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.message || e.message))
+    errorMessage.value = 'Erreur: ' + (e.response?.data?.message || e.message)
   } finally {
     startingAnimation.value = false
   }
@@ -464,7 +551,7 @@ async function startProduction() {
     })
     router.push({ name: 'evaluation-session', params: { id: res.data.sessionId }, query: route.query })
   } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.message || e.message))
+    errorMessage.value = 'Erreur: ' + (e.response?.data?.message || e.message)
   } finally {
     startingProduction.value = false
   }
@@ -472,15 +559,21 @@ async function startProduction() {
 
 onMounted(async () => {
   if (route.params.id && route.params.id !== 'new') {
+    loadingSession.value = true
     try {
       const res = await evaluationApi.getSessionDetail(route.params.id)
       session.value = res.data
       await loadSessionDetail()
-      loading.value = false
-      return
-    } catch (e) { /* fall through to pending list */ }
+    } catch (e) {
+      errorMessage.value = 'Impossible de charger l\'évaluation (session introuvable ou erreur serveur).'
+      console.error('Error loading session', e)
+    }
+    loadingSession.value = false
+    loading.value = false
+    return
   }
   await Promise.all([loadPendingEvaluations(), loadDropdowns()])
+  loading.value = false
 })
 
 

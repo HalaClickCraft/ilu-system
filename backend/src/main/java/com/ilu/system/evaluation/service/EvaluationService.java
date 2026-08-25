@@ -372,6 +372,14 @@ public class EvaluationService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le template ne correspond pas au poste de la formation");
             }
         }
+        // Double echec (formation + evaluation confondus) sur ce poste: plus aucune evaluation possible
+        if (template.getWorkstation() != null
+                && template.getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
+                && countTotalFailures(operatorId, template.getWorkstation().getId()) >= 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Double echec pour cet operateur sur ce poste: nouvelle evaluation bloquee (cas RH)");
+        }
+
         RecyclagePlanning planning = null;
         if (planningId != null) {
             planning = recyclagePlanningRepo.findById(planningId)
@@ -576,7 +584,13 @@ public class EvaluationService {
             session.setNiveau("NON_APTE");
             session.setCompletedAt(LocalDateTime.now());
             sessionRepo.save(session);
-            return buildResult(session, "BLOQUE: L'operateur n'a pas 100% a la partie generique");
+            revertMatchingPlanningOnFailure(session);
+            long failuresSoFar = countTotalFailures(session.getOperator().getId(), workstationIdOf(session));
+            createSecondChanceFormationAfterEvaluationFailure(session);
+            Map<String, Object> blockedResult = buildResult(session, "BLOQUE: L'operateur n'a pas 100% a la partie generique");
+            blockedResult.put("failureCount", failuresSoFar);
+            blockedResult.put("secondChanceCreated", failuresSoFar < 2);
+            return blockedResult;
         }
 
         String niveau = determineNiveau(session.getOperatorSeniorityMonths(), productionPct);
@@ -587,9 +601,13 @@ public class EvaluationService {
             session.setDecision("FAILED");
             session.setCompletedAt(LocalDateTime.now());
             sessionRepo.save(session);
-            completeMatchingPlanning(session);
+            revertMatchingPlanningOnFailure(session);
+            long failuresSoFar = countTotalFailures(session.getOperator().getId(), workstationIdOf(session));
             createSecondChanceFormationAfterEvaluationFailure(session);
-            return buildResult(session, "Echec: Score insuffisant pour le niveau correspondant a l'anciennete");
+            Map<String, Object> failedResult = buildResult(session, "Echec: Score insuffisant pour le niveau correspondant a l'anciennete");
+            failedResult.put("failureCount", failuresSoFar);
+            failedResult.put("secondChanceCreated", failuresSoFar < 2);
+            return failedResult;
         }
 
         // An operator who is already L must pass the dedicated Animation
@@ -666,12 +684,9 @@ public class EvaluationService {
         Workstation workstation = session.getTemplate().getWorkstation();
         if (workstation == null) return;
 
-        long failures = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(session.getOperator().getId()).stream()
-                .filter(candidate -> candidate.getStatus() == EvaluationSession.SessionStatus.FAILED)
-                .filter(candidate -> candidate.getTemplate() != null && candidate.getTemplate().getWorkstation() != null)
-                .filter(candidate -> workstation.getId().equals(candidate.getTemplate().getWorkstation().getId()))
-                .count();
-        if (failures != 1 || hasInProgressFormation(session.getOperator().getId(), workstation.getId())) return;
+        // Un echec = formations FAILED + sessions FAILED/BLOCKED confondues sur ce poste
+        if (countTotalFailures(session.getOperator().getId(), workstation.getId()) != 1
+                || hasInProgressFormation(session.getOperator().getId(), workstation.getId())) return;
 
         WorkstationFormation retry = new WorkstationFormation();
         retry.setOperator(session.getOperator());
@@ -682,6 +697,64 @@ public class EvaluationService {
         retry.setTargetLevel(workstation.getTargetIluLevel() != null ? workstation.getTargetIluLevel() : "3");
         retry.setQualityObjective(workstation.getQualityObjective());
         formationRepo.save(retry);
+    }
+
+    private Long workstationIdOf(EvaluationSession session) {
+        return session.getTemplate().getWorkstation() != null ? session.getTemplate().getWorkstation().getId() : null;
+    }
+
+    /**
+     * Total des echecs d'un operateur sur un poste depuis sa derniere reussite:
+     * formations 12j FAILED + sessions FAILED ou BLOCKED (partie commune incluse).
+     * Une reussite remet le compteur a zero: seuls deux echecs consecutifs
+     * declenchent le cas RH.
+     */
+    private long countTotalFailures(Long operatorId, Long workstationId) {
+        if (workstationId == null) return 0;
+        List<EvaluationSession> sessions = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId);
+
+        LocalDateTime since = sessions.stream()
+                .filter(s -> s.getTemplate() != null && s.getTemplate().getWorkstation() != null
+                        && workstationId.equals(s.getTemplate().getWorkstation().getId())
+                        && s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                        && s.getCreatedAt() != null)
+                .findFirst()
+                .map(EvaluationSession::getCreatedAt)
+                .orElse(LocalDateTime.MIN);
+
+        long formationFailures = formationRepo.findByOperator_Id(operatorId).stream()
+                .filter(f -> workstationId.equals(f.getWorkstation().getId()) && "FAILED".equals(f.getStatus()))
+                .filter(f -> f.getEndDate() == null || !f.getEndDate().atStartOfDay().isBefore(since))
+                .count();
+        long sessionFailures = sessions.stream()
+                .filter(s -> s.getTemplate() != null && s.getTemplate().getWorkstation() != null)
+                .filter(s -> workstationId.equals(s.getTemplate().getWorkstation().getId()))
+                .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.FAILED
+                        || s.getStatus() == EvaluationSession.SessionStatus.BLOCKED)
+                .filter(s -> s.getCreatedAt() != null && !s.getCreatedAt().isBefore(since))
+                .count();
+        return formationFailures + sessionFailures;
+    }
+
+    /**
+     * Un echec ne cloture pas le planning recyclage: on le remet a PLANIFIEE
+     * pour qu'il puisse etre reprogramme.
+     */
+    private void revertMatchingPlanningOnFailure(EvaluationSession session) {
+        Workstation workstation = session.getTemplate().getWorkstation();
+        Optional<RecyclagePlanning> planning = session.getPlanningId() != null
+                ? recyclagePlanningRepo.findById(session.getPlanningId()) : Optional.empty();
+        if (planning.isEmpty() && workstation == null) return;
+        if (planning.isEmpty()) {
+            planning = recyclagePlanningRepo.findFirstByOperator_IdAndWorkstation_IdAndStatusOrderByScheduledDateAsc(
+                    session.getOperator().getId(), workstation.getId(), RecyclagePlanning.PlanningStatus.EN_COURS);
+        }
+        planning.ifPresent(item -> {
+            item.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
+            item.setNiveauObtenu(session.getNiveau());
+            item.setEvaluationSessionId(session.getId());
+            recyclagePlanningRepo.save(item);
+        });
     }
 
     private boolean hasInProgressFormation(Long operatorId, Long workstationId) {
@@ -1311,8 +1384,7 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
                         return false;
                     }
                     boolean sameFormation = formation.getId() != null
-                            && s.getFormation() != null
-                            && formation.getId().equals(s.getFormation().getId());
+                            && formation.getId().equals(s.getWorkstationFormationId());
                     return sameFormation || s.getTemplate().getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION;
                 });
     }

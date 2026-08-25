@@ -24,6 +24,8 @@ import com.ilu.system.structure.repository.WorkstationRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
 
 import com.ilu.system.operator.service.OnboardingService;
+import com.ilu.system.evaluation.entity.EvaluationSession;
+import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
 import com.ilu.system.recyclage.service.RecyclageService;
 
 import org.springframework.http.HttpStatus;
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -53,13 +56,14 @@ public class TrainingService {
     private final ZoneRepository zoneRepo;
     private final ProjectMemberRepository projectMemberRepo;
     private final RecyclageService recyclageService;
+    private final EvaluationSessionRepository sessionRepo;
 
     public TrainingService(WorkstationFormationRepository formationRepo, FormationAssignmentRepository assignmentRepo,
                            DailyFormationTrackingRepository trackingRepo, OperatorRepository operatorRepo,
                            WorkstationRepository workstationRepo, TeamRepository teamRepo,
                            OnboardingService onboardingService, ProjectRepository projectRepo,
                            ZoneRepository zoneRepo, ProjectMemberRepository projectMemberRepo,
-                           RecyclageService recyclageService) {
+                           RecyclageService recyclageService, EvaluationSessionRepository sessionRepo) {
         this.formationRepo = formationRepo;
         this.assignmentRepo = assignmentRepo;
         this.trackingRepo = trackingRepo;
@@ -71,6 +75,7 @@ public class TrainingService {
         this.zoneRepo = zoneRepo;
         this.projectMemberRepo = projectMemberRepo;
         this.recyclageService = recyclageService;
+        this.sessionRepo = sessionRepo;
     }
 
     @Transactional
@@ -91,6 +96,12 @@ public class TrainingService {
             if (!onboardingService.isOnboardingComplete(operatorId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "L'operateur " + operator.getEmployeeId() + " doit terminer tous les modules theorique avant la formation pratique");
+            }
+            // Double echec (formations + evaluations confondues) sur ce poste: plus de formation possible
+            if (countTotalFailures(operatorId, workstationId) >= 2) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Double echec pour l'operateur " + operator.getEmployeeId()
+                                + " sur ce poste: nouvelle formation bloquee (cas RH)");
             }
             if (formationRepo.existsByOperator_IdAndWorkstation_IdAndStatus(operatorId, workstationId, "IN_PROGRESS")) {
                 continue;
@@ -328,10 +339,8 @@ public class TrainingService {
     }
 
     private void createSecondChanceFormationAfterTrainingFailure(WorkstationFormation formation) {
-        long failures = formationRepo.findByOperator_Id(formation.getOperator().getId()).stream()
-                .filter(candidate -> formation.getWorkstation().getId().equals(candidate.getWorkstation().getId()))
-                .filter(candidate -> "FAILED".equals(candidate.getStatus()))
-                .count();
+        // Un echec = formations FAILED + sessions FAILED/BLOCKED confondues sur ce poste
+        long failures = countTotalFailures(formation.getOperator().getId(), formation.getWorkstation().getId());
         boolean retryAlreadyActive = formationRepo.findByOperator_Id(formation.getOperator().getId()).stream()
                 .anyMatch(candidate -> formation.getWorkstation().getId().equals(candidate.getWorkstation().getId())
                         && "IN_PROGRESS".equals(candidate.getStatus()));
@@ -485,6 +494,39 @@ public class TrainingService {
         if (!roles.contains("CHEF_EQUIPE") && !roles.contains("AGENT_QUALITE")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Role non autorise pour le suivi pratique");
         }
+    }
+
+    /**
+     * Total des echecs d'un operateur sur un poste depuis sa derniere reussite:
+     * formations 12j FAILED + sessions FAILED ou BLOCKED (partie commune incluse).
+     * Une reussite remet le compteur a zero: seuls deux echecs consecutifs
+     * declenchent le cas RH.
+     */
+    private long countTotalFailures(Long operatorId, Long workstationId) {
+        if (workstationId == null) return 0;
+        List<EvaluationSession> sessions = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId);
+
+        LocalDateTime since = sessions.stream()
+                .filter(s -> s.getTemplate() != null && s.getTemplate().getWorkstation() != null
+                        && workstationId.equals(s.getTemplate().getWorkstation().getId())
+                        && s.getStatus() == EvaluationSession.SessionStatus.PASSED
+                        && s.getCreatedAt() != null)
+                .findFirst()
+                .map(EvaluationSession::getCreatedAt)
+                .orElse(LocalDateTime.MIN);
+
+        long formationFailures = formationRepo.findByOperator_Id(operatorId).stream()
+                .filter(f -> workstationId.equals(f.getWorkstation().getId()) && "FAILED".equals(f.getStatus()))
+                .filter(f -> f.getEndDate() == null || !f.getEndDate().atStartOfDay().isBefore(since))
+                .count();
+        long sessionFailures = sessions.stream()
+                .filter(s -> s.getTemplate() != null && s.getTemplate().getWorkstation() != null)
+                .filter(s -> workstationId.equals(s.getTemplate().getWorkstation().getId()))
+                .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.FAILED
+                        || s.getStatus() == EvaluationSession.SessionStatus.BLOCKED)
+                .filter(s -> s.getCreatedAt() != null && !s.getCreatedAt().isBefore(since))
+                .count();
+        return formationFailures + sessionFailures;
     }
 
     private int parseInt(String value) {
