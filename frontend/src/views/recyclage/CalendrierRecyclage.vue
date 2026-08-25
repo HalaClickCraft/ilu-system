@@ -7,9 +7,9 @@
         <p class="text-sm text-gray-500 mt-1">Vue mensuelle des evaluations planifiees</p>
       </div>
       <div class="flex items-center gap-3">
-        <select v-model="selectedProject" @change="loadCalendar" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+        <select v-model="selectedProject" @change="loadCalendar(false)" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
           <option :value="null">Tous les projets</option>
-          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
         </select>
       </div>
     </div>
@@ -33,9 +33,13 @@
       <!-- Calendar error / loading -->
       <div v-if="loadError" class="bg-red-50 border border-red-200 rounded-lg p-3 mb-2 flex items-center justify-between gap-3">
         <p class="text-sm text-red-800">Erreur de chargement du calendrier.</p>
-        <button @click="loadCalendar" class="text-sm text-red-700 underline font-medium">Réessayer</button>
+        <button @click="loadCalendar(false)" class="text-sm text-red-700 underline font-medium">Reessayer</button>
       </div>
       <div v-if="loading" class="text-center text-sm text-gray-400 py-2">Chargement...</div>
+      <!-- Empty month message -->
+      <div v-if="!loading && !loadError && events.length === 0" class="text-center py-3">
+        <p class="text-sm text-gray-400">Aucune planification pour {{ monthNames[currentMonth] }} {{ currentYear }}</p>
+      </div>
     </div>
 
     <!-- Calendar Grid -->
@@ -115,6 +119,14 @@ const currentYear = ref(new Date().getFullYear())
 const selectedEvent = ref(null)
 const loading = ref(false)
 const loadError = ref(false)
+const isInitialLoad = ref(true)
+
+const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
+
+watch(selectedProject, () => {
+  loadCalendar(isInitialLoad.value)
+  isInitialLoad.value = false
+})
 
 const monthNames = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre']
 const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
@@ -133,6 +145,7 @@ const calendarCells = computed(() => {
   const eventMap = new Map()
   for (const e of events.value) {
     const d = parsePlanningDate(e.scheduledDate)
+    if (!isFinite(d.getTime())) continue
     const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
     if (!eventMap.has(key)) eventMap.set(key, [])
     eventMap.get(key).push(e)
@@ -140,8 +153,6 @@ const calendarCells = computed(() => {
 
   for (let i = 0; i < startDow; i++) {
     const day = daysInPrev - startDow + i + 1
-    const prevM = m === 0 ? 11 : m - 1
-    const prevY = m === 0 ? y - 1 : y
     cells.push({ day, isCurrentMonth: false, events: [], isToday: false })
   }
 
@@ -178,7 +189,7 @@ function isInitialType(type) {
 function typeLabel(type) {
   return {
     INITIALE_NOUVELLE_RECRUE: 'Initiale nouvelle recrue',
-    EVALUATION_ANNUELLE_MOIS_1: 'Évaluation annuelle',
+    EVALUATION_ANNUELLE_MOIS_1: 'Evaluation annuelle',
     INITIALE: 'Initiale (ancien)',
     RECYCLAGE: 'Recyclage',
   }[type] || type
@@ -187,27 +198,27 @@ function typeLabel(type) {
 function prevMonth() {
   if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value-- }
   else currentMonth.value--
-  loadCalendar()
+  loadCalendar(false)
 }
 
 function nextMonth() {
   if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++ }
   else currentMonth.value++
-  loadCalendar()
+  loadCalendar(false)
 }
 
 function goToday() {
   const now = new Date()
   currentMonth.value = now.getMonth()
   currentYear.value = now.getFullYear()
-  loadCalendar()
+  loadCalendar(false)
 }
 
 function statusLabel(s) {
-  return { PLANIFIEE: 'Planifiée', EN_COURS: 'En cours', TERMINEE: 'Terminée', ANNULEE: 'Annulée' }[s] || s
+  return { PLANIFIEE: 'Planifiee', EN_COURS: 'En cours', TERMINEE: 'Terminee', ANNULEE: 'Annulee' }[s] || s
 }
 
-async function loadCalendar() {
+async function loadCalendar(allowAutoNavigate = false) {
   loading.value = true
   loadError.value = false
   try {
@@ -215,6 +226,30 @@ async function loadCalendar() {
     if (selectedProject.value) params.projectId = selectedProject.value
     const res = await recyclageApi.getCalendar(params)
     events.value = res.data || []
+
+    // Auto-navigate ONLY on initial page load (allowAutoNavigate=true)
+    // When user manually clicks arrows, they want to see THAT month.
+    if (allowAutoNavigate && events.value.length === 0) {
+      try {
+        const upcomingRes = await recyclageApi.getUpcoming({ daysAhead: 90 })
+        const upcoming = upcomingRes.data || []
+        if (upcoming.length > 0) {
+          const firstDate = parsePlanningDate(upcoming[0].scheduledDate)
+          if (isFinite(firstDate.getTime())) {
+            const targetMonth = firstDate.getMonth()
+            const targetYear = firstDate.getFullYear()
+            if (targetMonth !== currentMonth.value || targetYear !== currentYear.value) {
+              currentMonth.value = targetMonth
+              currentYear.value = targetYear
+              await loadCalendar(false) // don't auto-navigate again
+              return
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error checking upcoming:', e)
+      }
+    }
   } catch (e) {
     console.error('Error loading calendar:', e)
     loadError.value = true
@@ -227,8 +262,10 @@ async function loadCalendar() {
 async function loadProjects() {
   try {
     const res = await structureApi.getAll()
-    if (res.data && res.data.projects) projects.value = res.data.projects
-  } catch (e) { console.error(e) }
+    projects.value = Array.isArray(res.data) ? res.data : (res.data?.projects || [])
+  } catch (e) {
+    console.error('Error loading projects:', e)
+  }
 }
 
 function openDetail(event) { selectedEvent.value = event }
@@ -247,5 +284,8 @@ function parsePlanningDate(value) {
   return new Date(value)
 }
 
-onMounted(() => { loadProjects(); loadCalendar() })
+onMounted(async () => {
+  await loadProjects()
+  await loadCalendar(true)
+})
 </script>

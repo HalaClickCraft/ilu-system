@@ -239,9 +239,10 @@
             </div>
             <button
               @click="goToEvaluation"
-              class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium"
+              :disabled="goingToEvaluation"
+              class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50"
             >
-              Passer a l'évaluation
+              {{ goingToEvaluation ? 'Chargement...' : "Passer a l'évaluation" }}
             </button>
           </div>
         </div>
@@ -455,8 +456,51 @@ const checkPendingEvaluation = async () => {
   }
 }
 
-const goToEvaluation = () => {
-  router.push('/evaluation/initial')
+const goingToEvaluation = ref(false)
+
+// FIX 1: previously this just did router.push('/evaluation/initial'), dumping the
+// user on the generic "new hire" picker screen and losing all context about which
+// formation/operator we're evaluating (including recyclage / second-chance retries,
+// which have no marker distinguishing them from a first-time formation).
+// Now it runs the same resolveTemplates -> startEvaluation sequence EvaluationInitial.vue
+// uses, and jumps straight into the evaluation session.
+const goToEvaluation = async () => {
+  if (!formation.value) return
+  goingToEvaluation.value = true
+  error.value = ''
+  try {
+    const resolveRes = await evaluationApi.resolveTemplates(
+      formation.value.operatorId,
+      route.params.id,
+    )
+    const data = resolveRes.data
+
+    let templateId, nextTemplateId
+    if (data.startWithProduction) {
+      // Already passed generic, go straight to production
+      templateId = data.productionTemplateId
+      nextTemplateId = null
+    } else {
+      // Start with generic, link to production via nextTemplateId
+      templateId = data.genericTemplateId
+      nextTemplateId = data.productionTemplateId
+    }
+
+    const startRes = await evaluationApi.startEvaluation({
+      operatorId: formation.value.operatorId,
+      templateId,
+      formationId: Number(route.params.id),
+      mode: 'INITIAL',
+      nextTemplateId,
+    })
+
+    router.push({ name: 'evaluation-session', params: { id: startRes.data.sessionId } })
+  } catch (requestError) {
+    error.value =
+      requestError.response?.data?.message || "Impossible de lancer l'évaluation."
+  } finally {
+    goingToEvaluation.value = false
+  }
 }
 
 const load = async () => {

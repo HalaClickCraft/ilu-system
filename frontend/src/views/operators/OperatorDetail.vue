@@ -15,6 +15,7 @@
             <div class="flex justify-between"><dt class="text-gray-500">Matricule</dt><dd class="font-medium">{{ operator.employeeId || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Équipe</dt><dd class="font-medium">{{ operator.team?.name || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Role</dt><dd class="font-medium">{{ operator.role || '-' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Type d'opérateur</dt><dd class="font-medium">{{ operator.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Date d'embauche</dt><dd class="font-medium">{{ formatDate(operator.hireDate) }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Date de sortie</dt><dd class="font-medium">{{ formatDate(operator.exitDate) }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Motif d'absence</dt><dd class="font-medium">{{ operator.absenceReason || '-' }}</dd></div>

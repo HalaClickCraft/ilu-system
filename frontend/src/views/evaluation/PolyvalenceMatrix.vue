@@ -22,6 +22,25 @@
       </div>
     </div>
 
+    <!-- Campaign Tabs -->
+    <div v-if="campaignTabs.length > 0" class="border-b border-gray-200">
+      <nav class="-mb-px flex space-x-6 overflow-x-auto pb-1" aria-label="Tabs">
+        <button
+          v-for="tab in campaignTabs"
+          :key="tab.key"
+          @click="selectedCampaignTab = tab.key"
+          :class="[
+            selectedCampaignTab === tab.key
+              ? 'border-emerald-600 text-emerald-700 font-bold border-b-2'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2',
+            'whitespace-nowrap py-3 px-1 text-sm font-medium transition focus:outline-none'
+          ]"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+    </div>
+
     <div v-if="loading" class="text-center py-12 text-gray-400">Chargement de la matrice...</div>
     <div v-else-if="errorMsg" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
       <p class="text-red-700 font-semibold">Erreur de chargement</p>
@@ -84,6 +103,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { evaluationApi, structureApi } from '@/api/endpoints'
+import { recyclageApi } from '@/services/recyclageApi'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -94,12 +114,84 @@ const matrixData = ref({ operators: [], workstations: [] })
 const projects = ref([])
 const selectedProject = ref('')
 const selectedProjectName = ref('')
+const plannings = ref([])
+const selectedCampaignTab = ref('')
 
 const isMultiProjectRole = computed(() =>
   authStore.hasAnyRole(['RESP_QUALITE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_HSE', 'ADMIN', 'RH', 'CHEF_EQUIPE'])
 )
 const showProjectFilter = computed(() => isMultiProjectRole.value && projectList.value.length >= 1)
 const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
+
+const campaignTabs = computed(() => {
+  if (!plannings.value.length) return []
+  
+  const groups = {}
+  
+  plannings.value.forEach(item => {
+    const dateStr = item.scheduledDate
+    let year = new Date().getFullYear()
+    if (dateStr) {
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/')
+        if (parts.length === 3) year = parts[2]
+      } else {
+        year = new Date(dateStr).getFullYear()
+      }
+    }
+    
+    const type = item.type
+    const key = `${year}-${type}`
+    
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        year,
+        type,
+        count: 0,
+        projectName: ''
+      }
+    }
+    groups[key].count++
+    
+    if (!groups[key].projectName) {
+      const p = projectList.value.find(proj => proj.id === item.projectId)
+      groups[key].projectName = p ? p.name : 'Projet'
+    }
+  })
+  
+  const tabsList = Object.values(groups).map(g => {
+    let typeLabel = g.type
+    if (g.type === 'INITIALE_NOUVELLE_RECRUE') typeLabel = 'Eval. Initial'
+    else if (g.type === 'INITIALE') typeLabel = 'Initiale'
+    else if (g.type === 'RECYCLAGE') typeLabel = 'Recyclage'
+    else if (g.type === 'EVALUATION_ANNUELLE_MOIS_1') typeLabel = 'Eval. Annuelle'
+    
+    const label = `${g.projectName} ${g.year} ${typeLabel}`
+    
+    return {
+      key: g.key,
+      label: `${label} (${g.count})`,
+      year: g.year,
+      type: g.type
+    }
+  })
+  
+  tabsList.sort((a, b) => b.year - a.year || a.label.localeCompare(b.label))
+  
+  return tabsList
+})
+
+watch(campaignTabs, (newTabs) => {
+  if (newTabs.length > 0) {
+    const exists = newTabs.some(t => t.key === selectedCampaignTab.value)
+    if (!exists) {
+      selectedCampaignTab.value = newTabs[0].key
+    }
+  } else {
+    selectedCampaignTab.value = ''
+  }
+}, { immediate: true })
 
 const workstations = computed(() => matrixData.value.workstations || [])
 
@@ -202,13 +294,37 @@ function formatNiveau(level) {
   return level
 }
 
+async function loadPlanningsForProject() {
+  try {
+    const projectId = selectedProject.value ? Number(selectedProject.value) : null
+    if (projectId) {
+      const res = await recyclageApi.getPlanning({ projectId })
+      plannings.value = res.data || []
+    } else {
+      plannings.value = []
+    }
+  } catch (e) {
+    console.error('Error loading plannings', e)
+    plannings.value = []
+  }
+}
+
 async function loadMatrix() {
   loading.value = true
   errorMsg.value = ''
   if (!authStore.user && authStore.isAuthenticated) authStore.restoreFromToken()
   try {
     const projectId = selectedProject.value ? Number(selectedProject.value) : null
-    const res = await evaluationApi.getMatrix(projectId)
+    let year = null
+    let type = null
+    if (selectedCampaignTab.value && campaignTabs.value.length > 0) {
+      const activeTab = campaignTabs.value.find(t => t.key === selectedCampaignTab.value)
+      if (activeTab) {
+        year = Number(activeTab.year)
+        type = activeTab.type
+      }
+    }
+    const res = await evaluationApi.getMatrix(projectId, year, type)
     matrixData.value = res.data || { operators: [], workstations: [] }
     selectedProjectName.value = res.data?.projectName || ''
   } catch (e) {
@@ -223,20 +339,24 @@ async function loadProjects() {
   try {
     const res = await structureApi.getAll()
     projects.value = res.data || []
-    if (projects.value.length === 1) {
-      selectedProject.value = projects.value[0].id
-    }
+    selectedProject.value = ''
   } catch (e) {
     console.error('Error loading projects', e)
   }
 }
 
-watch(selectedProject, () => {
+watch(selectedProject, async () => {
+  await loadPlanningsForProject()
+  await loadMatrix()
+})
+
+watch(selectedCampaignTab, () => {
   loadMatrix()
 })
 
 onMounted(async () => {
   await loadProjects()
+  await loadPlanningsForProject()
   await loadMatrix()
 })
 </script>

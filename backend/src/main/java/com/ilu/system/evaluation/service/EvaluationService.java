@@ -560,22 +560,25 @@ public class EvaluationService {
         boolean isGenericTemplate = session.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON;
 
         if (isGenericTemplate) {
-            if (genericPct < 100.0) {
-                session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
-                session.setDecision("BLOCKED_GENERIC");
-                session.setNiveau("NON_APTE");
-            } else {
-                session.setStatus(EvaluationSession.SessionStatus.PASSED);
-                session.setDecision("PASSED_GENERIC");
-                session.setNiveau("U");
-            }
-            session.setCompletedAt(LocalDateTime.now());
-            sessionRepo.save(session);
-            return buildResult(session, genericPct < 100.0
-                    ? "BLOQUE: La partie generique doit etre a 100%"
-                    : "Partie generique reussie a 100%");
-        }
-
+    if (genericPct < 100.0) {
+        session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
+        session.setDecision("BLOCKED_GENERIC");
+        session.setNiveau("NON_APTE");
+        session.setCompletedAt(LocalDateTime.now());
+        sessionRepo.save(session);
+        // FIX: an evaluation started from a recyclage/annual planning was left
+        // stuck on EN_COURS forever when the operator failed the generic part,
+        // since this branch never touched the linked RecyclagePlanning row.
+        revertMatchingPlanningOnFailure(session);
+        return buildResult(session, "BLOQUE: La partie generique doit etre a 100%");
+    }
+    session.setStatus(EvaluationSession.SessionStatus.PASSED);
+    session.setDecision("PASSED_GENERIC");
+    session.setNiveau("U");
+    session.setCompletedAt(LocalDateTime.now());
+    sessionRepo.save(session);
+    return buildResult(session, "Partie generique reussie a 100%");
+}
         // PRODUCTION template: verify generic was passed, then determine niveau
         boolean genericOk = hasPassedGeneric(session.getOperator().getId());
         if (!genericOk) {
@@ -678,6 +681,38 @@ public class EvaluationService {
             item.setEvaluationSessionId(session.getId());
             recyclagePlanningRepo.save(item);
         });
+
+        // Auto-schedule the next RECYCLAGE 6 months later
+        if (workstation != null) {
+            LocalDate nextRecyclageDate = LocalDate.now().plusMonths(6);
+            List<RecyclagePlanning> existing = recyclagePlanningRepo.findByOperator_Id(session.getOperator().getId());
+            boolean hasActiveRecyclage = existing.stream().anyMatch(p -> 
+                p.getWorkstation().getId().equals(workstation.getId())
+                && p.getType() == RecyclagePlanning.PlanningType.RECYCLAGE 
+                && (p.getStatus() == RecyclagePlanning.PlanningStatus.PLANIFIEE || p.getStatus() == RecyclagePlanning.PlanningStatus.EN_COURS)
+            );
+            
+            if (!hasActiveRecyclage) {
+                RecyclagePlanning nextRecy = new RecyclagePlanning();
+                nextRecy.setOperator(session.getOperator());
+                nextRecy.setWorkstation(workstation);
+                nextRecy.setType(RecyclagePlanning.PlanningType.RECYCLAGE);
+                nextRecy.setScheduledDate(nextRecyclageDate);
+                nextRecy.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
+                
+                Long projectId = (workstation.getZone() != null && workstation.getZone().getProject() != null)
+                        ? workstation.getZone().getProject().getId() : null;
+                nextRecy.setProjectId(projectId);
+                
+                if (session.getOperator().getOperatorType() == Operator.OperatorType.NOUVEAU_RECRU) {
+                    nextRecy.setSource(RecyclagePlanning.PlanningSource.NOUVELLE_RECRUE);
+                } else {
+                    nextRecy.setSource(RecyclagePlanning.PlanningSource.ANNUELLE);
+                }
+                
+                recyclagePlanningRepo.save(nextRecy);
+            }
+        }
     }
 
     private void createSecondChanceFormationAfterEvaluationFailure(EvaluationSession session) {
@@ -996,12 +1031,29 @@ public class EvaluationService {
 
     // ======================== POLYVALENCE MATRIX ========================
 
-    private Optional<EvaluationSession> getLatestPassedSessionForWorkstation(Long operatorId, Long workstationId) {
+    private Optional<EvaluationSession> getLatestPassedSessionForWorkstation(Long operatorId, Long workstationId, Integer year, String type) {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
                 .filter(s -> s.getTemplate().getWorkstation() != null
                         && s.getTemplate().getWorkstation().getId().equals(workstationId)
                         && (s.getStatus() == EvaluationSession.SessionStatus.PASSED
                             || s.getStatus() == EvaluationSession.SessionStatus.COMPLETED))
+                .filter(s -> {
+                    if (year == null) return true;
+                    LocalDateTime compDate = s.getCompletedAt() != null ? s.getCompletedAt() : s.getCreatedAt();
+                    return compDate != null && compDate.getYear() == year;
+                })
+                .filter(s -> {
+                    if (type == null) return true;
+                    String sessionMode = s.getMode();
+                    if ("INITIALE".equals(type) || "INITIALE_NOUVELLE_RECRUE".equals(type)) {
+                        return "NOUVELLE_RECRUE".equalsIgnoreCase(sessionMode) || "INITIAL".equalsIgnoreCase(sessionMode) || sessionMode == null;
+                    } else if ("RECYCLAGE".equals(type)) {
+                        return "RECYCLAGE".equalsIgnoreCase(sessionMode);
+                    } else if ("EVALUATION_ANNUELLE_MOIS_1".equals(type)) {
+                        return "ANNUELLE".equalsIgnoreCase(sessionMode);
+                    }
+                    return true;
+                })
                 .findFirst();
     }
 
@@ -1023,7 +1075,11 @@ public class EvaluationService {
                 .findFirst();
     }
 
-public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
+    public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
+        return getPolyvalenceMatrix(projectId, null, null);
+    }
+
+    public Map<String, Object> getPolyvalenceMatrix(Long projectId, Integer year, String type) {
         List<Workstation> workstations;
         String projectName = null;
 
@@ -1086,7 +1142,7 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
 
             Map<Long, Map<String, Object>> wsDataMap = new LinkedHashMap<>();
             for (Workstation ws : workstations) {
-                Optional<EvaluationSession> latestWs = getLatestPassedSessionForWorkstation(op.getId(), ws.getId());
+                Optional<EvaluationSession> latestWs = getLatestPassedSessionForWorkstation(op.getId(), ws.getId(), year, type);
                 Map<String, Object> wsVal = new LinkedHashMap<>();
                 if (latestWs.isPresent()) {
                     EvaluationSession s = latestWs.get();
@@ -1100,13 +1156,24 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
                     wsVal.put("mode", "");
                     wsVal.put("date", "");
                 }
-                recyclagePlanningRepo.findTopByOperator_IdAndWorkstation_IdAndTypeOrderByScheduledDateDesc(
-                                op.getId(), ws.getId(), RecyclagePlanning.PlanningType.RECYCLAGE)
-                        .ifPresent(recyclage -> {
-                            wsVal.put("recyclageStatus", recyclage.getStatus().name());
-                            wsVal.put("recyclageDate", recyclage.getScheduledDate().format(dtf));
-                            wsVal.put("recyclageLevel", recyclage.getNiveauObtenu());
-                        });
+                Optional<RecyclagePlanning> recyclageOpt = Optional.empty();
+                if (year != null && type != null) {
+                    List<RecyclagePlanning> plannings = recyclagePlanningRepo.findByOperator_Id(op.getId());
+                    recyclageOpt = plannings.stream()
+                            .filter(p -> p.getWorkstation().getId().equals(ws.getId()))
+                            .filter(p -> p.getType().name().equals(type))
+                            .filter(p -> p.getScheduledDate().getYear() == year)
+                            .findFirst();
+                }
+                if (recyclageOpt.isEmpty()) {
+                    recyclageOpt = recyclagePlanningRepo.findTopByOperator_IdAndWorkstation_IdAndTypeOrderByScheduledDateDesc(
+                            op.getId(), ws.getId(), RecyclagePlanning.PlanningType.RECYCLAGE);
+                }
+                recyclageOpt.ifPresent(recyclage -> {
+                    wsVal.put("recyclageStatus", recyclage.getStatus().name());
+                    wsVal.put("recyclageDate", recyclage.getScheduledDate().format(dtf));
+                    wsVal.put("recyclageLevel", recyclage.getNiveauObtenu());
+                });
                 wsDataMap.put(ws.getId(), wsVal);
             }
             row.put("workstations", wsDataMap);

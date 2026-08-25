@@ -91,7 +91,7 @@ export const evaluationApi = {
   resolveTemplates: (operatorId, formationId) => api.get('/evaluation/initial/resolve-templates', { params: { operatorId, formationId } }),
 
   // Polyvalence Matrix
-  getMatrix: (projectId) => api.get('/evaluation/matrix', { params: projectId ? { projectId } : {} }),
+  getMatrix: (projectId, year, type) => api.get('/evaluation/matrix', { params: { projectId, year, type } }),
 
   // Evaluation History
   getHistory: () => api.get('/evaluation/history'),

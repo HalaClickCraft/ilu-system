@@ -32,9 +32,35 @@
       </div>
     </div>
 
+    <!-- Campaign Tabs -->
+    <div v-if="campaignTabs.length > 0" class="border-b border-gray-200">
+      <nav class="-mb-px flex space-x-6 overflow-x-auto pb-1" aria-label="Tabs">
+        <button
+          v-for="tab in campaignTabs"
+          :key="tab.key"
+          @click="selectedCampaignTab = tab.key"
+          :class="[
+            selectedCampaignTab === tab.key
+              ? 'border-emerald-600 text-emerald-700 font-bold border-b-2'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2',
+            'whitespace-nowrap py-3 px-1 text-sm font-medium transition focus:outline-none'
+          ]"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+    </div>
+
     <!-- Filters -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Projet</label>
+          <select v-model="filters.projectId" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <option :value="null">Tous</option>
+            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Statut</label>
           <select v-model="filters.status" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
@@ -43,23 +69,6 @@
             <option value="EN_COURS">En Cours</option>
             <option value="TERMINEE">Terminee</option>
             <option value="ANNULEE">Annulee</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-          <select v-model="filters.type" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <option value="">Tous</option>
-            <option value="INITIALE_NOUVELLE_RECRUE">Initiale nouvelle recrue</option>
-            <option value="EVALUATION_ANNUELLE_MOIS_1">Évaluation annuelle</option>
-            <option value="INITIALE">Initiale (ancien enregistrement)</option>
-            <option value="RECYCLAGE">Recyclage</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Projet</label>
-          <select v-model="filters.projectId" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <option :value="null">Tous</option>
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <div>
@@ -159,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { recyclageApi } from '@/services/recyclageApi'
 import { evaluationApi, structureApi, operatorsApi } from '@/api/endpoints'
@@ -168,6 +177,7 @@ const router = useRouter()
 
 const items = ref([])
 const projects = ref([])
+const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
 const loading = ref(false)
 const loadFailed = ref(false)
 const errorMsg = ref('')
@@ -186,10 +196,101 @@ const filters = ref({
   search: '',
 })
 
+const selectedCampaignTab = ref('')
+
+const campaignTabs = computed(() => {
+  if (!items.value.length) return []
+  
+  const groups = {}
+  
+  items.value.forEach(item => {
+    const dateStr = item.scheduledDate
+    let year = new Date().getFullYear()
+    if (dateStr) {
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/')
+        if (parts.length === 3) year = parts[2]
+      } else {
+        year = new Date(dateStr).getFullYear()
+      }
+    }
+    
+    const type = item.type
+    const key = `${year}-${type}`
+    
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        year,
+        type,
+        count: 0,
+        projectName: ''
+      }
+    }
+    groups[key].count++
+    
+    if (!groups[key].projectName) {
+      const p = projects.value.find(proj => proj.id === item.projectId)
+      groups[key].projectName = p ? p.name : 'Projet'
+    }
+  })
+  
+  const tabsList = Object.values(groups).map(g => {
+    let typeLabel = g.type
+    if (g.type === 'INITIALE_NOUVELLE_RECRUE') typeLabel = 'Eval. Initial'
+    else if (g.type === 'INITIALE') typeLabel = 'Initiale'
+    else if (g.type === 'RECYCLAGE') typeLabel = 'Recyclage'
+    else if (g.type === 'EVALUATION_ANNUELLE_MOIS_1') typeLabel = 'Eval. Annuelle'
+    
+    const label = `${g.projectName} ${g.year} ${typeLabel}`
+    
+    return {
+      key: g.key,
+      label: `${label} (${g.count})`,
+      year: g.year,
+      type: g.type
+    }
+  })
+  
+  tabsList.sort((a, b) => b.year - a.year || a.label.localeCompare(b.label))
+  
+  return tabsList
+})
+
+watch(campaignTabs, (newTabs) => {
+  if (newTabs.length > 0) {
+    const exists = newTabs.some(t => t.key === selectedCampaignTab.value)
+    if (!exists) {
+      selectedCampaignTab.value = newTabs[0].key
+    }
+  } else {
+    selectedCampaignTab.value = ''
+  }
+}, { immediate: true })
+
 const filteredItems = computed(() => {
   let result = items.value
+  
+  if (selectedCampaignTab.value && campaignTabs.value.length > 0) {
+    const activeTab = campaignTabs.value.find(t => t.key === selectedCampaignTab.value)
+    if (activeTab) {
+      result = result.filter(i => {
+        const dateStr = i.scheduledDate
+        let itemYear = ''
+        if (dateStr) {
+          if (dateStr.includes('/')) {
+            const parts = dateStr.split('/')
+            if (parts.length === 3) itemYear = parts[2]
+          } else {
+            itemYear = String(new Date(dateStr).getFullYear())
+          }
+        }
+        return String(itemYear) === String(activeTab.year) && i.type === activeTab.type
+      })
+    }
+  }
+  
   if (filters.value.status) result = result.filter(i => i.status === filters.value.status)
-  if (filters.value.type) result = result.filter(i => i.type === filters.value.type)
   if (filters.value.search) {
     const s = filters.value.search.toLowerCase()
     result = result.filter(i => (i.operatorName || '').toLowerCase().includes(s))
@@ -204,7 +305,6 @@ async function loadPlanning() {
     const params = {}
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.projectId) params.projectId = filters.value.projectId
-    if (filters.value.type) params.type = filters.value.type
     const res = await recyclageApi.getPlanning(params)
     items.value = res.data || []
   } catch (e) {
@@ -285,6 +385,10 @@ async function confirmCancel() {
 
 function formatDate(d) {
   if (!d) return '-'
+  if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
+    const [day, month, year] = d.split('/').map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
   const date = new Date(d)
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -326,7 +430,7 @@ function niveauBadge(n) {
 }
 
 function sourceLabel(s) {
-  const m = { ANNUELLE: 'Annuelle', NOUVELLE_RECRUE: 'Nouvelle Recrue', REPRISE_ABSENCE: 'Reprise Absence' }
+  const m = { ANNUELLE: 'Annuelle', NOUVELLE_RECRUE: 'Nouvelle Recrue', REPRISE_ABSENCE: 'Reprise Absence', CHEF_EQUIPE: 'Chef d\'equipe' }
   return m[s] || s
 }
 

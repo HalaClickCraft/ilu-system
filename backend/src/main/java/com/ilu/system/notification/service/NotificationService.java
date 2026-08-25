@@ -233,6 +233,28 @@ public class NotificationService {
         }
     }
 
+    // FIX 3: RecyclageService.startEvaluation() flips a planning to EN_COURS but never told
+    // anyone else it happened. Mirrors createDepartureNotification: notify chefs d'équipe
+    // (so peers/other shifts see it right away instead of waiting for a page refresh) and HR.
+    @Transactional
+    public void createRecyclageStartedNotification(Long planningId, Long operatorId, String operatorName, String workstationName) {
+        String message = "Recyclage démarré pour " + operatorName + " sur " + workstationName;
+
+        for (User user : usersWithRole("CHEF_EQUIPE")) {
+            Notification notification = baseNotification(user, RecipientType.CHEF_EQUIPE, NotificationType.RECYCLAGE_DEMARRE, message);
+            notification.setRelatedPlanningId(planningId);
+            notification.setRelatedOperatorId(operatorId);
+            notificationRepository.save(notification);
+        }
+
+        for (User user : usersWithRole("RH")) {
+            Notification notification = baseNotification(user, RecipientType.HR, NotificationType.RECYCLAGE_DEMARRE, message);
+            notification.setRelatedPlanningId(planningId);
+            notification.setRelatedOperatorId(operatorId);
+            notificationRepository.save(notification);
+        }
+    }
+
     public static NotificationType absenceStartType() { return NotificationType.ABSENCE_DEBUT; }
     public static NotificationType absenceReturnType() { return NotificationType.ABSENCE_REPRISE; }
 }

@@ -40,7 +40,7 @@
         </router-link>
 
         <router-link to="/onboarding" class="nav-item" :class="{ active: $route.path.startsWith('/onboarding') }">
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2m-6 9l2 2 4-4"></path></svg>
           <span v-if="sidebarOpen">Onboarding</span>
         </router-link>
 
@@ -56,7 +56,7 @@
 
         <router-link v-if="canManageAbsences" to="/absences" class="nav-item" :class="{ active: $route.path === '/absences' }">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM8 15h8"></path></svg>
-          <span v-if="sidebarOpen">Absences et départs</span>
+          <span v-if="sidebarOpen">Absences et departs</span>
         </router-link>
 
         <!-- ===== SECTION: EVALUATION ===== -->
@@ -80,7 +80,7 @@
           </router-link>
 
           <router-link v-if="canManageQuestions" to="/evaluation/questions" class="nav-item" :class="{ active: $route.path.startsWith('/evaluation/questions') || $route.path.startsWith('/evaluation/validate') }">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2m-6 9l2 2 4-4"></path></svg>
             <span v-if="sidebarOpen">Validation Questions</span>
           </router-link>
 
@@ -140,6 +140,12 @@
       </div>
     </aside>
     <main :class="[sidebarOpen ? 'ml-64' : 'ml-20']" class="flex-1 transition-all duration-300">
+      <div class="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3"></div>
+        <div class="flex items-center gap-3">
+          <NotificationBell v-if="canSeeNotifications" :key="authStore.isAuthenticated + '_' + (authStore.user ? Array.from(authStore.user.roles).join(',') : '')" />
+        </div>
+      </div>
       <div class="p-6">
         <router-view />
         <ConfirmDialog />
@@ -153,6 +159,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -178,6 +185,11 @@ const canAccessRecyclage = computed(() =>
 const canManageAbsences = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'])
 )
+const canSeeNotifications = computed(() => {
+  const user = authStore.user
+  if (!user || !user.roles) return false
+  return ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE', 'AGENT_QUALITE'].some(r => user.roles.has(r))
+})
 // "Repartition Projets" - who works on which project. Primarily for RH/Superviseur
 // (need it to affect people to projects) but Chef Equipe can see their own project too.
 const showProjectAssignments = computed(() =>

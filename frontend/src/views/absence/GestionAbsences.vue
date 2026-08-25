@@ -228,6 +228,10 @@ async function confirmReturn() {
 
 function formatDate(d) {
   if (!d) return '-'
+  if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
+    const [day, month, year] = d.split('/').map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 

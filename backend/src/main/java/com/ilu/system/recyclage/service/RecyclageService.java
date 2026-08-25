@@ -3,6 +3,7 @@ package com.ilu.system.recyclage.service;
 import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
 import com.ilu.system.evaluation.entity.EvaluationTemplate;
 import com.ilu.system.evaluation.repository.EvaluationTemplateRepository;
+import com.ilu.system.notification.service.NotificationService;
 import com.ilu.system.operator.entity.Operator;
 import com.ilu.system.operator.entity.WorkstationFormation;
 import com.ilu.system.operator.repository.OperatorRepository;
@@ -40,6 +41,7 @@ public class RecyclageService {
     private final WorkstationRepository workstationRepository;
     private final EvaluationSessionRepository evaluationSessionRepository;
     private final EvaluationTemplateRepository evaluationTemplateRepository;
+    private final NotificationService notificationService;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public RecyclageService(RecyclagePlanningRepository recyclagePlanningRepository,
@@ -47,13 +49,15 @@ public class RecyclageService {
                             WorkstationFormationRepository workstationFormationRepository,
                             WorkstationRepository workstationRepository,
                             EvaluationSessionRepository evaluationSessionRepository,
-                            EvaluationTemplateRepository evaluationTemplateRepository) {
+                            EvaluationTemplateRepository evaluationTemplateRepository,
+                            NotificationService notificationService) {
         this.recyclagePlanningRepository = recyclagePlanningRepository;
         this.operatorRepository = operatorRepository;
         this.workstationFormationRepository = workstationFormationRepository;
         this.workstationRepository = workstationRepository;
         this.evaluationSessionRepository = evaluationSessionRepository;
         this.evaluationTemplateRepository = evaluationTemplateRepository;
+        this.notificationService = notificationService;
     }
 
     /** Returns the correct question flow for a recyclage or an initial planning. */
@@ -95,6 +99,14 @@ public class RecyclageService {
 
         planning.setStatus(PlanningStatus.EN_COURS);
         recyclagePlanningRepository.save(planning);
+
+        // FIX 3: no one else was told when a recyclage started - other roles only found out
+        // on their next refresh of the planning list. Notify chefs d'équipe/HR right away.
+        if (planning.getType() == PlanningType.RECYCLAGE) {
+            String operatorName = planning.getOperator().getLastName() + " " + planning.getOperator().getFirstName();
+            notificationService.createRecyclageStartedNotification(
+                    planning.getId(), planning.getOperator().getId(), operatorName, planning.getWorkstation().getName());
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("planningId", planning.getId());

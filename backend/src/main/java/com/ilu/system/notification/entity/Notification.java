@@ -55,6 +55,7 @@ public class Notification {
         RECYCLAGE_20J,
         RECYCLAGE_15J,
         RECYCLAGE_10J,
+        RECYCLAGE_DEMARRE,
         ABSENCE_DEBUT,
         ABSENCE_REPRISE,
         DEPART

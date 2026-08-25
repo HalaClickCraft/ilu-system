@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -90,7 +90,12 @@
             <tbody>
               <tr v-for="op in group.operators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50/50">
                 <td class="py-2.5 px-4">
-                  <router-link :to="'/operators/' + op.id" class="font-medium text-emerald-600 hover:underline text-sm">{{ op.lastName }} {{ op.firstName }}</router-link>
+                  <div class="flex flex-col">
+                    <router-link :to="'/operators/' + op.id" class="font-medium text-emerald-600 hover:underline text-sm">{{ op.lastName }} {{ op.firstName }}</router-link>
+                    <span class="text-[10px] text-gray-500 font-medium bg-gray-100 border rounded px-1.5 py-0.25 w-max mt-0.5">
+                      {{ op.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}
+                    </span>
+                  </div>
                 </td>
                 <td class="py-2.5 px-4 text-gray-500 text-sm">{{ op.employeeId || '-' }}</td>
                 <td class="py-2.5 px-4 text-gray-500 text-sm">{{ op.team?.name || '-' }}</td>
@@ -137,7 +142,12 @@
           <tbody>
             <tr v-for="op in filteredOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
               <td class="py-3 px-4">
-                <router-link :to="'/operators/' + op.id" class="font-medium text-emerald-600 hover:underline">{{ op.lastName }} {{ op.firstName }}</router-link>
+                <div class="flex flex-col">
+                  <router-link :to="'/operators/' + op.id" class="font-medium text-emerald-600 hover:underline">{{ op.lastName }} {{ op.firstName }}</router-link>
+                  <span class="text-[10px] text-gray-500 font-medium bg-gray-100 border rounded px-1.5 py-0.25 w-max mt-0.5">
+                    {{ op.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}
+                  </span>
+                </div>
               </td>
               <td class="py-3 px-4 text-gray-500">{{ op.employeeId || '-' }}</td>
               <td v-if="showProjectColumn" class="py-3 px-4">

@@ -230,13 +230,11 @@ const addMember = async () => {
   } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false }
 }
 const removeMember = async (memberId) => {
-  confirmData.value = { visible: true, title: 'Retirer le membre', message: 'Voulez-vous retirer ce membre du projet ?', type: 'danger' }; pendingDeleteAction.value = () => removeMemberConfirmed(memberId); return
-  try { await structureApi.deleteMember(memberId); fetchProjects() } catch (e) { console.error(e) }
+  confirmData.value = { visible: true, title: 'Retirer le membre', message: 'Voulez-vous retirer ce membre du projet ?', type: 'danger' }; pendingDeleteAction.value = () => removeMemberConfirmed(memberId)
 }
-
 const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; showWorkstationModal.value = true }
 const createWorkstation = async () => { creating.value = true; try { await structureApi.createWorkstation(wsForm.value); showWorkstationModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
-const deleteWorkstation = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le poste', message: 'Voulez-vous supprimer ce poste de travail ?', type: 'danger' }; pendingDeleteAction.value = () => deleteWorkstationConfirmed(id); return; try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
+const deleteWorkstation = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le poste', message: 'Voulez-vous supprimer ce poste de travail ?', type: 'danger' }; pendingDeleteAction.value = () => deleteWorkstationConfirmed(id) }
 
 const confirmData = ref({ visible: false, title: '', message: '', type: 'danger' })
 const pendingDeleteAction = ref(null)

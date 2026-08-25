@@ -21,12 +21,14 @@
     <div v-if="loading" class="text-center py-12 text-gray-500">Chargement...</div>
 
     <!-- QUESTIONS BY SECTION -->
-    <div v-if="!loading && !showResults" v-for="section in sections" :key="section.id" class="mb-8">
+    <template v-if="!loading && !showResults">
+<div v-for="section in sections" :key="section.id" class="mb-8">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-1 h-6 bg-blue-600 rounded"></div>
         <h2 class="text-lg font-semibold text-gray-800">{{ section.title }}</h2>
         <span class="text-xs text-gray-400">({{ section.questions.length }})</span>
       </div>
+      
 
       <div v-for="question in section.questions" :key="question.id"
         class="border border-gray-200 rounded-lg p-4 mb-3 bg-white hover:shadow-sm transition"
@@ -86,7 +88,7 @@
         Terminer l'évaluation
       </button>
     </div>
-
+</template>
     <!-- RESULTS PAGE -->
     <div v-if="showResults" class="bg-white rounded-xl shadow-lg p-8">
       <h2 class="text-2xl font-bold text-center mb-6">Resultats de l'évaluation</h2>
