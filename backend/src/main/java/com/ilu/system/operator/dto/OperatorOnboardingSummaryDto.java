@@ -8,6 +8,7 @@ public class OperatorOnboardingSummaryDto {
     private String firstName;
     private String lastName;
     private String matricule;
+    private String operatorType;
     private long totalModules;
     private long completedModules;
     private double completionPercentage;
@@ -53,6 +54,9 @@ public class OperatorOnboardingSummaryDto {
 
     public String getMatricule() { return matricule; }
     public void setMatricule(String matricule) { this.matricule = matricule; }
+
+    public String getOperatorType() { return operatorType; }
+    public void setOperatorType(String operatorType) { this.operatorType = operatorType; }
 
     public long getTotalModules() { return totalModules; }
     public void setTotalModules(long totalModules) { this.totalModules = totalModules; }

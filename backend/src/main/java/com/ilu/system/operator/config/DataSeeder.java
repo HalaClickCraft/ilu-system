@@ -123,7 +123,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedUsers() {
-        createUserIfNotFound("ADM001", "Administrateur OPmobility", "admin123", "ADMIN", "Direction");
+        createUserIfNotFound("ADM002", "Administrateur OPmobility", "admin123", "ADMIN", "Direction");
         createUserIfNotFound("admin", "Administrateur Système", "admin123", "ADMIN", "Direction");
         createUserIfNotFound("RH-001", "Responsable RH", "admin123", "RH", "Ressources Humaines");
         createUserIfNotFound("CHEF-001", "Chef d'Équipe ", "admin123", "CHEF_EQUIPE", "Production");
@@ -185,8 +185,8 @@ public class DataSeeder implements CommandLineRunner {
             .forEach(projectMemberRepository::delete);
 
         // Seed Project Members for permissions
-        seedProjectMember(project, "CHEF-001", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "Shift A");
-        seedProjectMember(project, "CHEF-002", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "Shift B");
+        seedProjectMember(project, "CHEF-001", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "A");
+        seedProjectMember(project, "CHEF-002", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "B");
         seedProjectMember(project, "AQ-001", "Agent Qualité", ProjectMember.ProjectRole.MEMBER, null);
         seedProjectMember(project, "AQ-002", "Responsable Qualité", ProjectMember.ProjectRole.QUALITY_MANAGER, null);
         seedProjectMember(project, "SUP-001", "Superviseur Usine", ProjectMember.ProjectRole.PROJECT_MANAGER, null);
@@ -309,12 +309,12 @@ public class DataSeeder implements CommandLineRunner {
         // ==================== 8 OPERATORS FOR TEST CASES ====================
 
         // Case 1: Operator in Onboarding (Phase 1 - Incomplete)
-        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", "Shift A", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
+        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", " A", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
         seedOnboardingModule(op1.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op1.getId(), "EHS Induction", "HSE001");
 
         // Case 2: Operator Ready for Practical Training (Phase 1 - 100% Onboarded)
-        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", "Shift A", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
+        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", " A", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
         seedOnboardingModule(op2.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op2.getId(), "Code de conduite", "RH001");
         seedOnboardingModule(op2.getId(), "Réglement interne", "RH001");
@@ -341,7 +341,7 @@ public class DataSeeder implements CommandLineRunner {
         seedOnboardingModule(op2.getId(), "PES", "DGT001");
 
         // Case 3: Operator in Active 12-Day Training (Phase 2 - In Progress)
-        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", "Shift A", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", " A", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
         WorkstationFormation form3 = new WorkstationFormation();
         form3.setOperator(op3);
         form3.setWorkstation(wsCooling);
@@ -360,7 +360,7 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // Case 4: Operator Completed Training Successfully (Phase 2 - Passed, Level L Certified)
-        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", "Shift A", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", " A", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
         WorkstationFormation form4 = new WorkstationFormation();
         form4.setOperator(op4);
         form4.setWorkstation(wsCooling);
@@ -383,7 +383,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op4, genericTpl);
 
         // Case 5: Operator Failed 1st Attempt (Phase 2 - Failed -> Seconde Chance Formation Active)
-        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", "Shift A", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", " A", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
         WorkstationFormation form5Failed = new WorkstationFormation();
         form5Failed.setOperator(op5);
         form5Failed.setWorkstation(wsCooling);
@@ -399,7 +399,7 @@ public class DataSeeder implements CommandLineRunner {
         formationRepository.save(form5Retry);
 
         // Case 6: Operator in Double Failure (Phase 3 - Locked / Blocked)
-        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", "Shift A", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", " A", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
         WorkstationFormation form6Failed1 = new WorkstationFormation();
         form6Failed1.setOperator(op6);
         form6Failed1.setWorkstation(wsCutting);
@@ -415,7 +415,7 @@ public class DataSeeder implements CommandLineRunner {
         formationRepository.save(form6Blocked);
 
         // Case 7: Operator Ready for Recyclage (Planned Refresher)
-        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", "Shift A", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
+        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", " A", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
         RecyclagePlanning planning = new RecyclagePlanning();
         planning.setOperator(op7);
         planning.setWorkstation(wsCooling);
@@ -428,7 +428,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op7, genericTpl);
 
         // Case 8: Level L Operator targeting Level U (Seniority Gate: 13 months seniority)
-        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", "Shift A", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
+        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", " A", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
         EvaluationSession session8 = new EvaluationSession();
         session8.setOperator(op8);
         session8.setTemplate(coolingTpl);

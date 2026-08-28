@@ -142,76 +142,6 @@
         </div>
       </div>
 
-      <!-- Section 2: Completed -->
-      <div>
-        <h2 class="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <span class="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-          Historique d'onboarding terminé ({{ completedOperators.length }})
-        </h2>
-        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-gray-50 border-b border-gray-200">
-                <th class="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[220px]">Opérateur</th>
-                <th
-                  v-for="dept in departmentNames"
-                  :key="dept"
-                  class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[120px]"
-                >
-                  {{ dept }}
-                </th>
-                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[90px]">Total</th>
-                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">Statut</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr
-                v-for="op in completedOperators"
-                :key="op.operatorId"
-                class="hover:bg-blue-50/50 cursor-pointer transition-colors"
-                @click="goToDetail(op.operatorId)"
-              >
-                <td class="px-4 py-3 sticky left-0 bg-white z-10">
-                  <div class="font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</div>
-                  <div class="text-xs text-gray-400">{{ op.matricule }}</div>
-                </td>
-                <td
-                  v-for="dept in departmentNames"
-                  :key="dept"
-                  class="text-center px-3 py-3"
-                >
-                  <div v-if="op.departmentProgress && op.departmentProgress[dept]">
-                    <span
-                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
-                    >
-                      <span>&#10003;</span>
-                      {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
-                    </span>
-                  </div>
-                  <span v-else class="text-gray-300">—</span>
-                </td>
-                <td class="text-center px-3 py-3">
-                  <span class="text-sm font-semibold text-green-600">
-                    {{ op.completionPercentage }}%
-                  </span>
-                </td>
-                <td class="text-center px-3 py-3">
-                  <span
-                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"
-                  >
-                    &#10003; Terminé
-                  </span>
-                </td>
-              </tr>
-              <tr v-if="completedOperators.length === 0">
-                <td colspan="999" class="text-center py-12 text-gray-400">
-                  Aucun historique d'onboarding terminé
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
 
     <!-- ================================================== -->
@@ -599,7 +529,6 @@ const filteredOperators = computed(() => {
 });
 
 const pendingOperators = computed(() => filteredOperators.value.filter(op => !op.onboardingComplete))
-const completedOperators = computed(() => filteredOperators.value.filter(op => op.onboardingComplete))
 
 // Active department data for detail view
 const activeDeptData = computed(() => {

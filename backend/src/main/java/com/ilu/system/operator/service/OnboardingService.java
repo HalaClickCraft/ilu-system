@@ -319,6 +319,7 @@ public class OnboardingService {
             dto.setFirstName(op.getFirstName());
             dto.setLastName(op.getLastName());
             dto.setMatricule(op.getEmployeeId());
+            dto.setOperatorType(op.getOperatorType().name());
             dto.setTotalModules(totalModuleCount);
 
             Set<Long> opCompleted = completedByOperator.getOrDefault(op.getId(), Collections.emptySet());
