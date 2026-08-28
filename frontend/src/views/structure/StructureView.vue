@@ -133,6 +133,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><input v-model="wsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Cadence cible</label><input v-model.number="wsForm.targetCadence" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Objectif Qualité (max défauts)</label><input v-model.number="wsForm.qualityObjective" type="number" placeholder="7 (< 7 défauts)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Versatilite</label><input v-model.number="wsForm.versatilityTarget" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Niveau ILU cible</label><select v-model="wsForm.targetIluLevel" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"><option value="I">I - Initiation</option><option value="L">L - Logique</option><option value="U">U - Unite</option></select></div>
           </div>
@@ -198,7 +199,12 @@ const roleBadgeClass = (r) => ({ TEAM_LEADER: 'bg-blue-100 text-blue-700', QUALI
 
 const filteredUsers = computed(() => {
   if (!memberForm.value.filterRole || !availableUsers.value.length) return []
-  return availableUsers.value.filter(u => u.roles.includes(memberForm.value.filterRole))
+  const targetRole = memberForm.value.filterRole
+  return availableUsers.value.filter(u => {
+    if (!u.roles) return false
+    const rolesList = u.roles.map(r => (typeof r === 'object' ? r.label || r.name : String(r)))
+    return rolesList.includes(targetRole)
+  })
 })
 
 const systemToProjectRole = (filterRole) => ({ CHEF_EQUIPE: 'TEAM_LEADER', AGENT_QUALITE: 'QUALITY_MANAGER', SUPERVISEUR: 'PROJECT_MANAGER', RESP_QUALITE: 'QUALITY_MANAGER', RESP_HSE: 'MEMBER' }[filterRole] || 'MEMBER')

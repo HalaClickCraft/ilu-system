@@ -1,6 +1,7 @@
 package com.ilu.system.evaluation.service;
 
 import com.ilu.system.auth.entity.User;
+import com.ilu.system.auth.entity.Role;
 import com.ilu.system.auth.repository.UserRepository;
 import com.ilu.system.evaluation.entity.*;
 import com.ilu.system.evaluation.repository.*;
@@ -12,8 +13,10 @@ import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Project;
 import com.ilu.system.structure.entity.Workstation;
+import com.ilu.system.structure.entity.Zone;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
+import com.ilu.system.structure.repository.ZoneRepository;
 import com.ilu.system.recyclage.entity.RecyclagePlanning;
 import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 
@@ -43,6 +46,7 @@ public class EvaluationService {
     private final WorkstationFormationRepository formationRepo;
     private final UserRepository userRepo;
     private final ProjectRepository projectRepo;
+    private final ZoneRepository zoneRepo;
     private final RecyclagePlanningRepository recyclagePlanningRepo;
 
     public EvaluationService(EvaluationTemplateRepository templateRepo,
@@ -56,6 +60,7 @@ public class EvaluationService {
                              WorkstationFormationRepository formationRepo,
                              UserRepository userRepo,
                              ProjectRepository projectRepo,
+                             ZoneRepository zoneRepo,
                              RecyclagePlanningRepository recyclagePlanningRepo) {
         this.templateRepo = templateRepo;
         this.sectionRepo = sectionRepo;
@@ -68,6 +73,7 @@ public class EvaluationService {
         this.formationRepo = formationRepo;
         this.userRepo = userRepo;
         this.projectRepo = projectRepo;
+        this.zoneRepo = zoneRepo;
         this.recyclagePlanningRepo = recyclagePlanningRepo;
     }
 
@@ -138,12 +144,23 @@ public class EvaluationService {
     public Map<String, Object> addQuestion(Long templateId, Long sectionId, String questionText,
                                             String expectedAnswer, Integer questionNumber,
                                             String validatorRoleStr, String complementaryQuestions,
-                                            Long createdById) {
+                                            String imageUrl, Long createdById) {
         EvaluationTemplate template = templateRepo.findById(templateId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
 
         EvaluationQuestion.ValidatorRole validatorRole = resolveValidatorRole(createdById, validatorRoleStr);
         boolean needsResponsibleValidation = validatorRole == EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
+        if (createdById != null) {
+            User creator = userRepo.findById(createdById).orElse(null);
+            if (creator != null) {
+                boolean isBypassRole = creator.getRoles().stream()
+                        .map(Role::getLabel)
+                        .anyMatch(r -> "CHEF_EQUIPE".equals(r) || "RESP_HSE".equals(r) || "RESP_QUALITE".equals(r) || "ADMIN".equals(r) || "SUPERVISEUR".equals(r) || "RH".equals(r));
+                if (isBypassRole) {
+                    needsResponsibleValidation = false;
+                }
+            }
+        }
 
         EvaluationQuestion question = new EvaluationQuestion();
         question.setTemplate(template);
@@ -153,6 +170,7 @@ public class EvaluationService {
         question.setQuestionNumber(questionNumber);
         question.setValidatorRole(validatorRole);
         question.setCreatedById(createdById);
+        question.setImageUrl(imageUrl);
 
         if (sectionId != null) {
             EvaluationSection section = sectionRepo.findById(sectionId)
@@ -173,15 +191,181 @@ public class EvaluationService {
         result.put("questionText", question.getQuestionText());
         result.put("validatorRole", question.getValidatorRole().name());
         result.put("status", question.getStatus().name());
+        result.put("imageUrl", question.getImageUrl());
         result.put("message", "Question creee en attente de validation");
         return result;
+    }
+
+    @Transactional
+    public List<Map<String, Object>> addQuestionsBatch(Long templateId, List<Map<String, Object>> questionsList, Long createdById) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Map<String, Object> body : questionsList) {
+            Long sectionId = body.get("sectionId") != null ? Long.valueOf(body.get("sectionId").toString()) : null;
+            String questionText = (String) body.get("questionText");
+            String expectedAnswer = (String) body.get("expectedAnswer");
+            Integer questionNumber = body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null;
+            String validatorRole = (String) body.get("validatorRole");
+            String complementaryQuestions = (String) body.get("complementaryQuestions");
+            String imageUrl = (String) body.get("imageUrl");
+            
+            results.add(addQuestion(templateId, sectionId, questionText, expectedAnswer, questionNumber, validatorRole, complementaryQuestions, imageUrl, createdById));
+        }
+        return results;
+    }
+
+    @Transactional
+    public List<Map<String, Object>> importCertificationsBatch(List<Map<String, Object>> certificationsList) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Map<String, Object> cert : certificationsList) {
+            String employeeId = (String) cert.get("employeeId");
+            String operatorName = (String) cert.get("operatorName");
+            String workstationName = (String) cert.get("workstationName");
+            String level = (String) cert.get("level");
+            String validationDateStr = (String) cert.get("validationDate");
+
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("employeeId", employeeId);
+            res.put("operatorName", operatorName);
+            res.put("workstationName", workstationName);
+
+            if ((employeeId == null && operatorName == null) || workstationName == null || level == null) {
+                res.put("status", "FAILED");
+                res.put("message", "Données manquantes (matricule/nom, poste de travail ou niveau requis)");
+                results.add(res);
+                continue;
+            }
+
+            // 1. Find or Auto-Create Workstation (with Zone & Project)
+            Optional<Workstation> wsOpt = workstationRepo.findByName(workstationName);
+            if (wsOpt.isEmpty()) {
+                String targetWs = workstationName.replaceAll("\\s+", " ").trim().toLowerCase();
+                wsOpt = workstationRepo.findAll().stream()
+                        .filter(w -> w.getName().replaceAll("\\s+", " ").trim().equalsIgnoreCase(targetWs)
+                                || targetWs.contains(w.getName().toLowerCase())
+                                || w.getName().toLowerCase().contains(targetWs))
+                        .findFirst();
+            }
+
+            Workstation workstation;
+            if (wsOpt.isPresent()) {
+                workstation = wsOpt.get();
+            } else {
+                String projNameStr = (cert.get("projectName") != null && !cert.get("projectName").toString().isBlank()) ? cert.get("projectName").toString().trim() : "Projet Importé";
+                Project project = projectRepo.findAll().stream()
+                        .filter(p -> p.getName().equalsIgnoreCase(projNameStr))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            Project p = new Project();
+                            p.setName(projNameStr);
+                            return projectRepo.save(p);
+                        });
+
+                String zoneNameStr = (cert.get("zoneName") != null && !cert.get("zoneName").toString().isBlank()) ? cert.get("zoneName").toString().trim() : "Zone Importée";
+                Zone zone = zoneRepo.findAll().stream()
+                        .filter(z -> z.getProject() != null && z.getProject().getId().equals(project.getId()) && z.getName().equalsIgnoreCase(zoneNameStr))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            Zone z = new Zone();
+                            z.setName(zoneNameStr);
+                            z.setProject(project);
+                            return zoneRepo.save(z);
+                        });
+
+                workstation = new Workstation();
+                workstation.setName(workstationName);
+                workstation.setZone(zone);
+                workstation.setTargetIluLevel("L");
+                workstation = workstationRepo.save(workstation);
+            }
+
+            // 2. Find or Auto-Create Operator
+            Optional<Operator> opOpt = Optional.empty();
+            if (employeeId != null && !employeeId.isBlank()) {
+                opOpt = operatorRepo.findByEmployeeId(employeeId);
+            }
+            if (opOpt.isEmpty() && operatorName != null && !operatorName.isBlank()) {
+                String targetName = operatorName.replaceAll("\\s+", " ").trim().toLowerCase();
+                opOpt = operatorRepo.findAll().stream()
+                        .filter(o -> {
+                            String fullName = (o.getLastName() + " " + o.getFirstName()).replaceAll("\\s+", " ").trim().toLowerCase();
+                            String reverseName = (o.getFirstName() + " " + o.getLastName()).replaceAll("\\s+", " ").trim().toLowerCase();
+                            return fullName.equals(targetName) || reverseName.equals(targetName);
+                        })
+                        .findFirst();
+            }
+
+            Operator operator;
+            if (opOpt.isPresent()) {
+                operator = opOpt.get();
+                if (operator.getProject() == null && workstation.getZone() != null && workstation.getZone().getProject() != null) {
+                    operator.setProject(workstation.getZone().getProject());
+                    operator = operatorRepo.save(operator);
+                }
+            } else {
+                operator = new Operator();
+                String cleanName = operatorName != null ? operatorName.trim() : "OPÉRATEUR IMPORTÉ";
+                String[] parts = cleanName.split("\\s+");
+                if (parts.length > 1) {
+                    operator.setLastName(parts[0]);
+                    operator.setFirstName(cleanName.substring(parts[0].length()).trim());
+                } else {
+                    operator.setLastName(cleanName);
+                    operator.setFirstName("");
+                }
+                String empId = (employeeId != null && !employeeId.isBlank()) ? employeeId : "MAT_" + (System.currentTimeMillis() % 100000) + "_" + (int)(Math.random() * 1000);
+                operator.setEmployeeId(empId);
+                operator.setRole("Opérateur");
+                operator.setHireDate(LocalDate.now());
+                operator.setActive(true);
+                if (workstation.getZone() != null && workstation.getZone().getProject() != null) {
+                    operator.setProject(workstation.getZone().getProject());
+                }
+                operator = operatorRepo.save(operator);
+            }
+
+            // Find or create template for this workstation
+            final Workstation finalWs = workstation;
+            EvaluationTemplate template = templateRepo.findByWorkstationId(finalWs.getId())
+                    .stream().findFirst()
+                    .orElseGet(() -> {
+                        EvaluationTemplate temp = new EvaluationTemplate();
+                        temp.setName("Template Importé - " + finalWs.getName());
+                        temp.setWorkstation(finalWs);
+                        temp.setType(EvaluationTemplate.TemplateType.POSTE_PRODUCTION);
+                        temp.setStatus(EvaluationTemplate.TemplateStatus.VALIDATED);
+                        return templateRepo.save(temp);
+                    });
+
+            LocalDate validationDate = LocalDate.now();
+            if (validationDateStr != null) {
+                try {
+                    validationDate = LocalDate.parse(validationDateStr);
+                } catch (Exception ignored) {
+                }
+            }
+
+            EvaluationSession session = new EvaluationSession();
+            session.setOperator(operator);
+            session.setTemplate(template);
+            session.setStatus(EvaluationSession.SessionStatus.COMPLETED);
+            session.setNiveau(level.toUpperCase().trim());
+            session.setMode("INITIAL");
+            session.setCreatedAt(validationDate.atStartOfDay());
+            session.setCompletedAt(validationDate.atStartOfDay());
+            sessionRepo.save(session);
+
+            res.put("status", "SUCCESS");
+            res.put("message", "Certification " + level + " enregistrée avec succès");
+            results.add(res);
+        }
+        return results;
     }
 
     @Transactional
     public Map<String, Object> updateQuestion(Long questionId, String questionText,
                                                String expectedAnswer, String validatorRoleStr,
                                                Integer questionNumber, Long sectionId, Long templateId,
-                                               String complementaryQuestions) {
+                                               String complementaryQuestions, String imageUrl) {
         EvaluationQuestion question = questionRepo.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
 
@@ -197,6 +381,9 @@ public class EvaluationService {
         if (questionNumber != null) {
             question.setQuestionNumber(questionNumber);
         }
+        if (imageUrl != null) {
+            question.setImageUrl(imageUrl.isBlank() ? null : imageUrl);
+        }
         if (validatorRoleStr != null) {
             try {
                 question.setValidatorRole(EvaluationQuestion.ValidatorRole.valueOf(validatorRoleStr));
@@ -204,7 +391,20 @@ public class EvaluationService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role validateur invalide: " + validatorRoleStr);
             }
         }
-        if (question.getValidatorRole() == EvaluationQuestion.ValidatorRole.AGENT_QUALITE) {
+        boolean needsResponsibleValidation = question.getValidatorRole() == EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
+        if (question.getCreatedById() != null) {
+            User creator = userRepo.findById(question.getCreatedById()).orElse(null);
+            if (creator != null) {
+                boolean isBypassRole = creator.getRoles().stream()
+                        .map(Role::getLabel)
+                        .anyMatch(r -> "CHEF_EQUIPE".equals(r) || "RESP_HSE".equals(r) || "RESP_QUALITE".equals(r) || "ADMIN".equals(r) || "SUPERVISEUR".equals(r) || "RH".equals(r));
+                if (isBypassRole) {
+                    needsResponsibleValidation = false;
+                }
+            }
+        }
+
+        if (needsResponsibleValidation) {
             if (question.getStatus() != EvaluationQuestion.QuestionStatus.PENDING &&
                     question.getStatus() != EvaluationQuestion.QuestionStatus.REJECTED) {
                 question.setStatus(EvaluationQuestion.QuestionStatus.PENDING);
@@ -227,6 +427,7 @@ public class EvaluationService {
         result.put("questionNumber", question.getQuestionNumber());
         result.put("validatorRole", question.getValidatorRole().name());
         result.put("status", question.getStatus().name());
+        result.put("imageUrl", question.getImageUrl());
         result.put("message", "Question mise a jour avec succes");
         return result;
     }
@@ -560,25 +761,22 @@ public class EvaluationService {
         boolean isGenericTemplate = session.getTemplate().getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON;
 
         if (isGenericTemplate) {
-    if (genericPct < 100.0) {
-        session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
-        session.setDecision("BLOCKED_GENERIC");
-        session.setNiveau("NON_APTE");
-        session.setCompletedAt(LocalDateTime.now());
-        sessionRepo.save(session);
-        // FIX: an evaluation started from a recyclage/annual planning was left
-        // stuck on EN_COURS forever when the operator failed the generic part,
-        // since this branch never touched the linked RecyclagePlanning row.
-        revertMatchingPlanningOnFailure(session);
-        return buildResult(session, "BLOQUE: La partie generique doit etre a 100%");
-    }
-    session.setStatus(EvaluationSession.SessionStatus.PASSED);
-    session.setDecision("PASSED_GENERIC");
-    session.setNiveau("U");
-    session.setCompletedAt(LocalDateTime.now());
-    sessionRepo.save(session);
-    return buildResult(session, "Partie generique reussie a 100%");
-}
+            if (genericPct < 100.0) {
+                session.setStatus(EvaluationSession.SessionStatus.BLOCKED);
+                session.setDecision("BLOCKED_GENERIC");
+                session.setNiveau("NON_APTE");
+            } else {
+                session.setStatus(EvaluationSession.SessionStatus.PASSED);
+                session.setDecision("PASSED_GENERIC");
+                session.setNiveau("U");
+            }
+            session.setCompletedAt(LocalDateTime.now());
+            sessionRepo.save(session);
+            return buildResult(session, genericPct < 100.0
+                    ? "BLOQUE: La partie generique doit etre a 100%"
+                    : "Partie generique reussie a 100%");
+        }
+
         // PRODUCTION template: verify generic was passed, then determine niveau
         boolean genericOk = hasPassedGeneric(session.getOperator().getId());
         if (!genericOk) {
@@ -681,38 +879,6 @@ public class EvaluationService {
             item.setEvaluationSessionId(session.getId());
             recyclagePlanningRepo.save(item);
         });
-
-        // Auto-schedule the next RECYCLAGE 6 months later
-        if (workstation != null) {
-            LocalDate nextRecyclageDate = LocalDate.now().plusMonths(6);
-            List<RecyclagePlanning> existing = recyclagePlanningRepo.findByOperator_Id(session.getOperator().getId());
-            boolean hasActiveRecyclage = existing.stream().anyMatch(p -> 
-                p.getWorkstation().getId().equals(workstation.getId())
-                && p.getType() == RecyclagePlanning.PlanningType.RECYCLAGE 
-                && (p.getStatus() == RecyclagePlanning.PlanningStatus.PLANIFIEE || p.getStatus() == RecyclagePlanning.PlanningStatus.EN_COURS)
-            );
-            
-            if (!hasActiveRecyclage) {
-                RecyclagePlanning nextRecy = new RecyclagePlanning();
-                nextRecy.setOperator(session.getOperator());
-                nextRecy.setWorkstation(workstation);
-                nextRecy.setType(RecyclagePlanning.PlanningType.RECYCLAGE);
-                nextRecy.setScheduledDate(nextRecyclageDate);
-                nextRecy.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
-                
-                Long projectId = (workstation.getZone() != null && workstation.getZone().getProject() != null)
-                        ? workstation.getZone().getProject().getId() : null;
-                nextRecy.setProjectId(projectId);
-                
-                if (session.getOperator().getOperatorType() == Operator.OperatorType.NOUVEAU_RECRU) {
-                    nextRecy.setSource(RecyclagePlanning.PlanningSource.NOUVELLE_RECRUE);
-                } else {
-                    nextRecy.setSource(RecyclagePlanning.PlanningSource.ANNUELLE);
-                }
-                
-                recyclagePlanningRepo.save(nextRecy);
-            }
-        }
     }
 
     private void createSecondChanceFormationAfterEvaluationFailure(EvaluationSession session) {
@@ -907,9 +1073,24 @@ public class EvaluationService {
             item.put("workstationName", f.getWorkstation().getName());
             item.put("formationStartDate", f.getStartDate() != null ? f.getStartDate().toString() : null);
             item.put("formationEndDate", f.getEndDate() != null ? f.getEndDate().toString() : null);
-            item.put("hasEvaluation", false);
             item.put("seniorityMonths", operator.getHireDate() != null
                     ? Period.between(operator.getHireDate(), LocalDate.now()).toTotalMonths() : 0);
+
+            Optional<EvaluationSession> activeSession = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
+                    .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.IN_PROGRESS)
+                    .filter(s -> f.getId().equals(s.getWorkstationFormationId()))
+                    .findFirst();
+
+            if (activeSession.isPresent()) {
+                item.put("status", "EN_COURS");
+                item.put("sessionId", activeSession.get().getId());
+                item.put("hasEvaluation", true);
+            } else {
+                item.put("status", "NON_DEMARREE");
+                item.put("sessionId", null);
+                item.put("hasEvaluation", false);
+            }
+
             pending.add(item);
         }
 
@@ -937,6 +1118,20 @@ public class EvaluationService {
                 item.put("formationId", f.getId());
                 item.put("workstationName", f.getWorkstation().getName());
                 item.put("formationEndDate", f.getEndDate() != null ? f.getEndDate().toString() : null);
+
+                Optional<EvaluationSession> activeSession = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(op.getId()).stream()
+                        .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.IN_PROGRESS)
+                        .filter(s -> f.getId().equals(s.getWorkstationFormationId()))
+                        .findFirst();
+
+                if (activeSession.isPresent()) {
+                    item.put("status", "EN_COURS");
+                    item.put("sessionId", activeSession.get().getId());
+                } else {
+                    item.put("status", "NON_DEMARREE");
+                    item.put("sessionId", null);
+                }
+
                 allPending.add(item);
             }
         }
@@ -1031,29 +1226,12 @@ public class EvaluationService {
 
     // ======================== POLYVALENCE MATRIX ========================
 
-    private Optional<EvaluationSession> getLatestPassedSessionForWorkstation(Long operatorId, Long workstationId, Integer year, String type) {
+    private Optional<EvaluationSession> getLatestPassedSessionForWorkstation(Long operatorId, Long workstationId) {
         return sessionRepo.findByOperatorIdOrderByCreatedAtDesc(operatorId).stream()
                 .filter(s -> s.getTemplate().getWorkstation() != null
                         && s.getTemplate().getWorkstation().getId().equals(workstationId)
                         && (s.getStatus() == EvaluationSession.SessionStatus.PASSED
                             || s.getStatus() == EvaluationSession.SessionStatus.COMPLETED))
-                .filter(s -> {
-                    if (year == null) return true;
-                    LocalDateTime compDate = s.getCompletedAt() != null ? s.getCompletedAt() : s.getCreatedAt();
-                    return compDate != null && compDate.getYear() == year;
-                })
-                .filter(s -> {
-                    if (type == null) return true;
-                    String sessionMode = s.getMode();
-                    if ("INITIALE".equals(type) || "INITIALE_NOUVELLE_RECRUE".equals(type)) {
-                        return "NOUVELLE_RECRUE".equalsIgnoreCase(sessionMode) || "INITIAL".equalsIgnoreCase(sessionMode) || sessionMode == null;
-                    } else if ("RECYCLAGE".equals(type)) {
-                        return "RECYCLAGE".equalsIgnoreCase(sessionMode);
-                    } else if ("EVALUATION_ANNUELLE_MOIS_1".equals(type)) {
-                        return "ANNUELLE".equalsIgnoreCase(sessionMode);
-                    }
-                    return true;
-                })
                 .findFirst();
     }
 
@@ -1075,11 +1253,7 @@ public class EvaluationService {
                 .findFirst();
     }
 
-    public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
-        return getPolyvalenceMatrix(projectId, null, null);
-    }
-
-    public Map<String, Object> getPolyvalenceMatrix(Long projectId, Integer year, String type) {
+public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         List<Workstation> workstations;
         String projectName = null;
 
@@ -1125,6 +1299,7 @@ public class EvaluationService {
             row.put("operatorId", op.getId());
             row.put("operatorName", op.getLastName() + " " + op.getFirstName());
             row.put("employeeId", op.getEmployeeId());
+            row.put("operatorType", op.getOperatorType().name());
             row.put("seniorityMonths", op.getHireDate() != null
                     ? Period.between(op.getHireDate(), LocalDate.now()).toTotalMonths() : 0);
 
@@ -1142,7 +1317,7 @@ public class EvaluationService {
 
             Map<Long, Map<String, Object>> wsDataMap = new LinkedHashMap<>();
             for (Workstation ws : workstations) {
-                Optional<EvaluationSession> latestWs = getLatestPassedSessionForWorkstation(op.getId(), ws.getId(), year, type);
+                Optional<EvaluationSession> latestWs = getLatestPassedSessionForWorkstation(op.getId(), ws.getId());
                 Map<String, Object> wsVal = new LinkedHashMap<>();
                 if (latestWs.isPresent()) {
                     EvaluationSession s = latestWs.get();
@@ -1156,24 +1331,13 @@ public class EvaluationService {
                     wsVal.put("mode", "");
                     wsVal.put("date", "");
                 }
-                Optional<RecyclagePlanning> recyclageOpt = Optional.empty();
-                if (year != null && type != null) {
-                    List<RecyclagePlanning> plannings = recyclagePlanningRepo.findByOperator_Id(op.getId());
-                    recyclageOpt = plannings.stream()
-                            .filter(p -> p.getWorkstation().getId().equals(ws.getId()))
-                            .filter(p -> p.getType().name().equals(type))
-                            .filter(p -> p.getScheduledDate().getYear() == year)
-                            .findFirst();
-                }
-                if (recyclageOpt.isEmpty()) {
-                    recyclageOpt = recyclagePlanningRepo.findTopByOperator_IdAndWorkstation_IdAndTypeOrderByScheduledDateDesc(
-                            op.getId(), ws.getId(), RecyclagePlanning.PlanningType.RECYCLAGE);
-                }
-                recyclageOpt.ifPresent(recyclage -> {
-                    wsVal.put("recyclageStatus", recyclage.getStatus().name());
-                    wsVal.put("recyclageDate", recyclage.getScheduledDate().format(dtf));
-                    wsVal.put("recyclageLevel", recyclage.getNiveauObtenu());
-                });
+                recyclagePlanningRepo.findTopByOperator_IdAndWorkstation_IdAndTypeOrderByScheduledDateDesc(
+                                op.getId(), ws.getId(), RecyclagePlanning.PlanningType.RECYCLAGE)
+                        .ifPresent(recyclage -> {
+                            wsVal.put("recyclageStatus", recyclage.getStatus().name());
+                            wsVal.put("recyclageDate", recyclage.getScheduledDate().format(dtf));
+                            wsVal.put("recyclageLevel", recyclage.getNiveauObtenu());
+                        });
                 wsDataMap.put(ws.getId(), wsVal);
             }
             row.put("workstations", wsDataMap);
@@ -1278,6 +1442,9 @@ public class EvaluationService {
             Map<String, Object> aMap = new LinkedHashMap<>();
             aMap.put("questionId", a.getQuestion().getId());
             aMap.put("questionText", a.getQuestion().getQuestionText());
+            aMap.put("expectedAnswer", a.getQuestion().getExpectedAnswer());
+            aMap.put("complementaryQuestions", a.getQuestion().getComplementaryQuestions());
+            aMap.put("imageUrl", a.getQuestion().getImageUrl());
             aMap.put("answer", a.getAnswer());
             aMap.put("comment", a.getComment());
             return aMap;
@@ -1329,6 +1496,7 @@ public class EvaluationService {
                                         ? userRepo.findById(q.getCreatedById()).map(User::getName).orElse("Inconnu")
                                         : "Inconnu");
                                 qMap.put("complementaryQuestions", q.getComplementaryQuestions());
+                                qMap.put("imageUrl", q.getImageUrl());
                                 return qMap;
                             }).collect(Collectors.toList());
                     sMap.put("questions", qs);
@@ -1383,23 +1551,28 @@ public class EvaluationService {
         return List.of(EvaluationQuestion.ValidatorRole.CHEF_EQUIPE);
     }
 
-    private String determineNiveau(Long seniorityMonths, double productionPercentage) {
-        if (seniorityMonths < 6) {
-            if (productionPercentage >= 70) {
-                return "I";
-            }
-            return "NON_VALIDE";
-        } else if (seniorityMonths < 12) {
-            if (productionPercentage >= 81) {
-                return "L";
-            }
-            return "NON_VALIDE";
-        } else {
-            if (productionPercentage >= 91) {
-                return "U";
-            }
+    /**
+     * Determines the level for one workstation. Seniority belongs to the operator
+     * globally; a passed score below a promotion threshold still qualifies the
+     * operator at the lower level for the workstation being evaluated.
+     */
+    String determineNiveau(Long seniorityMonths, double productionPercentage) {
+        // 70% is the minimum pass mark for every seniority bracket.
+        if (productionPercentage < 70) {
             return "NON_VALIDE";
         }
+
+        long months = seniorityMonths != null ? seniorityMonths : 0;
+        if (months < 6) {
+            return "I";
+        }
+        if (months < 12) {
+            return productionPercentage >= 81 ? "L" : "I";
+        }
+        if (productionPercentage >= 91) {
+            return "U";
+        }
+        return productionPercentage >= 81 ? "L" : "I";
     }
 
     private String getNiveauForOperatorWorkstation(Long operatorId, Long workstationId) {
@@ -1488,7 +1661,7 @@ public class EvaluationService {
         for (Operator op : operators) {
             for (Workstation ws : workstations) {
                 List<WorkstationFormation> formations = formationRepo.findByOperator_Id(op.getId()).stream()
-                        .filter(f -> f.getWorkstation().getId().equals(ws.getId()) && "FAILED".equals(f.getStatus()))
+                        .filter(f -> f.getWorkstation().getId().equals(ws.getId()) && ("FAILED".equals(f.getStatus()) || "BLOCKED".equals(f.getStatus())))
                         .collect(Collectors.toList());
 
                 List<EvaluationSession> sessions = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(op.getId()).stream()
@@ -1530,6 +1703,36 @@ public class EvaluationService {
             }
         }
         return list;
+    }
+
+    public Map<String, Object> saveQuestionImage(org.springframework.web.multipart.MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Fichier vide");
+        }
+        try {
+            java.io.File uploadDir = new java.io.File(System.getProperty("user.dir"), "uploads/questions").getAbsoluteFile();
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String filename = java.util.UUID.randomUUID().toString() + extension;
+            java.io.File destinationFile = new java.io.File(uploadDir, filename).getAbsoluteFile();
+
+            file.transferTo(destinationFile);
+
+            String relativeUrl = "/uploads/questions/" + filename;
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("imageUrl", relativeUrl);
+            res.put("status", "SUCCESS");
+            return res;
+        } catch (Exception e) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Erreur lors de l'enregistrement de l'image: " + e.getMessage());
+        }
     }
 
 }

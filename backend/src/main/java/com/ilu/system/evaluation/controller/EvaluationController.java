@@ -43,7 +43,7 @@ public class EvaluationController {
     private boolean canRunEvaluation(Authentication authentication) {
         Set<String> roles = getCurrentRoles(authentication);
         return roles.contains("ADMIN") || roles.contains("CHEF_EQUIPE") || roles.contains("AGENT_QUALITE")
-                || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR");
+                || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR") || roles.contains("RH") || roles.contains("RESP_HSE");
     }
 
     @PostMapping("/templates")
@@ -91,6 +91,16 @@ public class EvaluationController {
         ));
     }
 
+    @PostMapping("/questions/upload-image")
+    public ResponseEntity<Map<String, Object>> uploadQuestionImage(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            Authentication authentication) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
+        }
+        return ResponseEntity.ok(evaluationService.saveQuestionImage(file));
+    }
+
     @PostMapping("/templates/{templateId}/questions")
     public ResponseEntity<Map<String, Object>> addQuestion(
             @PathVariable Long templateId,
@@ -108,8 +118,21 @@ public class EvaluationController {
                 body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null,
                 (String) body.get("validatorRole"),
                 body.get("complementaryQuestions") != null ? body.get("complementaryQuestions").toString() : null,
+                body.get("imageUrl") != null ? (String) body.get("imageUrl") : null,
                 userId
         ));
+    }
+
+    @PostMapping("/templates/{templateId}/questions/batch")
+    public ResponseEntity<List<Map<String, Object>>> addQuestionsBatch(
+            @PathVariable Long templateId,
+            @RequestBody List<Map<String, Object>> body,
+            Authentication authentication) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(null);
+        }
+        Long userId = getCurrentUserId(authentication);
+        return ResponseEntity.ok(evaluationService.addQuestionsBatch(templateId, body, userId));
     }
 
     @PutMapping("/questions/{questionId}")
@@ -128,7 +151,8 @@ public class EvaluationController {
                 body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null,
                 body.get("sectionId") != null ? Long.valueOf(body.get("sectionId").toString()) : null,
                 body.get("templateId") != null ? Long.valueOf(body.get("templateId").toString()) : null,
-                body.get("complementaryQuestions") != null ? (String) body.get("complementaryQuestions") : null
+                body.get("complementaryQuestions") != null ? (String) body.get("complementaryQuestions") : null,
+                body.get("imageUrl") != null ? (String) body.get("imageUrl") : null
         ));
     }
 
@@ -246,10 +270,18 @@ public class EvaluationController {
 
     @GetMapping("/matrix")
     public ResponseEntity<Map<String, Object>> getPolyvalenceMatrix(
-            @RequestParam(name = "projectId", required = false) Long projectId,
-            @RequestParam(name = "year", required = false) Integer year,
-            @RequestParam(name = "type", required = false) String type) {
-        return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix(projectId, year, type));
+            @RequestParam(name = "projectId", required = false) Long projectId) {
+        return ResponseEntity.ok(evaluationService.getPolyvalenceMatrix(projectId));
+    }
+
+    @PostMapping("/matrix/import-certifications")
+    public ResponseEntity<List<Map<String, Object>>> importCertifications(
+            @RequestBody List<Map<String, Object>> body,
+            Authentication authentication) {
+        if (!hasRole(authentication, "ADMIN") && !hasRole(authentication, "RH") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_HSE") && !hasRole(authentication, "SUPERVISEUR")) {
+            return ResponseEntity.status(403).body(null);
+        }
+        return ResponseEntity.ok(evaluationService.importCertificationsBatch(body));
     }
 
     // FIX: Added CHEF_EQUIPE and AGENT_QUALITE to the role check.

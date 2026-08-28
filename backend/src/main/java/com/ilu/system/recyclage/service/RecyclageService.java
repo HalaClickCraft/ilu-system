@@ -81,7 +81,9 @@ public class RecyclageService {
                 || planning.getType() == PlanningType.INITIALE;
         EvaluationTemplate firstTemplate = template;
         Long nextTemplateId = null;
-        String mode = planning.getType() == PlanningType.RECYCLAGE ? "RECYCLAGE"
+        String mode = (planning.getType() == PlanningType.RECYCLAGE 
+                || planning.getType() == PlanningType.RECYCLAGE_NOUVELLE_RECRUE
+                || planning.getType() == PlanningType.EVALUATION_ANNUELLE_MOIS_7) ? "RECYCLAGE"
                 : planning.getType() == PlanningType.EVALUATION_ANNUELLE_MOIS_1 ? "ANNUELLE"
                 : "NOUVELLE_RECRUE";
 
@@ -102,7 +104,9 @@ public class RecyclageService {
 
         // FIX 3: no one else was told when a recyclage started - other roles only found out
         // on their next refresh of the planning list. Notify chefs d'équipe/HR right away.
-        if (planning.getType() == PlanningType.RECYCLAGE) {
+        if (planning.getType() == PlanningType.RECYCLAGE 
+                || planning.getType() == PlanningType.RECYCLAGE_NOUVELLE_RECRUE
+                || planning.getType() == PlanningType.EVALUATION_ANNUELLE_MOIS_7) {
             String operatorName = planning.getOperator().getLastName() + " " + planning.getOperator().getFirstName();
             notificationService.createRecyclageStartedNotification(
                     planning.getId(), planning.getOperator().getId(), operatorName, planning.getWorkstation().getName());
@@ -125,8 +129,8 @@ public class RecyclageService {
         int skipped = 0;
 
         List<Operator> operators = operatorRepository.findByActiveTrue();
-        LocalDate januaryDate = LocalDate.of(year, 1, 15);
-        LocalDate julyDate = LocalDate.of(year, 7, 15);
+        LocalDate januaryDate = LocalDate.of(year, 1, 26);
+        LocalDate julyDate = LocalDate.of(year, 7, 26);
 
         for (Operator operator : operators) {
             final Long operatorId = operator.getId();
@@ -187,15 +191,23 @@ public class RecyclageService {
         return result;
     }
 
-    /** Ensures the year's annual cycle exists automatically, including after a deployment. */
+    /** Ensures the year's annual cycle exists automatically for current and next year. */
     @Scheduled(cron = "0 5 0 * * *")
     public void generateCurrentYearAnnualEvaluations() {
-        generateAnnualEvaluations(LocalDate.now().getYear());
+        int currentYear = LocalDate.now().getYear();
+        generateAnnualEvaluations(currentYear);
+        generateAnnualEvaluations(currentYear + 1);
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void generateCurrentYearAnnualEvaluationsOnStartup() {
-        generateCurrentYearAnnualEvaluations();
+        try {
+            int currentYear = LocalDate.now().getYear();
+            generateAnnualEvaluations(currentYear);
+            generateAnnualEvaluations(currentYear + 1);
+        } catch (Exception e) {
+            System.err.println("Failed to generate annual evaluations on startup (dangling database records): " + e.getMessage());
+        }
     }
 
     @Transactional
@@ -368,9 +380,16 @@ public class RecyclageService {
     }
 
     public Long getPlanningProjectId(Long planningId) {
-        return recyclagePlanningRepository.findById(planningId)
-                .orElseThrow(() -> new IllegalArgumentException("Planning introuvable"))
-                .getProjectId();
+        RecyclagePlanning planning = recyclagePlanningRepository.findById(planningId)
+                .orElseThrow(() -> new IllegalArgumentException("Planning introuvable"));
+        if (planning.getProjectId() != null) {
+            return planning.getProjectId();
+        }
+        if (planning.getWorkstation() != null && planning.getWorkstation().getZone() != null 
+                && planning.getWorkstation().getZone().getProject() != null) {
+            return planning.getWorkstation().getZone().getProject().getId();
+        }
+        return null;
     }
 
     public Long getWorkstationProjectId(Long workstationId) {
@@ -389,6 +408,9 @@ public class RecyclageService {
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (RecyclagePlanning planning : plannings) {
+            if (planning.getOperator() != null && !Boolean.TRUE.equals(planning.getOperator().getActive())) {
+                continue;
+            }
             if (projectId != null && !projectId.equals(planning.getProjectId())) {
                 continue;
             }
@@ -416,6 +438,9 @@ public class RecyclageService {
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (RecyclagePlanning planning : plannings) {
+            if (planning.getOperator() != null && !Boolean.TRUE.equals(planning.getOperator().getActive())) {
+                continue;
+            }
             if (projectId != null && !projectId.equals(planning.getProjectId())) {
                 continue;
             }
@@ -426,7 +451,7 @@ public class RecyclageService {
                         continue;
                     }
                 } catch (IllegalArgumentException e) {
-                    // invalid status filter, skip
+                    
                 }
             }
             if (operatorId != null && !operatorId.equals(planning.getOperator().getId())) {
@@ -510,6 +535,9 @@ public class RecyclageService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (RecyclagePlanning planning : plannings) {
             if (planning.getStatus() != PlanningStatus.PLANIFIEE) {
+                continue;
+            }
+            if (planning.getOperator() != null && !Boolean.TRUE.equals(planning.getOperator().getActive())) {
                 continue;
             }
             if (projectId != null && !projectId.equals(planning.getProjectId())) {

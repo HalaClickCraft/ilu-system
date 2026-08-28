@@ -15,11 +15,11 @@
     <template v-else>
       <!-- Stats cards -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div class="bg-white rounded-lg border p-3 text-center"><p class="text-2xl font-bold text-gray-900">{{ historyData.totalSessions || 0 }}</p><p class="text-xs text-gray-500">Total</p></div>
-        <div class="bg-green-50 rounded-lg border border-green-200 p-3 text-center"><p class="text-2xl font-bold text-green-600">{{ historyData.totalPassed || 0 }}</p><p class="text-xs text-green-700">Reussi</p></div>
-        <div class="bg-red-50 rounded-lg border border-red-200 p-3 text-center"><p class="text-2xl font-bold text-red-600">{{ historyData.totalFailed || 0 }}</p><p class="text-xs text-red-700">Echoue</p></div>
-        <div class="bg-orange-50 rounded-lg border border-orange-200 p-3 text-center"><p class="text-2xl font-bold text-orange-600">{{ historyData.totalBlocked || 0 }}</p><p class="text-xs text-orange-700">Bloque</p></div>
-        <div class="bg-purple-50 rounded-lg border border-purple-200 p-3 text-center"><p class="text-2xl font-bold text-purple-600">{{ historyData.totalSecondChance || 0 }}</p><p class="text-xs text-purple-700">2eme chance</p></div>
+        <div class="bg-white rounded-lg border p-3 text-center"><p class="text-2xl font-bold text-gray-900">{{ scopedHistory.length }}</p><p class="text-xs text-gray-500">Total</p></div>
+        <div class="bg-green-50 rounded-lg border border-green-200 p-3 text-center"><p class="text-2xl font-bold text-green-600">{{ scopedHistory.filter(h => h.status === 'PASSED').length }}</p><p class="text-xs text-green-700">Reussi</p></div>
+        <div class="bg-red-50 rounded-lg border border-red-200 p-3 text-center"><p class="text-2xl font-bold text-red-600">{{ scopedHistory.filter(h => h.status === 'FAILED').length }}</p><p class="text-xs text-red-700">Echoue</p></div>
+        <div class="bg-orange-50 rounded-lg border border-orange-200 p-3 text-center"><p class="text-2xl font-bold text-orange-600">{{ scopedHistory.filter(h => h.status === 'BLOCKED').length }}</p><p class="text-xs text-orange-700">Bloque</p></div>
+        <div class="bg-purple-50 rounded-lg border border-purple-200 p-3 text-center"><p class="text-2xl font-bold text-purple-600">{{ scopedHistory.filter(h => h.isSecondChance).length }}</p><p class="text-xs text-purple-700">2eme chance</p></div>
       </div>
 
       <!-- Waiting for production alert -->
@@ -78,7 +78,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr v-for="h in filteredHistory" :key="h.sessionId" class="hover:bg-gray-50">
+            <tr v-for="h in filteredHistory" :key="h.sessionId" class="hover:bg-blue-50/40 cursor-pointer transition-colors" @click="$router.push({ name: 'evaluation-session', params: { id: h.sessionId } })">
               <td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{{ formatDate(h.completedAt || h.createdAt) }}</td>
               <td class="px-3 py-3"><p class="font-medium text-gray-900 text-sm">{{ h.operatorName }}</p><p class="text-xs text-gray-400">{{ h.employeeId }}</p></td>
               <td class="px-3 py-3">
@@ -161,8 +161,20 @@ function formatDate(dateStr) {
   }
 }
 
+import { useUserScope } from '@/composables/useUserScope'
+import { operatorsApi } from '@/api/endpoints'
+
+const { loadUserProjects, filterOperators } = useUserScope()
+const allOperatorsData = ref([])
+
+const scopedHistory = computed(() => {
+  const scopedOps = filterOperators(allOperatorsData.value)
+  const scopedOpIds = new Set(scopedOps.map(o => o.id))
+  return (historyData.value.history || []).filter(h => scopedOpIds.has(h.operatorId))
+})
+
 const filteredHistory = computed(() => {
-  let list = historyData.value.history || []
+  let list = scopedHistory.value
   if (historySearch.value) {
     const q = historySearch.value.toLowerCase()
     list = list.filter(h => h.operatorName?.toLowerCase().includes(q) || h.employeeId?.toLowerCase().includes(q))
@@ -176,13 +188,17 @@ const filteredHistory = computed(() => {
 async function loadHistory() {
   historyLoading.value = true
   try {
-    const res = await evaluationApi.getHistory()
+    const [res, opsRes] = await Promise.all([evaluationApi.getHistory(), operatorsApi.getAll()])
     historyData.value = res.data || { history: [], waitingForProduction: [] }
+    allOperatorsData.value = opsRes.data || []
   } catch (e) {
     console.error('Error loading history', e)
   }
   historyLoading.value = false
 }
 
-onMounted(loadHistory)
+onMounted(async () => {
+  await loadUserProjects()
+  await loadHistory()
+})
 </script>

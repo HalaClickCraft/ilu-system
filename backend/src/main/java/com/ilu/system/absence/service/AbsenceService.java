@@ -65,7 +65,6 @@ public class AbsenceService {
 
         // Deactivate operator
         operator.setActive(false);
-        operator.setAbsenceReason("ABSENT");
         operatorRepository.save(operator);
         notificationService.createAbsenceNotification(operatorId,
                 operator.getLastName() + " " + operator.getFirstName(), NotificationService.absenceStartType());
@@ -99,7 +98,6 @@ public class AbsenceService {
         Operator operator = operatorRepository.findById(operatorId)
                 .orElseThrow(() -> new RuntimeException("Operator not found with id: " + operatorId));
         operator.setActive(true);
-        operator.setAbsenceReason(null);
         operatorRepository.save(operator);
 
         // Generate return-from-absence recyclage plannings
@@ -122,7 +120,6 @@ public class AbsenceService {
 
         operator.setActive(false);
         operator.setExitDate(exitDate);
-        operator.setAbsenceReason("DEPART");
         operatorRepository.save(operator);
         notificationService.createDepartureNotification(operatorId,
                 operator.getLastName() + " " + operator.getFirstName());

@@ -98,12 +98,11 @@
       <div v-if="loading" class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
       <div v-else-if="absentOperators.length > 0" class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Opérateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th><th class="text-left py-3 px-4 font-medium text-gray-500">Motif</th><th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th></tr></thead>
+          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Opérateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th><th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th></tr></thead>
           <tbody>
             <tr v-for="op in absentOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
               <td class="py-3 px-4 font-medium">{{ op.firstName }} {{ op.lastName }}</td>
               <td class="py-3 px-4 text-gray-500">{{ op.employeeId }}</td>
-              <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ op.absenceReason || 'Non precise' }}</span></td>
               <td class="py-3 px-4 text-gray-500">{{ formatDate(op.exitDate) }}</td>
             </tr>
           </tbody>
@@ -123,7 +122,7 @@
         <div><p class="text-sm font-medium text-gray-700">Planifier Formation</p><p class="text-xs text-gray-400">Assigner une formation</p></div>
       </router-link>
       <router-link to="/teams" class="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition group">
-        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition"><svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></div>
+        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition"><svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></div>
         <div><p class="text-sm font-medium text-gray-700">Gestion Équipes</p><p class="text-xs text-gray-400">Organiser les équipes</p></div>
       </router-link>
     </div>
@@ -157,7 +156,7 @@ const recentHires = computed(() => {
 })
 
 const absentOperators = computed(() => {
-  return operators.value.filter(o => o.absenceReason || o.exitDate)
+  return operators.value.filter(o => o.exitDate || o.active === false)
 })
 
 const formatDate = (d) => {

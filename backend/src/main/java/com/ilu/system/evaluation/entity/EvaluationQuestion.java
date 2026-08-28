@@ -31,6 +31,9 @@ public class EvaluationQuestion {
     @Column(name = "complementary_questions", columnDefinition = "TEXT")
     private String complementaryQuestions;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "validator_role")
     private ValidatorRole validatorRole = ValidatorRole.CHEF_EQUIPE;
@@ -88,6 +91,8 @@ public class EvaluationQuestion {
     public void setValidatedById(Long validatedById) { this.validatedById = validatedById; }
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

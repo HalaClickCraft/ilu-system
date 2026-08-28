@@ -62,7 +62,9 @@ public class RecyclagePlanning {
         INITIALE,
         INITIALE_NOUVELLE_RECRUE,
         EVALUATION_ANNUELLE_MOIS_1,
-        RECYCLAGE
+        RECYCLAGE,
+        RECYCLAGE_NOUVELLE_RECRUE,
+        EVALUATION_ANNUELLE_MOIS_7
     }
 
     public enum PlanningStatus {

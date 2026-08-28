@@ -5,6 +5,7 @@ import com.ilu.system.operator.entity.*;
 import com.ilu.system.operator.repository.*;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
+import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
@@ -19,17 +20,20 @@ public class OperatorService {
     private final ZoneRepository zoneRepository;
     private final WorkstationFormationRepository workstationFormationRepository;
     private final FormationAssignmentRepository formationAssignmentRepository;
+    private final RecyclagePlanningRepository recyclagePlanningRepository;
 
     public OperatorService(OperatorRepository operatorRepository, TeamRepository teamRepository,
                            ProjectRepository projectRepository, ZoneRepository zoneRepository,
                            WorkstationFormationRepository workstationFormationRepository,
-                           FormationAssignmentRepository formationAssignmentRepository) {
+                           FormationAssignmentRepository formationAssignmentRepository,
+                           RecyclagePlanningRepository recyclagePlanningRepository) {
         this.operatorRepository = operatorRepository;
         this.teamRepository = teamRepository;
         this.projectRepository = projectRepository;
         this.zoneRepository = zoneRepository;
         this.workstationFormationRepository = workstationFormationRepository;
         this.formationAssignmentRepository = formationAssignmentRepository;
+        this.recyclagePlanningRepository = recyclagePlanningRepository;
     }
 
     @Transactional
@@ -45,8 +49,6 @@ public class OperatorService {
             op.setHireDate(LocalDate.parse(request.getHireDate()));
         if (request.getExitDate() != null && !request.getExitDate().isBlank())
             op.setExitDate(LocalDate.parse(request.getExitDate()));
-        if (request.getAbsenceReason() != null && !request.getAbsenceReason().isBlank())
-            op.setAbsenceReason(request.getAbsenceReason());
         String typeValue = request.getOperatorType();
         if (typeValue == null || typeValue.isBlank()) {
             typeValue = "NOUVEAU_RECRU";
@@ -57,6 +59,9 @@ public class OperatorService {
             throw new RuntimeException("Type operateur invalide: " + typeValue);
         }
         op.setActive(true);
+        if (request.getShift() != null && !request.getShift().isBlank()) {
+            op.setShift(request.getShift().trim());
+        }
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
         if (request.getProjectId() != null)
@@ -64,6 +69,11 @@ public class OperatorService {
         if (request.getZoneId() != null)
             op.setZone(zoneRepository.findById(request.getZoneId()).orElseThrow(() -> new RuntimeException("Zone non trouvee")));
         return operatorRepository.save(op);
+    }
+
+    @Transactional
+    public List<Operator> createOperatorsBatch(List<CreateOperatorRequest> requests) {
+        return requests.stream().map(this::createOperator).collect(Collectors.toList());
     }
 
     public List<Operator> listAll() { return operatorRepository.findAll(); }
@@ -77,6 +87,7 @@ public class OperatorService {
         if (request.getLastName() != null) op.setLastName(request.getLastName());
         if (request.getFirstName() != null) op.setFirstName(request.getFirstName());
         if (request.getRole() != null) op.setRole(request.getRole());
+        if (request.getShift() != null) op.setShift(request.getShift().isBlank() ? null : request.getShift().trim());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
         // FIX 4a: Handle exitDate save
@@ -84,10 +95,6 @@ public class OperatorService {
             op.setExitDate(LocalDate.parse(request.getExitDate()));
         } else if (request.getExitDate() != null && request.getExitDate().isBlank()) {
             op.setExitDate(null);
-        }
-        // Handle absenceReason
-        if (request.getAbsenceReason() != null) {
-            op.setAbsenceReason(request.getAbsenceReason().isBlank() ? null : request.getAbsenceReason());
         }
         if (request.getOperatorType() != null && !request.getOperatorType().isBlank()) {
             try {
@@ -113,6 +120,12 @@ public class OperatorService {
         op.setActive(false);
         op.setExitDate(LocalDate.now());
         operatorRepository.save(op);
+        
+        // Remove planned and in-progress recyclage planning records for this operator automatically.
+        recyclagePlanningRepository.deleteByOperator_IdAndStatusIn(id, List.of(
+            com.ilu.system.recyclage.entity.RecyclagePlanning.PlanningStatus.PLANIFIEE,
+            com.ilu.system.recyclage.entity.RecyclagePlanning.PlanningStatus.EN_COURS
+        ));
     }
 
     @Transactional
@@ -120,7 +133,6 @@ public class OperatorService {
         Operator op = findById(id);
         op.setActive(true);
         op.setExitDate(null);
-        op.setAbsenceReason(null);
         operatorRepository.save(op);
     }
 

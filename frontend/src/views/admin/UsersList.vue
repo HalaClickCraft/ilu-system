@@ -2,9 +2,15 @@
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div><h1 class="text-2xl font-bold text-gray-900">Gestion des Utilisateurs</h1><p class="text-gray-500 mt-1">Comptes et droits d'acces au systeme</p></div>
-      <button @click="showCreateModal = true" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Nouvel Utilisateur
-      </button>
+      <div class="flex gap-2">
+        <button @click="handleResetDatabase" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm" title="Vider tous les opérateurs et formations de test">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Remettre la Base à 0
+        </button>
+        <button @click="showCreateModal = true" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Nouvel Utilisateur
+        </button>
+      </div>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
       <div v-if="loading" class="flex items-center justify-center py-16"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
@@ -117,6 +123,20 @@ const createUser = async () => {
 
 const toggleStatus = async (id) => { try { await usersApi.toggleStatus(id); fetchUsers() } catch (e) { console.error(e) } }
 const deleteUser = async (id) => { if (!confirm('Supprimer cet utilisateur ?')) return; try { await usersApi.deleteUser(id); fetchUsers() } catch (e) { console.error(e) } }
+
+const handleResetDatabase = async () => {
+  if (!confirm('ATTENTION: Voulez-vous vraiment vider toutes les données d\'opérateurs, formations et évaluations de test pour remettre la base à 0 ?')) return
+  loading.value = true
+  try {
+    const res = await usersApi.resetDatabase()
+    alert(res.data || 'Base de données réinitialisée avec succès !')
+    fetchUsers()
+  } catch (e) {
+    alert('Erreur lors de la réinitialisation: ' + (e.response?.data?.message || e.message))
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(fetchUsers)
 </script>

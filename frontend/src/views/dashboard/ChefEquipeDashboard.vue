@@ -198,7 +198,6 @@
           <span v-if="t.comment" class="text-xs text-gray-500 max-w-48 truncate">{{ t.comment }}</span>
         </div>
       </div>
-      <div v-else class="text-center py-12 text-gray-400">Aucun suivi enregistre</div>
     </div>
   </div>
 </template>
@@ -206,6 +205,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { trainingApi, operatorsApi, evaluationApi } from '@/api/endpoints.js'
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterOperators, filterFormations } = useUserScope()
 
 const loading = ref(true)
 const operators = ref([])
@@ -214,8 +216,12 @@ const allTrackings = ref([])
 const matrixData = ref(null)
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
-const activeOperators = computed(() => operators.value.filter(o => o.active !== false))
-const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
+
+const scopedOperators = computed(() => filterOperators(operators.value))
+const activeOperators = computed(() => scopedOperators.value.filter(o => o.active !== false))
+
+const scopedFormations = computed(() => filterFormations(formations.value, operators.value))
+const activeFormations = computed(() => scopedFormations.value.filter(f => f.status === 'IN_PROGRESS'))
 
 // Build ILU level lookup from matrix data: operatorId -> workstationId -> level
 const iluLookup = computed(() => {
@@ -246,25 +252,40 @@ const iluCounts = computed(() => {
   return counts
 })
 
-// Get ILU level (I/L/U) for an operator at their current workstation
+// Get ILU level (I/L/U) for an operator at their workstation
 function getIluLevel(op) {
-  // Find the active formation for this operator to get workstationId
-  const f = activeFormations.value.find(fo => fo.operatorId === op.id)
-  if (!f) return '-'
-  const wsId = f.workstationId
-  if (!wsId) return '-'
-  // Look up from evaluation matrix
-  const opLevels = iluLookup.value[op.id]
-  if (opLevels && opLevels[wsId]) return opLevels[wsId]
+  if (op.iluLevel) return String(op.iluLevel).toUpperCase()
+  if (op.niveau) return String(op.niveau).toUpperCase()
+
+  // Matrix lookup
+  const matrixOps = matrixData.value?.operators || []
+  const matOp = matrixOps.find(m => m.operatorId === op.id || m.employeeId === op.employeeId)
+  if (matOp && matOp.workstations) {
+    const levels = Object.values(matOp.workstations)
+      .map(w => (typeof w === 'object' ? w.level : w))
+      .filter(Boolean)
+    if (levels.includes('U')) return 'U'
+    if (levels.includes('L')) return 'L'
+    if (levels.includes('I')) return 'I'
+  }
+
+  // Formations lookup
+  const opFormations = formations.value.filter(fo => fo.operatorId === op.id)
+  for (const f of opFormations) {
+    if (f.achievedLevel === 'U' || f.targetLevel === 'U') return 'U'
+    if (f.achievedLevel === 'L' || f.targetLevel === 'L' || f.status === 'COMPLETED') return 'L'
+    if (f.achievedLevel === 'I' || f.status === 'IN_PROGRESS') return 'I'
+  }
+
   return '-'
 }
 
 function getLevelClass(op) {
   const level = getIluLevel(op)
-  if (level === 'U') return 'bg-green-100 text-green-700'
-  if (level === 'L') return 'bg-blue-100 text-blue-700'
-  if (level === 'I') return 'bg-amber-100 text-amber-700'
-  return 'bg-gray-100 text-gray-500'
+  if (level === 'U') return 'bg-green-100 text-green-700 font-bold'
+  if (level === 'L') return 'bg-blue-100 text-blue-700 font-bold'
+  if (level === 'I') return 'bg-amber-100 text-amber-700 font-bold'
+  return 'bg-gray-100 text-gray-400'
 }
 
 // Operators currently in their 12-day integration period
@@ -378,6 +399,7 @@ function getDailyLevelLabel(level) {
 onMounted(async () => {
   loading.value = true
   try {
+    await loadUserProjects()
     const [o, f] = await Promise.all([operatorsApi.getAll(), trainingApi.getFormations()])
     operators.value = o.data
     formations.value = f.data

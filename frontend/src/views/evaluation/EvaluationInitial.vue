@@ -74,6 +74,7 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poste</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zone</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fin Formation</th>
+            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
           </tr>
         </thead>
@@ -96,17 +97,24 @@
               {{ op.formationEndDate || '-' }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-center">
+              <span :class="op.status === 'EN_COURS' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                {{ op.status === 'EN_COURS' ? 'En cours' : 'Non démarré' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-center">
               <button
                 @click="startInitialEvaluation(op)"
                 :disabled="op.loading"
-                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                :class="op.status === 'EN_COURS' ? 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'"
+                class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-lg focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <svg v-if="op.loading" class="animate-spin -ml-1 mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
+                <span v-else-if="op.status === 'EN_COURS'" class="mr-1">&#8635;</span>
                 <span v-else class="mr-1">&#9654;</span>
-                Commencer
+                {{ op.status === 'EN_COURS' ? 'Continuer' : 'Commencer' }}
               </button>
             </td>
           </tr>
@@ -198,8 +206,18 @@ const getProjectForOperator = (operatorId) => {
 // We need a separate list of all operators with team info for project lookup
 const allOperatorsData = ref([])
 
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterOperators } = useUserScope()
+
+const scopedOperators = computed(() => {
+  const scopedOps = filterOperators(allOperatorsData.value)
+  const scopedOpIds = new Set(scopedOps.map(o => o.id))
+  return operators.value.filter(op => scopedOpIds.has(op.operatorId))
+})
+
 const filteredOperators = computed(() => {
-  let result = operators.value
+  let result = scopedOperators.value
   // Filter by project
   if (selectedProject.value) {
     const pid = Number(selectedProject.value)
@@ -302,6 +320,7 @@ async function startInitialEvaluation(op) {
 }
 
 onMounted(async () => {
+  await loadUserProjects()
   await Promise.allSettled([fetchPending(), fetchProjectsAndTeams()])
 })
 

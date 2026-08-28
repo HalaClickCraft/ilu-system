@@ -10,7 +10,7 @@
       <button
         v-if="canManage"
         @click="openCreateModal"
-        class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+        class="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 flex items-center gap-2"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -24,21 +24,62 @@
       </button>
     </div>
 
-    <!-- Filter tabs -->
-    <div class="flex gap-2 border-b border-gray-200">
-      <button
-        v-for="t in typeTabs"
-        :key="t.key"
-        @click="activeType = t.key"
-        class="px-4 py-2 text-sm font-medium border-b-2 transition"
-        :class="
-          activeType === t.key
-            ? 'border-emerald-600 text-emerald-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
-        "
-      >
-        {{ t.label }} ({{ countByType(t.key) }})
-      </button>
+    <!-- Filter & Search Bar -->
+    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Type Tabs -->
+        <div class="flex gap-2 border-b border-gray-200">
+          <button
+            v-for="t in typeTabs"
+            :key="t.key"
+            @click="activeType = t.key"
+            class="px-4 py-2 text-sm font-medium border-b-2 transition"
+            :class="
+              activeType === t.key
+                ? 'border-sky-600 text-sky-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            "
+          >
+            {{ t.label }} ({{ countByType(t.key) }})
+          </button>
+        </div>
+
+        <!-- Filter Chips & Reset -->
+        <div v-if="selectedProjectId || selectedZoneId || searchTemplateQuery" class="flex items-center gap-2 text-xs">
+          <span class="text-gray-400 font-medium">Filtres actifs:</span>
+          <span v-if="selectedProjectId" class="bg-sky-50 text-sky-700 px-2 py-1 rounded-md border border-sky-200 flex items-center gap-1">
+            Projet: {{ projects.find(p => p.id === Number(selectedProjectId))?.name }}
+            <button @click="selectedProjectId = ''" class="hover:text-sky-900">✕</button>
+          </span>
+          <span v-if="selectedZoneId" class="bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-200 flex items-center gap-1">
+            Zone: {{ availableZones.find(z => z.id === Number(selectedZoneId))?.name }}
+            <button @click="selectedZoneId = ''" class="hover:text-blue-900">✕</button>
+          </span>
+          <button @click="resetFilters" class="text-xs text-gray-500 hover:text-gray-700 underline ml-2">Réinitialiser tout</button>
+        </div>
+      </div>
+
+      <!-- Project & Zone Selectors -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Filtrer par Projet</label>
+          <select v-model="selectedProjectId" @change="selectedZoneId = ''" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500">
+            <option value="">Tous les projets</option>
+            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Filtrer par Zone</label>
+          <select v-model="selectedZoneId" :disabled="!selectedProjectId" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500 disabled:bg-gray-100">
+            <option value="">Toutes les zones</option>
+            <option v-for="z in availableZones" :key="z.id" :value="z.id">{{ z.name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Recherche par Nom</label>
+          <input v-model="searchTemplateQuery" type="text" placeholder="Chercher un template..." class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-sky-500" />
+        </div>
+      </div>
     </div>
 
     <!-- Templates list -->
@@ -47,7 +88,7 @@
         v-for="tpl in filteredTemplates"
         :key="tpl.id"
         @click="selectTemplate(tpl)"
-        class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-emerald-300 transition"
+        class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-sky-300 transition"
       >
         <div class="flex items-start justify-between">
           <div>
@@ -88,16 +129,22 @@
       <div class="p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold">{{ selectedTemplate.name }}</h2>
-          <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
+          <div class="flex items-center gap-3">
+            <button v-if="canManage" @click="openImportQuestionsModal" class="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              Importer Questions (Excel)
+            </button>
+            <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Template info -->
@@ -134,10 +181,10 @@
         <!-- Add Section -->
         <div
           v-if="canManage && selectedTemplate.status === 'DRAFT'"
-          class="mb-4 p-4 bg-emerald-50 rounded-lg"
+          class="mb-4 p-4 bg-sky-50 rounded-lg"
         >
-          <h4 class="text-sm font-semibold text-emerald-800 mb-2">Ajouter une section</h4>
-          <div class="flex gap-2 mb-2">
+          <h4 class="text-sm font-semibold text-sky-800 mb-2">Ajouter une section</h4>
+          <div class="flex gap-2">
             <input
               v-model="newSectionTitle"
               placeholder="Nom de la section..."
@@ -146,17 +193,11 @@
             />
             <button
               @click="addSection"
-              class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700"
+              class="bg-sky-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-sky-700"
             >
               + Section
             </button>
           </div>
-          <textarea
-            v-model="newSectionComplementary"
-            placeholder="Questions complementaires (optionnel)..."
-            rows="2"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          ></textarea>
         </div>
 
         <!-- Sections & Questions -->
@@ -164,21 +205,12 @@
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold text-gray-800 flex items-center gap-2">
               <span
-                class="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold"
+                class="w-6 h-6 bg-sky-100 text-sky-700 rounded-full flex items-center justify-center text-xs font-bold"
                 >{{ section.displayOrder + 1 }}</span
               >
               {{ section.title }}
               <span class="text-xs text-gray-400">({{ section.questions.length }} questions)</span>
             </h3>
-          </div>
-
-          <!-- Section complementary questions -->
-          <div
-            v-if="section.complementaryQuestions"
-            class="ml-8 mb-2 p-2 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800"
-          >
-            <span class="font-medium">Questions complementaires:</span>
-            {{ section.complementaryQuestions }}
           </div>
 
           <!-- Questions in section -->
@@ -214,15 +246,19 @@
                     >
                   </div>
 
+                  <div v-if="q.imageUrl" class="my-2">
+                    <img :src="q.imageUrl" class="max-h-32 rounded border object-contain bg-white" />
+                  </div>
+
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                     <div class="rounded-md bg-gray-50 border border-gray-200 px-2 py-1.5">
                       <div class="font-semibold text-gray-600 mb-0.5">Réponse attendue</div>
                       <div class="text-gray-800">{{ q.expectedAnswer || '—' }}</div>
                     </div>
                     <div class="rounded-md bg-blue-50 border border-blue-200 px-2 py-1.5">
-                      <div class="font-semibold text-blue-700 mb-0.5">Validé par</div>
+                      <div class="font-semibold text-blue-700 mb-0.5">Créée par</div>
                       <div class="text-blue-900">
-                        {{ q.validatorRole || '—' }} · {{ q.createdByName || 'Inconnu' }}
+                        {{ formatRoleLabel(q.validatorRole) }} · {{ q.createdByName || 'Inconnu' }}
                       </div>
                     </div>
                   </div>
@@ -291,6 +327,30 @@
                 class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
                 placeholder="Question complémentaire..."
               ></textarea>
+              <div class="space-y-1">
+                <label class="block text-xs font-semibold text-gray-500">Image (optionnelle)</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    @change="handleEditQuestionImageUpload($event)"
+                    class="text-xs text-gray-500"
+                  />
+                  <button
+                    v-if="editForm.imageUrl"
+                    type="button"
+                    @click="editForm.imageUrl = ''"
+                    class="text-xs text-red-600 hover:underline"
+                  >
+                    Supprimer l'image
+                  </button>
+                </div>
+                <img
+                  v-if="editForm.imageUrl"
+                  :src="editForm.imageUrl"
+                  class="mt-1 h-12 w-auto object-contain rounded border"
+                />
+              </div>
               <div class="flex gap-2">
                 <button
                   @click="saveEditQuestion"
@@ -331,9 +391,33 @@
                 placeholder="Question complémentaire (optionnel)..."
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               ></textarea>
+              <div class="space-y-1">
+                <label class="block text-xs font-semibold text-gray-500">Image (optionnelle)</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    @change="handleQuestionImageUpload($event, section.id)"
+                    class="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                  />
+                  <button
+                    v-if="newQuestion[section.id]?.imageUrl"
+                    type="button"
+                    @click="newQuestion[section.id].imageUrl = ''"
+                    class="text-xs text-red-600 hover:underline"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+                <img
+                  v-if="newQuestion[section.id]?.imageUrl"
+                  :src="newQuestion[section.id].imageUrl"
+                  class="mt-1 h-12 w-auto object-contain rounded border"
+                />
+              </div>
               <button
                 @click="addQuestionToSection(section.id)"
-                class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700"
+                class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-sky-700"
               >
                 Ajouter
               </button>
@@ -423,20 +507,46 @@
               <option value="ANIMATION">Animation (L vers U)</option>
             </select>
           </div>
-          <div v-if="newTemplate.type === 'POSTE_PRODUCTION' || newTemplate.type === 'ANIMATION'">
-            <label class="text-sm font-medium text-gray-700">Poste de travail</label>
-            <select
-              v-model="newTemplate.workstationId"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1"
-            >
-              <option :value="null">-- Selectionner --</option>
-              <option v-for="ws in workstations" :key="ws.id" :value="ws.id">{{ ws.name }}</option>
-            </select>
+          <div v-if="newTemplate.type === 'POSTE_PRODUCTION' || newTemplate.type === 'ANIMATION'" class="space-y-3">
+            <div>
+              <label class="text-sm font-medium text-gray-700">Projet *</label>
+              <select
+                v-model="newTemplate.projectId"
+                @change="newTemplate.zoneId = ''; newTemplate.workstationId = null"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1"
+              >
+                <option :value="null">-- Sélectionner un Projet --</option>
+                <option v-for="p in createTemplateProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700">Zone *</label>
+              <select
+                v-model="newTemplate.zoneId"
+                :disabled="!newTemplate.projectId"
+                @change="newTemplate.workstationId = null"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 disabled:bg-gray-100"
+              >
+                <option :value="null">-- Sélectionner une Zone --</option>
+                <option v-for="z in createTemplateZones" :key="z.id" :value="z.id">{{ z.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700">Poste de travail (Workstation) *</label>
+              <select
+                v-model="newTemplate.workstationId"
+                :disabled="!newTemplate.zoneId"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 disabled:bg-gray-100"
+              >
+                <option :value="null">-- Sélectionner un Poste --</option>
+                <option v-for="ws in createTemplateWorkstations" :key="ws.id" :value="ws.id">{{ ws.name }}</option>
+              </select>
+            </div>
           </div>
           <div class="flex gap-2 pt-2">
             <button
               @click="createTemplate"
-              class="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-sm hover:bg-emerald-700"
+              class="flex-1 bg-sky-600 text-white py-2 rounded-lg text-sm hover:bg-sky-700"
             >
               Créer
             </button>
@@ -449,7 +559,49 @@
           </div>
         </div>
       </div>
+    <!-- Import Questions Modal -->
+    <div v-if="showImportModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" @click.self="closeImportModal">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Importer des Questions (Excel)</h2>
+        <p class="text-xs text-gray-500 mb-4">
+          Téléversez un fichier Excel pour le template <strong class="text-gray-700">{{ selectedTemplate?.name }}</strong>. 
+          Colonne requise : <strong class="text-gray-700">Texte de la Question</strong>. 
+          Optionnel : <strong class="text-gray-700">Réponse Attendue, Rôle du Validateur, Questions Complémentaires</strong>.
+        </p>
+
+        <div class="space-y-4">
+          <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
+            <input type="file" accept=".xlsx, .xls" @change="handleFileChange" class="hidden" id="questions-excel-upload" />
+            <label for="questions-excel-upload" class="cursor-pointer inline-flex flex-col items-center gap-2">
+              <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V4a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <span class="text-sm font-medium text-teal-600 hover:text-teal-700">Choisir un fichier</span>
+              <span class="text-xs text-gray-400 block mt-1" v-if="importFile">{{ importFile.name }}</span>
+            </label>
+          </div>
+
+          <div v-if="parsedQuestions.length > 0" class="max-h-48 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50">
+            <p class="text-xs font-semibold text-gray-600 mb-2">Questions détectées ({{ parsedQuestions.length }}) :</p>
+            <ul class="text-xs space-y-1 divide-y divide-gray-100">
+              <li v-for="(q, i) in parsedQuestions" :key="i" class="py-1 flex justify-between gap-2">
+                <span class="truncate">{{ q.questionText }}</span>
+                <span class="text-gray-400 shrink-0">{{ q.validatorRole || 'CHEF_EQUIPE' }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="importError" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg max-h-32 overflow-y-auto">{{ importError }}</div>
+          <div v-if="importSuccess" class="bg-emerald-50 text-emerald-700 text-sm p-3 rounded-lg">{{ importSuccess }}</div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+          <button type="button" @click="closeImportModal" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Fermer</button>
+          <button type="button" @click="submitImport" :disabled="parsedQuestions.length === 0 || importing" class="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 disabled:opacity-50">
+            {{ importing ? 'Importation...' : 'Importer' }}
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
   </div>
 </template>
 
@@ -457,6 +609,17 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { evaluationApi, structureApi } from '@/api/endpoints'
+import * as XLSX from 'xlsx'
+import { useUserScope } from '@/composables/useUserScope'
+
+const { isRestrictedRole, myProjectIds, loadUserProjects } = useUserScope()
+
+const showImportModal = ref(false)
+const importFile = ref(null)
+const parsedQuestions = ref([])
+const importError = ref('')
+const importSuccess = ref('')
+const importing = ref(false)
 
 const authStore = useAuthStore()
 const canManage = computed(() =>
@@ -467,12 +630,28 @@ const currentEmployeeId = computed(() => authStore.user?.employeeId)
 
 const templates = ref([])
 const workstations = ref([])
+const projects = ref([])
+const selectedProjectId = ref('')
+const selectedZoneId = ref('')
+const searchTemplateQuery = ref('')
+
+const availableZones = computed(() => {
+  if (!selectedProjectId.value) return []
+  const proj = projects.value.find(p => p.id === Number(selectedProjectId.value))
+  return proj?.zones || []
+})
+
+function resetFilters() {
+  selectedProjectId.value = ''
+  selectedZoneId.value = ''
+  searchTemplateQuery.value = ''
+}
+
 const activeType = ref('ALL')
 const selectedTemplate = ref(null)
 const templateDetail = ref(null)
 const showCreateModal = ref(false)
 const newSectionTitle = ref('')
-const newSectionComplementary = ref('')
 const newQuestion = reactive({})
 const editingQuestionId = ref(null)
 const editForm = reactive({
@@ -486,6 +665,27 @@ const newTemplate = reactive({
   description: '',
   type: 'POSTE_PRODUCTION',
   workstationId: null,
+  projectId: null,
+  zoneId: null,
+})
+
+const createTemplateProjects = computed(() => {
+  if (isRestrictedRole.value) {
+    return projects.value.filter(p => myProjectIds.value.has(p.id))
+  }
+  return projects.value
+})
+
+const createTemplateZones = computed(() => {
+  if (!newTemplate.projectId) return []
+  const proj = projects.value.find(p => p.id === Number(newTemplate.projectId))
+  return proj?.zones || []
+})
+
+const createTemplateWorkstations = computed(() => {
+  if (!newTemplate.zoneId) return []
+  const zone = createTemplateZones.value.find(z => z.id === Number(newTemplate.zoneId))
+  return zone?.workstations || []
 })
 
 const typeTabs = [
@@ -496,8 +696,38 @@ const typeTabs = [
 ]
 
 const filteredTemplates = computed(() => {
-  if (activeType.value === 'ALL') return templates.value
-  return templates.value.filter((t) => t.type === activeType.value)
+  let list = templates.value
+
+  if (activeType.value !== 'ALL') {
+    list = list.filter((t) => t.type === activeType.value)
+  }
+
+  if (selectedProjectId.value) {
+    const pId = Number(selectedProjectId.value)
+    const proj = projects.value.find(p => p.id === pId)
+    if (proj) {
+      const wsIds = new Set(
+        (proj.zones || []).flatMap(z => z.workstations || []).map(w => w.id)
+      )
+      list = list.filter(t => !t.workstationId || wsIds.has(t.workstationId))
+    }
+  }
+
+  if (selectedZoneId.value) {
+    const zId = Number(selectedZoneId.value)
+    const zone = availableZones.value.find(z => z.id === zId)
+    if (zone) {
+      const wsIds = new Set((zone.workstations || []).map(w => w.id))
+      list = list.filter(t => !t.workstationId || wsIds.has(t.workstationId))
+    }
+  }
+
+  if (searchTemplateQuery.value) {
+    const q = searchTemplateQuery.value.toLowerCase().trim()
+    list = list.filter(t => t.name?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))
+  }
+
+  return list
 })
 
 const countByType = (type) => {
@@ -599,16 +829,20 @@ const questionBorderClass = (q) => {
 }
 
 const isOwnQuestion = (q) => {
-  return q.createdByEmployeeId === currentEmployeeId.value
+  if (authStore.isAdmin || authStore.isRespQualite) return true
+  return q.createdByEmployeeId === currentEmployeeId.value || q.validatorRole === authStore.primaryRole
 }
 
 async function load() {
-  const [tplRes, wsRes] = await Promise.allSettled([
+  const [tplRes, wsRes, projRes] = await Promise.allSettled([
     evaluationApi.getTemplates(),
     structureApi.getWorkstations(),
+    structureApi.getAll(),
   ])
   if (tplRes.status === 'fulfilled') templates.value = tplRes.value.data || []
   if (wsRes.status === 'fulfilled') workstations.value = wsRes.value.data || []
+  if (projRes.status === 'fulfilled') projects.value = projRes.value.data || []
+  await loadUserProjects()
 }
 
 async function selectTemplate(tpl) {
@@ -619,7 +853,7 @@ async function selectTemplate(tpl) {
     templateDetail.value = res.data
     for (const s of res.data?.sections || []) {
       if (!newQuestion[s.id]) {
-        newQuestion[s.id] = { text: '', expected: '', complementary: '' }
+        newQuestion[s.id] = { text: '', expected: '', complementary: '', imageUrl: '' }
       }
     }
   } catch (e) {
@@ -638,6 +872,8 @@ async function openCreateModal() {
   newTemplate.description = ''
   newTemplate.type = 'POSTE_PRODUCTION'
   newTemplate.workstationId = null
+  newTemplate.projectId = null
+  newTemplate.zoneId = null
   showCreateModal.value = true
 }
 
@@ -660,10 +896,9 @@ async function addSection() {
     await evaluationApi.addSection(selectedTemplate.value.id, {
       title: newSectionTitle.value,
       displayOrder: templateDetail.value?.sections?.length || 0,
-      complementaryQuestions: newSectionComplementary.value || null,
+      complementaryQuestions: null,
     })
     newSectionTitle.value = ''
-    newSectionComplementary.value = ''
     await selectTemplate(selectedTemplate.value)
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
@@ -681,8 +916,9 @@ async function addQuestionToSection(sectionId) {
       complementaryQuestions: q.complementary || '',
       questionNumber: (section?.questions?.length || 0) + 1,
       sectionId,
+      imageUrl: q.imageUrl || '',
     })
-    newQuestion[sectionId] = { text: '', expected: '', complementary: '' }
+    newQuestion[sectionId] = { text: '', expected: '', complementary: '', imageUrl: '' }
     await selectTemplate(selectedTemplate.value)
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
@@ -694,6 +930,7 @@ function startEditQuestion(q) {
   editForm.questionText = q.questionText
   editForm.expectedAnswer = q.expectedAnswer || ''
   editForm.complementaryQuestions = q.complementaryQuestions || ''
+  editForm.imageUrl = q.imageUrl || ''
 }
 
 function cancelEdit() {
@@ -707,12 +944,55 @@ async function saveEditQuestion() {
       questionText: editForm.questionText,
       expectedAnswer: editForm.expectedAnswer,
       complementaryQuestions: editForm.complementaryQuestions,
+      imageUrl: editForm.imageUrl || '',
+      templateId: selectedTemplate.value.id,
     })
     editingQuestionId.value = null
     await selectTemplate(selectedTemplate.value)
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
   }
+}
+
+async function handleQuestionImageUpload(event, sectionId) {
+  const file = event.target.files[0]
+  if (!file) return
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const res = await evaluationApi.uploadQuestionImage(formData)
+    if (res.data?.imageUrl) {
+      newQuestion[sectionId].imageUrl = res.data.imageUrl
+    }
+  } catch (e) {
+    alert("Erreur lors du téléversement de l'image: " + (e.response?.data?.message || e.message))
+  }
+}
+
+async function handleEditQuestionImageUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const res = await evaluationApi.uploadQuestionImage(formData)
+    if (res.data?.imageUrl) {
+      editForm.imageUrl = res.data.imageUrl
+    }
+  } catch (e) {
+    alert("Erreur lors du téléversement de l'image: " + (e.response?.data?.message || e.message))
+  }
+}
+
+function formatRoleLabel(role) {
+  const labels = {
+    CHEF_EQUIPE: "Chef d'Équipe",
+    AGENT_QUALITE: "Agent Qualité",
+    RESP_HSE: "Responsable HSE",
+    RESP_QUALITE: "Responsable Qualité",
+    ADMIN: "Administrateur",
+  }
+  return labels[role] || role
 }
 
 async function deleteQuestion(questionId) {
@@ -742,6 +1022,113 @@ async function validateThisTemplate() {
     await selectTemplate(refreshed)
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
+}
+
+function openImportQuestionsModal() {
+  importFile.value = null
+  parsedQuestions.value = []
+  importError.value = ''
+  importSuccess.value = ''
+  showImportModal.value = true
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+  importFile.value = null
+  parsedQuestions.value = []
+  importError.value = ''
+  importSuccess.value = ''
+}
+
+function handleFileChange(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  importFile.value = file
+  importError.value = ''
+  importSuccess.value = ''
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result)
+      const workbook = XLSX.read(data, { type: 'array' })
+      const firstSheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[firstSheetName]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+      
+      if (jsonData.length < 2) {
+        importError.value = "Le fichier Excel est vide ou ne contient pas assez de données."
+        return
+      }
+      
+      const headers = jsonData[0].map(h => String(h).trim().toLowerCase())
+      
+      const qTextIdx = headers.findIndex(h => h.includes('question') || h.includes('texte'))
+      const expectedIdx = headers.findIndex(h => h.includes('réponse') || h.includes('reponse') || h.includes('attendu'))
+      const roleIdx = headers.findIndex(h => h.includes('rôle') || h.includes('role') || h.includes('validateur'))
+      const compIdx = headers.findIndex(h => h.includes('complémentaire') || h.includes('complementaire'))
+      
+      if (qTextIdx === -1) {
+        importError.value = "Colonne requise manquante. Assurez-vous d'avoir une colonne nommée 'Texte de la Question' ou 'Question'."
+        return
+      }
+      
+      const list = []
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i]
+        if (!row || row.length === 0 || !row[qTextIdx]) continue
+        
+        let roleVal = 'CHEF_EQUIPE'
+        if (roleIdx !== -1 && row[roleIdx]) {
+          const rStr = String(row[roleIdx]).toUpperCase().trim()
+          if (rStr.includes('QUALITE') || rStr.includes('QUALITÉ')) {
+            roleVal = rStr.includes('RESP') ? 'RESP_QUALITE' : 'AGENT_QUALITE'
+          } else if (rStr.includes('HSE')) {
+            roleVal = 'RESP_HSE'
+          } else if (rStr.includes('CHEF')) {
+            roleVal = 'CHEF_EQUIPE'
+          }
+        }
+        
+        list.push({
+          questionText: String(row[qTextIdx]).trim(),
+          expectedAnswer: expectedIdx !== -1 && row[expectedIdx] ? String(row[expectedIdx]).trim() : '',
+          validatorRole: roleVal,
+          complementaryQuestions: compIdx !== -1 && row[compIdx] ? String(row[compIdx]).trim() : '',
+          questionNumber: i
+        })
+      }
+      
+      if (list.length === 0) {
+        importError.value = "Aucune question valide détectée dans le fichier."
+      } else {
+        parsedQuestions.value = list
+      }
+    } catch (err) {
+      console.error(err)
+      importError.value = "Erreur lors de la lecture du fichier Excel."
+    }
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+async function submitImport() {
+  if (parsedQuestions.value.length === 0 || !selectedTemplate.value) return
+  importing.value = true
+  importError.value = ''
+  importSuccess.value = ''
+  
+  try {
+    const res = await evaluationApi.addQuestionsBatch(selectedTemplate.value.id, parsedQuestions.value)
+    importSuccess.value = `${parsedQuestions.value.length} questions ont été importées avec succès !`
+    parsedQuestions.value = []
+    await selectTemplate(selectedTemplate.value)
+  } catch (err) {
+    console.error(err)
+    importError.value = err.response?.data?.message || err.message || "Erreur lors de l'importation."
+  } finally {
+    importing.value = false
   }
 }
 

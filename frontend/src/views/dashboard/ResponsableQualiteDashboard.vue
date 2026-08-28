@@ -107,12 +107,19 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { trainingApi, structureApi } from '@/api/endpoints.js'
+import { trainingApi, structureApi, operatorsApi } from '@/api/endpoints.js'
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterFormations, filterWorkstations, filterOperators } = useUserScope()
 
 const loading = ref(true)
-const formations = ref([])
-const workstations = ref([])
+const rawFormations = ref([])
+const rawWorkstations = ref([])
+const allOperators = ref([])
 const stats = ref({})
+
+const formations = computed(() => filterFormations(rawFormations.value, allOperators.value))
+const workstations = computed(() => filterWorkstations(rawWorkstations.value))
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
@@ -127,9 +134,11 @@ const inProgressPercent = computed(() => totalFormations.value > 0 ? Math.round(
 const completedPercent = computed(() => totalFormations.value > 0 ? Math.round((completedCount.value / totalFormations.value) * 100) : 0)
 
 const certificationRate = computed(() => {
-  const total = stats.value.totalOperators || 0
+  const scopedOps = filterOperators(allOperators.value)
+  const total = scopedOps.length
   if (total === 0) return 0
-  return Math.round(((stats.value.operatorsCertified || 0) / total) * 100)
+  const certified = completedFormations.value.length
+  return Math.round((certified / total) * 100)
 })
 
 const averageLevel = computed(() => {
@@ -157,10 +166,17 @@ const riskWorkstations = computed(() => workstationQuality.value.filter(ws => ws
 onMounted(async () => {
   loading.value = true
   try {
-    const [f, s, w] = await Promise.all([trainingApi.getFormations(), trainingApi.getStatistics(), structureApi.getWorkstations()])
-    formations.value = f.data
+    await loadUserProjects()
+    const [f, s, w, o] = await Promise.all([
+      trainingApi.getFormations(),
+      trainingApi.getStatistics(),
+      structureApi.getWorkstations(),
+      operatorsApi.getAll()
+    ])
+    rawFormations.value = f.data
     stats.value = s.data
-    workstations.value = w.data
+    rawWorkstations.value = w.data
+    allOperators.value = o.data
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 </script>

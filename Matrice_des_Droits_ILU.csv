@@ -1,0 +1,13 @@
+﻿Module / Fonctionnalité;Chef d'Équipe;Agent Qualité;Responsable HSE;Superviseur;Responsable Qualité;Responsable RH;Administrateur
+Portée d'Accès (Scope);Projet + Shift attribués;Projets attribués (1 à 3);Projets attribués (1 à 3);Global Usine;Global Usine;Global Usine;Total Usine
+Tableau de Bord;Dashboard Chef;Dashboard Qualité;Dashboard HSE;Dashboard Sup.;Dashboard Qualité;Dashboard RH;Dashboard Admin
+Matrice de Polyvalence (I/L/U);Consultation;Consultation;Consultation;Consultation;Consultation;Consultation;Consultation
+Formations 12j - Saisie Cadence;Écriture;Lecture seule;Lecture seule;Supervision;Supervision;Non autorisé;Admin
+Formations 12j - Saisie Défauts;Lecture seule;Écriture;Lecture seule;Supervision;Écriture;Non autorisé;Admin
+Objectif Qualité (Postes/Formations);Lecture seule;Écriture;Lecture seule;Supervision;Écriture;Non autorisé;Admin
+Demande de Changement Équipe;Créer demande;Non autorisé;Non autorisé;Approuver/Refuser;Non autorisé;Lecture;Admin
+Onboarding Théorique (Modules);Consultation;Consultation;Valider H&S;Consultation;Valider Qualité;Valider RH;Admin
+Planification Recyclage;Voir son shift;Voir ses projets;Voir ses projets;Planifier;Planifier;Planifier;Admin
+Gestion Absences & Départs;Voir son shift;Non autorisé;Non autorisé;Supervision;Non autorisé;Déclarer/Sortir;Admin
+Structure Usine (Projets/Zones);Lecture seule;Lecture seule;Lecture seule;Gérer Structure;Lecture seule;Non autorisé;Gestion Totale
+Gestion des Comptes Utilisateurs;Non autorisé;Non autorisé;Non autorisé;Non autorisé;Non autorisé;Non autorisé;Créer/Bloquer

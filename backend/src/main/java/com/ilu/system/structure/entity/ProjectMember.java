@@ -24,6 +24,9 @@ public class ProjectMember {
     @Column(name = "project_role")
     private ProjectRole projectRole;
 
+    @Column(name = "shift")
+    private String shift; // Shift A, Shift B, Shift C
+
     public enum ProjectRole {
         PROJECT_MANAGER,
         QUALITY_MANAGER,
@@ -41,4 +44,6 @@ public class ProjectMember {
     public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
     public ProjectRole getProjectRole() { return projectRole; }
     public void setProjectRole(ProjectRole projectRole) { this.projectRole = projectRole; }
+    public String getShift() { return shift; }
+    public void setShift(String shift) { this.shift = shift; }
 }

@@ -40,7 +40,7 @@ public class AccessControlService {
 
     public void requireRecyclageManagement(Authentication authentication, Long projectId) {
         User user = currentUser(authentication);
-        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR", "RESP_QUALITE")) return;
+        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR", "RESP_QUALITE", "RESP_HSE")) return;
         if (!hasRole(user, "CHEF_EQUIPE")) deny();
         requireChefProject(user, projectId);
     }

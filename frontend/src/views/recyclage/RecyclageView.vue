@@ -22,45 +22,27 @@
         <h3 class="text-lg font-bold text-gray-900">Activer un recyclage</h3>
         <p class="mt-1 text-sm text-gray-500">Sélectionnez l'opérateur et le poste concernés.</p>
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <select v-model="manualForm.projectId" @change="manualForm.zoneId = null; manualForm.workstationId = null" class="rounded-lg border border-gray-300 px-3 py-2 text-sm"><option :value="null">Projet</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select>
-          <select v-model="manualForm.zoneId" @change="manualForm.workstationId = null" :disabled="!manualForm.projectId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"><option :value="null">Zone</option><option v-for="zone in manualZones" :key="zone.id" :value="zone.id">{{ zone.name }}</option></select>
-          <select v-model="manualForm.workstationId" :disabled="!manualForm.zoneId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"><option :value="null">Poste</option><option v-for="workstation in manualWorkstations" :key="workstation.id" :value="workstation.id">{{ workstation.name }}</option></select>
-          <select v-model="manualForm.operatorId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm"><option :value="null">Opérateur</option><option v-for="operator in activeOperators" :key="operator.id" :value="operator.id">{{ operator.lastName }} {{ operator.firstName }} — {{ operator.employeeId }}</option></select>
+          <select v-model="manualForm.projectId" @change="manualForm.zoneId = null; manualForm.workstationId = null" class="rounded-lg border border-gray-300 px-3 py-2 text-sm"><option :value="null">Sélectionner un projet</option><option v-for="project in scopedProjects" :key="project.id" :value="project.id">{{ project.name }}</option></select>
+          <select v-model="manualForm.zoneId" @change="manualForm.workstationId = null" :disabled="!manualForm.projectId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"><option :value="null">Sélectionner une zone</option><option v-for="zone in manualZones" :key="zone.id" :value="zone.id">{{ zone.name }}</option></select>
+          <select v-model="manualForm.workstationId" :disabled="!manualForm.zoneId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"><option :value="null">Sélectionner un poste</option><option v-for="workstation in manualWorkstations" :key="workstation.id" :value="workstation.id">{{ workstation.name }}</option></select>
+          <select v-model="manualForm.operatorId" class="rounded-lg border border-gray-300 px-3 py-2 text-sm"><option :value="null">Sélectionner un opérateur</option><option v-for="operator in scopedActiveOperators" :key="operator.id" :value="operator.id">{{ operator.lastName }} {{ operator.firstName }} — {{ operator.employeeId }}</option></select>
           <input v-model="manualForm.scheduledDate" type="date" class="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2">
         </div>
         <div class="mt-6 flex justify-end gap-3"><button @click="showManualModal = false" class="rounded-lg border px-4 py-2 text-sm">Annuler</button><button @click="createManualRecyclage" :disabled="loading || !manualForm.operatorId || !manualForm.workstationId" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">Activer</button></div>
       </div>
     </div>
 
-    <!-- Campaign Tabs -->
-    <div v-if="campaignTabs.length > 0" class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-6 overflow-x-auto pb-1" aria-label="Tabs">
-        <button
-          v-for="tab in campaignTabs"
-          :key="tab.key"
-          @click="selectedCampaignTab = tab.key"
-          :class="[
-            selectedCampaignTab === tab.key
-              ? 'border-emerald-600 text-emerald-700 font-bold border-b-2'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2',
-            'whitespace-nowrap py-3 px-1 text-sm font-medium transition focus:outline-none'
-          ]"
-        >
-          {{ tab.label }}
-        </button>
-      </nav>
-    </div>
-
     <!-- Filters -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Projet</label>
           <select v-model="filters.projectId" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
             <option :value="null">Tous</option>
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            <option v-for="p in scopedProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
+        
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Statut</label>
           <select v-model="filters.status" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
@@ -68,9 +50,18 @@
             <option value="PLANIFIEE">Planifiee</option>
             <option value="EN_COURS">En Cours</option>
             <option value="TERMINEE">Terminee</option>
-            <option value="ANNULEE">Annulee</option>
           </select>
         </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Période / Type</label>
+          <select v-model="filters.type" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <option value="">Tous</option>
+            <option value="INITIALE">Éval. Initiale (1er Semestre)</option>
+            <option value="RECYCLAGE">Recyclage (2ème Semestre)</option>
+          </select>
+        </div>
+
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Recherche</label>
           <input v-model="filters.search" type="text" placeholder="Nom operateur..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
@@ -125,9 +116,9 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v14l11-7z"/></svg>
                     Évaluer
                   </button>
-                  <button v-if="item.status === 'PLANIFIEE'" @click="cancelItem(item)" :disabled="loading" class="inline-flex items-center gap-1.5 text-red-500 hover:text-red-700 font-medium disabled:opacity-50" title="Annuler">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Annuler
+                  <button v-if="item.status === 'TERMINEE' && item.evaluationSessionId" @click="$router.push({ name: 'evaluation-session', params: { id: item.evaluationSessionId } })" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium" title="Voir la session d'évaluation">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Voir
                   </button>
                 </div>
               </td>
@@ -149,21 +140,6 @@
       </div>
     </div>
 
-    <!-- Cancel confirmation modal (replaces browser confirm()) -->
-    <div v-if="cancelTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="cancelTarget = null">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-2">Annuler cette planification ?</h3>
-        <p class="text-sm text-gray-500">
-          {{ cancelTarget.operatorName }} — {{ cancelTarget.workstationName }} · {{ formatDate(cancelTarget.scheduledDate) }}
-        </p>
-        <div class="flex justify-end gap-3 mt-5">
-          <button @click="cancelTarget = null" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Retour</button>
-          <button @click="confirmCancel" :disabled="loading" class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
-            {{ loading ? 'Annulation...' : 'Oui, annuler' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -172,16 +148,19 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { recyclageApi } from '@/services/recyclageApi'
 import { evaluationApi, structureApi, operatorsApi } from '@/api/endpoints'
+import { useUserScope } from '@/composables/useUserScope'
 
 const router = useRouter()
+const { loadUserProjects, filterOperators, isRestrictedRole, filterProjects } = useUserScope()
+const allOperators = ref([])
+const rawItems = ref([])
 
-const items = ref([])
 const projects = ref([])
-const projectList = computed(() => projects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
+const scopedProjects = computed(() => filterProjects(projects.value))
+const projectList = computed(() => scopedProjects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
 const loading = ref(false)
 const loadFailed = ref(false)
 const errorMsg = ref('')
-const cancelTarget = ref(null)
 const showManualModal = ref(false)
 const activeOperators = ref([])
 const manualForm = ref({ projectId: null, zoneId: null, workstationId: null, operatorId: null, scheduledDate: '' })
@@ -196,101 +175,40 @@ const filters = ref({
   search: '',
 })
 
-const selectedCampaignTab = ref('')
-
-const campaignTabs = computed(() => {
-  if (!items.value.length) return []
-  
-  const groups = {}
-  
-  items.value.forEach(item => {
-    const dateStr = item.scheduledDate
-    let year = new Date().getFullYear()
-    if (dateStr) {
-      if (dateStr.includes('/')) {
-        const parts = dateStr.split('/')
-        if (parts.length === 3) year = parts[2]
-      } else {
-        year = new Date(dateStr).getFullYear()
-      }
-    }
+const items = computed(() => {
+  const scopedOps = filterOperators(allOperators.value)
+  if (isRestrictedRole.value && scopedOps.length === 0) return []
+  const scopedOpIds = new Set(scopedOps.map(o => o.id))
+  return rawItems.value.filter(item => {
+    // Exclude the absolute first-time INITIALE evaluation type
+    if (item.type === 'INITIALE') return false
     
-    const type = item.type
-    const key = `${year}-${type}`
-    
-    if (!groups[key]) {
-      groups[key] = {
-        key,
-        year,
-        type,
-        count: 0,
-        projectName: ''
-      }
+    const itemOpId = item.operatorId || item.operator?.id
+    if (itemOpId) {
+      return scopedOpIds.has(itemOpId)
     }
-    groups[key].count++
-    
-    if (!groups[key].projectName) {
-      const p = projects.value.find(proj => proj.id === item.projectId)
-      groups[key].projectName = p ? p.name : 'Projet'
-    }
+    return !isRestrictedRole.value
   })
-  
-  const tabsList = Object.values(groups).map(g => {
-    let typeLabel = g.type
-    if (g.type === 'INITIALE_NOUVELLE_RECRUE') typeLabel = 'Eval. Initial'
-    else if (g.type === 'INITIALE') typeLabel = 'Initiale'
-    else if (g.type === 'RECYCLAGE') typeLabel = 'Recyclage'
-    else if (g.type === 'EVALUATION_ANNUELLE_MOIS_1') typeLabel = 'Eval. Annuelle'
-    
-    const label = `${g.projectName} ${g.year} ${typeLabel}`
-    
-    return {
-      key: g.key,
-      label: `${label} (${g.count})`,
-      year: g.year,
-      type: g.type
-    }
-  })
-  
-  tabsList.sort((a, b) => b.year - a.year || a.label.localeCompare(b.label))
-  
-  return tabsList
 })
-
-watch(campaignTabs, (newTabs) => {
-  if (newTabs.length > 0) {
-    const exists = newTabs.some(t => t.key === selectedCampaignTab.value)
-    if (!exists) {
-      selectedCampaignTab.value = newTabs[0].key
-    }
-  } else {
-    selectedCampaignTab.value = ''
-  }
-}, { immediate: true })
 
 const filteredItems = computed(() => {
   let result = items.value
   
-  if (selectedCampaignTab.value && campaignTabs.value.length > 0) {
-    const activeTab = campaignTabs.value.find(t => t.key === selectedCampaignTab.value)
-    if (activeTab) {
-      result = result.filter(i => {
-        const dateStr = i.scheduledDate
-        let itemYear = ''
-        if (dateStr) {
-          if (dateStr.includes('/')) {
-            const parts = dateStr.split('/')
-            if (parts.length === 3) itemYear = parts[2]
-          } else {
-            itemYear = String(new Date(dateStr).getFullYear())
-          }
-        }
-        return String(itemYear) === String(activeTab.year) && i.type === activeTab.type
-      })
+  if (filters.value.type) {
+    if (filters.value.type === 'INITIALE') {
+      const initialTypes = ['INITIALE_NOUVELLE_RECRUE', 'EVALUATION_ANNUELLE_MOIS_1']
+      result = result.filter(i => initialTypes.includes(i.type))
+    } else if (filters.value.type === 'RECYCLAGE') {
+      const recyclageTypes = ['RECYCLAGE', 'RECYCLAGE_NOUVELLE_RECRUE', 'EVALUATION_ANNUELLE_MOIS_7']
+      result = result.filter(i => recyclageTypes.includes(i.type))
     }
   }
   
-  if (filters.value.status) result = result.filter(i => i.status === filters.value.status)
+  if (filters.value.status) {
+    result = result.filter(i => i.status === filters.value.status)
+  } else {
+    result = result.filter(i => i.status !== 'ANNULEE')
+  }
   if (filters.value.search) {
     const s = filters.value.search.toLowerCase()
     result = result.filter(i => (i.operatorName || '').toLowerCase().includes(s))
@@ -306,7 +224,7 @@ async function loadPlanning() {
     if (filters.value.status) params.status = filters.value.status
     if (filters.value.projectId) params.projectId = filters.value.projectId
     const res = await recyclageApi.getPlanning(params)
-    items.value = res.data || []
+    rawItems.value = res.data || []
   } catch (e) {
     console.error('Error loading planning:', e)
     loadFailed.value = true
@@ -325,7 +243,7 @@ async function loadProjects() {
 }
 
 async function openManualModal() {
-  manualForm.value = { projectId: null, zoneId: null, workstationId: null, operatorId: null, scheduledDate: new Date().toISOString().slice(0, 10) }
+  manualForm.value = { projectId: filters.value.projectId, zoneId: null, workstationId: null, operatorId: null, scheduledDate: new Date().toISOString().slice(0, 10) }
   showManualModal.value = true
   if (!activeOperators.value.length) activeOperators.value = (await operatorsApi.getActive()).data || []
 }
@@ -364,25 +282,6 @@ async function startPlanningEvaluation(item) {
   }
 }
 
-function cancelItem(item) {
-  cancelTarget.value = item
-}
-
-async function confirmCancel() {
-  if (!cancelTarget.value) return
-  loading.value = true
-  try {
-    await recyclageApi.cancelPlanning(cancelTarget.value.id)
-    cancelTarget.value = null
-    await loadPlanning()
-  } catch (e) {
-    console.error('Error cancelling:', e)
-    errorMsg.value = e.response?.data?.message || "Erreur lors de l'annulation"
-  } finally {
-    loading.value = false
-  }
-}
-
 function formatDate(d) {
   if (!d) return '-'
   if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
@@ -409,17 +308,25 @@ function statusBadge(s) {
 }
 
 function typeBadge(t) {
-  if (t === 'INITIALE_NOUVELLE_RECRUE' || t === 'INITIALE') return 'bg-purple-100 text-purple-800'
-  if (t === 'EVALUATION_ANNUELLE_MOIS_1') return 'bg-blue-100 text-blue-800'
-  return 'bg-orange-100 text-orange-800'
+  const badges = {
+    INITIALE_NOUVELLE_RECRUE: 'bg-purple-100 text-purple-800',
+    RECYCLAGE_NOUVELLE_RECRUE: 'bg-pink-100 text-pink-800',
+    EVALUATION_ANNUELLE_MOIS_1: 'bg-blue-100 text-blue-800',
+    EVALUATION_ANNUELLE_MOIS_7: 'bg-orange-100 text-orange-800',
+    RECYCLAGE: 'bg-teal-100 text-teal-800',
+    INITIALE: 'bg-gray-100 text-gray-800',
+  }
+  return badges[t] || 'bg-gray-100 text-gray-800'
 }
 
 function typeLabel(t) {
   const labels = {
-    INITIALE_NOUVELLE_RECRUE: 'Initiale nouvelle recrue',
-    EVALUATION_ANNUELLE_MOIS_1: 'Évaluation annuelle',
+    INITIALE_NOUVELLE_RECRUE: 'Évaluation initiale (nouvelle recrue)',
+    RECYCLAGE_NOUVELLE_RECRUE: 'Recyclage (nouvelle recrue - 6 mois)',
+    EVALUATION_ANNUELLE_MOIS_1: 'Évaluation initiale (déjà en poste - Janvier)',
+    EVALUATION_ANNUELLE_MOIS_7: 'Recyclage (déjà en poste - Juillet)',
+    RECYCLAGE: 'Recyclage (reprise d\'absence / ancien)',
     INITIALE: 'Initiale (ancien)',
-    RECYCLAGE: 'Recyclage',
   }
   return labels[t] || t
 }
@@ -434,7 +341,19 @@ function sourceLabel(s) {
   return m[s] || s
 }
 
-onMounted(() => {
+const scopedActiveOperators = computed(() => {
+  return filterOperators(activeOperators.value)
+})
+
+
+onMounted(async () => {
+  try {
+    await loadUserProjects()
+    const opsRes = await operatorsApi.getAll()
+    allOperators.value = opsRes.data || []
+  } catch (e) {
+    console.error(e)
+  }
   loadProjects()
   loadPlanning()
 })

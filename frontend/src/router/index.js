@@ -135,13 +135,13 @@ const routes = [
         path: 'recyclage',
         name: 'recyclage',
         component: () => import('@/views/recyclage/RecyclageView.vue'),
-        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'] },
+        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE', 'AGENT_QUALITE', 'RESP_HSE'] },
       },
       {
         path: 'recyclage/calendar',
         name: 'recyclage-calendar',
         component: () => import('@/views/recyclage/CalendrierRecyclage.vue'),
-        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'] },
+        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE', 'AGENT_QUALITE', 'RESP_HSE'] },
       },
       {
         path: 'absences',

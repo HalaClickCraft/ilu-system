@@ -139,8 +139,8 @@ public class TrainingController {
     }
 
     @GetMapping("/statistics")
-    public ResponseEntity<FormationStatisticsDto> getStatistics() {
-        return ResponseEntity.ok(trainingService.getStatistics());
+    public ResponseEntity<FormationStatisticsDto> getStatistics(Authentication authentication) {
+        return ResponseEntity.ok(trainingService.getStatistics(authentication.getName(), roles(authentication)));
     }
 
     private Map<String, Object> toTrackingMap(DailyFormationTracking t) {

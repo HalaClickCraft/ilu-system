@@ -85,6 +85,9 @@
               <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
             </div>
             <p v-if="q.expectedAnswer" class="text-xs text-gray-500 mt-1">Attendu: {{ q.expectedAnswer }}</p>
+            <div v-if="q.imageUrl" class="my-2">
+              <img :src="q.imageUrl" class="max-h-32 rounded border object-contain bg-white" />
+            </div>
           </div>
           <!-- Current role can answer -->
           <div v-if="session.status === 'IN_PROGRESS' && canAnswerQuestion(q.validatorRole)" class="flex items-center gap-2">

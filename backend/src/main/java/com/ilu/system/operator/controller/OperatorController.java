@@ -15,6 +15,8 @@ public class OperatorController {
     public OperatorController(OperatorService operatorService) { this.operatorService = operatorService; }
     @PostMapping
     public ResponseEntity<Operator> createOperator(@RequestBody CreateOperatorRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(operatorService.createOperator(request)); }
+    @PostMapping("/batch")
+    public ResponseEntity<List<Operator>> createOperatorsBatch(@RequestBody List<CreateOperatorRequest> requests) { return ResponseEntity.status(HttpStatus.CREATED).body(operatorService.createOperatorsBatch(requests)); }
     @GetMapping
     public ResponseEntity<List<Operator>> listAll() { return ResponseEntity.ok(operatorService.listAll()); }
     @GetMapping("/active")

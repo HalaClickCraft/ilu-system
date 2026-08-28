@@ -16,12 +16,14 @@ import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.TeamRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Project;
+import com.ilu.system.structure.entity.ProjectMember;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.entity.Zone;
 import com.ilu.system.structure.repository.ProjectMemberRepository;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
+import java.util.Optional;
 
 import com.ilu.system.operator.service.OnboardingService;
 import com.ilu.system.evaluation.entity.EvaluationSession;
@@ -401,19 +403,58 @@ public class TrainingService {
         return Map.of("workstationId", workstationId, "qualityObjective", qualityObjective);
     }
 
-    public FormationStatisticsDto getStatistics() {
+    public FormationStatisticsDto getStatistics(String employeeId, Set<String> roles) {
+        boolean isRestricted = !roles.contains("ADMIN") && !roles.contains("RH");
+        final List<Long> myProjectIds = isRestricted
+                ? projectMemberRepo.findByEmployeeId(employeeId).stream()
+                        .map(m -> m.getProject().getId())
+                        .collect(Collectors.toList())
+                : new java.util.ArrayList<>();
+
         FormationStatisticsDto stats = new FormationStatisticsDto();
-        stats.setTotalOperators(operatorRepo.count());
-        stats.setOperatorsInTraining(formationRepo.countByStatus("IN_PROGRESS"));
-        stats.setOperatorsCertified(formationRepo.countByStatus("COMPLETED"));
-        long withFormation = formationRepo.findAll().stream().map(formation -> formation.getOperator().getId()).distinct().count();
-        stats.setOperatorsNotStarted(stats.getTotalOperators() - withFormation);
-        stats.setTotalWorkstations(workstationRepo.count());
+
+        List<com.ilu.system.operator.entity.Operator> operators = operatorRepo.findAll();
+        if (isRestricted) {
+            final List<Long> pIds = myProjectIds;
+            operators = operators.stream()
+                    .filter(op -> op.getProject() != null && pIds.contains(op.getProject().getId()))
+                    .collect(Collectors.toList());
+        }
+        stats.setTotalOperators((long) operators.size());
+
+        List<WorkstationFormation> formations = formationRepo.findAll();
+        if (isRestricted) {
+            final List<Long> pIds = myProjectIds;
+            formations = formations.stream()
+                    .filter(f -> f.getOperator() != null && f.getOperator().getProject() != null && pIds.contains(f.getOperator().getProject().getId()))
+                    .collect(Collectors.toList());
+        }
+
+        long inProgress = formations.stream().filter(f -> "IN_PROGRESS".equals(f.getStatus())).count();
+        long completed = formations.stream().filter(f -> "COMPLETED".equals(f.getStatus())).count();
+        long failed = formations.stream().filter(f -> "FAILED".equals(f.getStatus())).count();
+
+        stats.setOperatorsInTraining(inProgress);
+        stats.setOperatorsCertified(completed);
+
+        java.util.Set<Long> withFormationIds = formations.stream()
+                .map(f -> f.getOperator().getId())
+                .collect(Collectors.toSet());
+        long notStarted = operators.stream()
+                .filter(op -> !withFormationIds.contains(op.getId()))
+                .count();
+        stats.setOperatorsNotStarted(notStarted);
+
+        long workstationsCount = workstationRepo.findAll().stream()
+                .filter(w -> !isRestricted || (w.getZone() != null && w.getZone().getProject() != null && myProjectIds.contains(w.getZone().getProject().getId())))
+                .count();
+        stats.setTotalWorkstations(workstationsCount);
         stats.setTotalTeams(teamRepo.count());
+
         stats.setStatusDistribution(List.of(
-                new ChartDataDto("En Cours", stats.getOperatorsInTraining()),
-                new ChartDataDto("Terminees", stats.getOperatorsCertified()),
-                new ChartDataDto("Echouees", formationRepo.countByStatus("FAILED"))));
+                new ChartDataDto("En Cours", inProgress),
+                new ChartDataDto("Terminees", completed),
+                new ChartDataDto("Echouees", failed)));
         return stats;
     }
 
@@ -538,14 +579,37 @@ public class TrainingService {
     }
 
     private boolean canViewFormation(WorkstationFormation formation, String employeeId, Set<String> roles) {
-        if (roles.contains("ADMIN") || roles.contains("RESP_QUALITE")) {
+        if (roles.contains("ADMIN") || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR") || roles.contains("RH")) {
             return true;
         }
         if (roles.contains("RESP_HSE")) {
             return false;
         }
+        if (formation == null || formation.getWorkstation() == null) {
+            return true;
+        }
         Zone zone = formation.getWorkstation().getZone();
-        return zone != null && zone.getProject() != null
-                && projectMemberRepo.existsByProjectIdAndEmployeeId(zone.getProject().getId(), employeeId);
+        if (zone == null || zone.getProject() == null) {
+            return true;
+        }
+        Long projectId = zone.getProject().getId();
+        List<ProjectMember> members = projectMemberRepo.findByEmployeeId(employeeId);
+        Optional<ProjectMember> pmOpt = members.stream()
+                .filter(m -> m.getProject() != null && projectId.equals(m.getProject().getId()))
+                .findFirst();
+
+        if (pmOpt.isEmpty()) {
+            return true;
+        }
+
+        ProjectMember pm = pmOpt.get();
+        if (roles.contains("CHEF_EQUIPE") && pm.getShift() != null && !pm.getShift().isBlank()) {
+            String opShift = formation.getOperator() != null ? formation.getOperator().getShift() : null;
+            if (opShift != null && !opShift.isBlank()) {
+                return pm.getShift().equalsIgnoreCase(opShift.trim());
+            }
+        }
+
+        return true;
     }
 }

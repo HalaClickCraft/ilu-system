@@ -10,11 +10,13 @@ export const usersApi = {
   create: (data) => api.post('/users', data),
   toggleStatus: (id) => api.put(`/users/${id}/toggle-status`),
   deleteUser: (id) => api.delete(`/users/${id}`),
+  resetDatabase: () => api.post('/users/reset-database'),
 }
 
 export const operatorsApi = {
   getAll: () => api.get('/operators'),
   create: (data) => api.post('/operators', data),
+  createBatch: (data) => api.post('/operators/batch', data),
   getById: (id) => api.get(`/operators/${id}`),
   update: (id, data) => api.put(`/operators/${id}`, data),
   getActive: () => api.get('/operators/active'),
@@ -43,6 +45,8 @@ export const trainingApi = {
 
 export const structureApi = {
   getAll: () => api.get('/structure'),
+  getTeams: () => api.get('/teams'),
+  getAvailableUsers: () => api.get('/structure/users-available'),
   createProject: (data) => api.post('/structure/projects', data),
   getProject: (id) => api.get(`/structure/projects/${id}`),
   updateProject: (id, data) => api.put(`/structure/projects/${id}`, data),
@@ -71,6 +75,12 @@ export const evaluationApi = {
 
   // Questions
   addQuestion: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions`, data),
+  addQuestionsBatch: (templateId, data) => api.post(`/evaluation/templates/${templateId}/questions/batch`, data),
+  uploadQuestionImage: (formData) => api.post('/evaluation/questions/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updateQuestion: (id, data) => api.put(`/evaluation/questions/${id}`, data),
+  deleteQuestion: (id, templateId) => api.delete(`/evaluation/questions/${id}`, { params: { templateId } }),
 
   // Question Validation (Responsable)
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
@@ -92,6 +102,7 @@ export const evaluationApi = {
 
   // Polyvalence Matrix
   getMatrix: (projectId, year, type) => api.get('/evaluation/matrix', { params: { projectId, year, type } }),
+  importCertifications: (data) => api.post('/evaluation/matrix/import-certifications', data),
 
   // Evaluation History
   getHistory: () => api.get('/evaluation/history'),
@@ -125,4 +136,20 @@ export const notificationApi = {
   getUnreadCount: (userId) => api.get('/notifications/unread-count', { params: { userId } }),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   markAllAsRead: (userId) => api.put('/notifications/read-all', null, { params: { userId } }),
+}
+
+export const teamsApi = {
+  getAll: () => api.get('/teams'),
+  getById: (id) => api.get(`/teams/${id}`),
+  requestUpdate: (teamId, operatorIds) => api.post(`/teams/${teamId}/request-update`, { operatorIds }),
+  getPendingRequests: () => api.get('/teams/pending-requests'),
+  approveRequest: (requestId) => api.post(`/teams/requests/${requestId}/approve`),
+  rejectRequest: (requestId) => api.post(`/teams/requests/${requestId}/reject`),
+}
+
+export const projectTransferApi = {
+  requestTransfer: (employeeId, targetProjectId) => api.post('/project-transfers/request', null, { params: { employeeId, targetProjectId } }),
+  getPendingRequests: () => api.get('/project-transfers/pending'),
+  approveRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/approve`),
+  rejectRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/reject`),
 }

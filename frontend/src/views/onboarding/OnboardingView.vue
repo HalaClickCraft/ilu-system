@@ -40,10 +40,10 @@
       >
         Historique
         <span
-          v-if="historyData.completedCount > 0"
+          v-if="scopedCompletedOperators.length > 0"
           class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"
         >
-          {{ historyData.completedCount }}
+          {{ scopedCompletedOperators.length }}
         </span>
       </button>
     </div>
@@ -69,82 +69,148 @@
         </button>
       </div>
 
-      <!-- Table -->
-      <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[220px]">Opérateur</th>
-              <th
-                v-for="dept in departmentNames"
-                :key="dept"
-                class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[120px]"
+      <!-- Section 1: In Progress -->
+      <div class="mb-8">
+        <h2 class="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+          Opérateurs en cours d'onboarding ({{ pendingOperators.length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[220px]">Opérateur</th>
+                <th
+                  v-for="dept in departmentNames"
+                  :key="dept"
+                  class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[120px]"
+                >
+                  {{ dept }}
+                </th>
+                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[90px]">Total</th>
+                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">Statut</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr
+                v-for="op in pendingOperators"
+                :key="op.operatorId"
+                class="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                @click="goToDetail(op.operatorId)"
               >
-                {{ dept }}
-              </th>
-              <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[90px]">Total</th>
-              <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">Statut</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <tr
-              v-for="op in filteredOperators"
-              :key="op.operatorId"
-              class="hover:bg-blue-50/50 cursor-pointer transition-colors"
-              @click="goToDetail(op.operatorId)"
-            >
-              <td class="px-4 py-3 sticky left-0 bg-white z-10">
-                <div class="font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</div>
-                <div class="text-xs text-gray-400">{{ op.matricule }}</div>
-              </td>
-              <td
-                v-for="dept in departmentNames"
-                :key="dept"
-                class="text-center px-3 py-3"
-              >
-                <div v-if="op.departmentProgress && op.departmentProgress[dept]">
-                  <span
-                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                    :class="op.departmentProgress[dept].departmentComplete
-                      ? 'bg-green-100 text-green-700'
-                      : op.departmentProgress[dept].completed > 0
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-500'"
-                  >
-                    <span v-if="op.departmentProgress[dept].departmentComplete">&#10003;</span>
-                    {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
+                <td class="px-4 py-3 sticky left-0 bg-white z-10">
+                  <div class="font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</div>
+                  <div class="text-xs text-gray-400">{{ op.matricule }}</div>
+                </td>
+                <td
+                  v-for="dept in departmentNames"
+                  :key="dept"
+                  class="text-center px-3 py-3"
+                >
+                  <div v-if="op.departmentProgress && op.departmentProgress[dept]">
+                    <span
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                      :class="op.departmentProgress[dept].completed > 0
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-500'"
+                    >
+                      {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
+                    </span>
+                  </div>
+                  <span v-else class="text-gray-300">—</span>
+                </td>
+                <td class="text-center px-3 py-3">
+                  <span class="text-sm font-semibold text-gray-700">
+                    {{ op.completionPercentage }}%
                   </span>
-                </div>
-                <span v-else class="text-gray-300">—</span>
-              </td>
-              <td class="text-center px-3 py-3">
-                <span class="text-sm font-semibold" :class="op.completionPercentage === 100 ? 'text-green-600' : 'text-gray-700'">
-                  {{ op.completionPercentage }}%
-                </span>
-              </td>
-              <td class="text-center px-3 py-3">
-                <span
-                  v-if="op.onboardingComplete"
-                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"
+                </td>
+                <td class="text-center px-3 py-3">
+                  <span
+                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"
+                  >
+                    En cours
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="pendingOperators.length === 0">
+                <td colspan="999" class="text-center py-12 text-gray-400">
+                  Aucun opérateur en cours d'onboarding
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 2: Completed -->
+      <div>
+        <h2 class="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+          Historique d'onboarding terminé ({{ completedOperators.length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[220px]">Opérateur</th>
+                <th
+                  v-for="dept in departmentNames"
+                  :key="dept"
+                  class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[120px]"
                 >
-                  &#10003; Terminé
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"
+                  {{ dept }}
+                </th>
+                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[90px]">Total</th>
+                <th class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">Statut</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr
+                v-for="op in completedOperators"
+                :key="op.operatorId"
+                class="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                @click="goToDetail(op.operatorId)"
+              >
+                <td class="px-4 py-3 sticky left-0 bg-white z-10">
+                  <div class="font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</div>
+                  <div class="text-xs text-gray-400">{{ op.matricule }}</div>
+                </td>
+                <td
+                  v-for="dept in departmentNames"
+                  :key="dept"
+                  class="text-center px-3 py-3"
                 >
-                  En cours
-                </span>
-              </td>
-            </tr>
-            <tr v-if="filteredOperators.length === 0">
-              <td colspan="999" class="text-center py-12 text-gray-400">
-                <div v-if="loadingMatrix">Chargement des données...</div>
-                <div v-else>Aucun opérateur trouvé</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  <div v-if="op.departmentProgress && op.departmentProgress[dept]">
+                    <span
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                    >
+                      <span>&#10003;</span>
+                      {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
+                    </span>
+                  </div>
+                  <span v-else class="text-gray-300">—</span>
+                </td>
+                <td class="text-center px-3 py-3">
+                  <span class="text-sm font-semibold text-green-600">
+                    {{ op.completionPercentage }}%
+                  </span>
+                </td>
+                <td class="text-center px-3 py-3">
+                  <span
+                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"
+                  >
+                    &#10003; Terminé
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="completedOperators.length === 0">
+                <td colspan="999" class="text-center py-12 text-gray-400">
+                  Aucun historique d'onboarding terminé
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -155,16 +221,24 @@
       <!-- Operator Selection -->
       <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner un Opérateur</label>
-        <select
-          v-model="selectedOperatorId"
-          @change="loadOperatorStatus"
-          class="w-full max-w-md border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">-- Choisir un opérateur --</option>
-          <option v-for="op in allOperators" :key="op.id" :value="op.id">
-            {{ op.firstName }} {{ op.lastName }} - {{ op.matricule }}
-          </option>
-        </select>
+        <div class="flex flex-col sm:flex-row gap-3 max-w-2xl">
+          <input
+            v-model="detailSearchQuery"
+            type="text"
+            placeholder="Rechercher par nom ou matricule..."
+            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          />
+          <select
+            v-model="selectedOperatorId"
+            @change="loadOperatorStatus"
+            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">-- Choisir un opérateur ({{ filteredDetailOperators.length }} trouvé(s)) --</option>
+            <option v-for="op in filteredDetailOperators" :key="op.id" :value="op.id">
+              {{ op.lastName }} {{ op.firstName }} — {{ op.employeeId }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <!-- Progress Card -->
@@ -338,15 +412,15 @@
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm p-5 text-center">
-          <div class="text-4xl font-bold text-gray-800">{{ historyData.totalOperators }}</div>
+          <div class="text-4xl font-bold text-gray-800">{{ scopedPendingOperators.length + scopedCompletedOperators.length }}</div>
           <div class="text-sm text-gray-500 mt-1">Total Opérateurs</div>
         </div>
         <div class="bg-green-50 rounded-xl shadow-sm p-5 text-center border border-green-200">
-          <div class="text-4xl font-bold text-green-600">{{ historyData.completedCount }}</div>
+          <div class="text-4xl font-bold text-green-600">{{ scopedCompletedOperators.length }}</div>
           <div class="text-sm text-green-700 mt-1">Onboarding Terminé</div>
         </div>
         <div class="bg-orange-50 rounded-xl shadow-sm p-5 text-center border border-orange-200">
-          <div class="text-4xl font-bold text-orange-600">{{ historyData.pendingCount }}</div>
+          <div class="text-4xl font-bold text-orange-600">{{ scopedPendingOperators.length }}</div>
           <div class="text-sm text-orange-700 mt-1">En Cours</div>
         </div>
       </div>
@@ -398,6 +472,28 @@
           <tbody class="divide-y divide-gray-100"><tr v-for="op in historyNouveauxRecrus" :key="op.operatorId" class="hover:bg-blue-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hpn2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-xs font-medium" :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="text-blue-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span><span class="text-xs text-gray-400"> restants</span></td></tr></tbody></table>
         </div>
       </div>
+
+      <!-- Fallback empty table when no operators found in history for current scope -->
+      <div v-if="scopedPendingOperators.length + scopedCompletedOperators.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr class="border-b border-gray-200">
+                <th class="text-left px-4 py-3 font-semibold text-gray-700">Opérateur</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-700">Matricule</th>
+                <th class="text-center px-4 py-3 font-semibold text-gray-700">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="3" class="text-center py-12 text-gray-400">
+                  Aucun opérateur trouvé dans l'historique d'onboarding
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
 
@@ -410,9 +506,11 @@ import { useRouter } from 'vue-router';
 import onboardingApi from '@/api/onboarding';
 import { operatorsApi } from '@/api/endpoints';
 import { useAuthStore } from '@/stores/auth';
+import { useUserScope } from '@/composables/useUserScope';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { loadUserProjects, filterOperators } = useUserScope();
 
 // Tab state
 const activeTab = ref('matrix');
@@ -432,6 +530,16 @@ const historyData = ref({
   pendingOperators: []
 });
 const searchQuery = ref('');
+const detailSearchQuery = ref('');
+const filteredDetailOperators = computed(() => {
+  const scoped = filterOperators(allOperators.value)
+  if (!detailSearchQuery.value) return scoped
+  const q = detailSearchQuery.value.trim().toLowerCase()
+  return scoped.filter(op =>
+    `${op.lastName} ${op.firstName}`.toLowerCase().includes(q) ||
+    (op.employeeId && op.employeeId.toLowerCase().includes(q))
+  )
+})
 const loadingMatrix = ref(false);
 
 const validatingModuleId = ref(null);
@@ -439,18 +547,30 @@ const validatingModuleId = ref(null);
 // Current user roles
 const userRoles = computed(() => authStore.user?.roles || []);
 
+const scopedPendingOperators = computed(() => {
+  const scoped = filterOperators(allOperators.value)
+  const scopedIds = new Set(scoped.map(o => o.id))
+  return (historyData.value.pendingOperators || []).filter(op => scopedIds.has(op.operatorId || op.id))
+})
+
+const scopedCompletedOperators = computed(() => {
+  const scoped = filterOperators(allOperators.value)
+  const scopedIds = new Set(scoped.map(o => o.id))
+  return (historyData.value.completedOperators || []).filter(op => scopedIds.has(op.operatorId || op.id))
+})
+
 // Split operators by type in history
 const historyNouveauxRecrus = computed(() => {
-  return (historyData.value.pendingOperators || []).filter(op => op.operatorType === 'NOUVEAU_RECRU')
+  return scopedPendingOperators.value.filter(op => op.operatorType === 'NOUVEAU_RECRU')
 })
 const historyDejaEnPoste = computed(() => {
-  return (historyData.value.pendingOperators || []).filter(op => op.operatorType === 'DEJA_EN_POSTE')
+  return scopedPendingOperators.value.filter(op => op.operatorType === 'DEJA_EN_POSTE')
 })
 const historyCompletedNouveaux = computed(() => {
-  return (historyData.value.completedOperators || []).filter(op => op.operatorType === 'NOUVEAU_RECRU')
+  return scopedCompletedOperators.value.filter(op => op.operatorType === 'NOUVEAU_RECRU')
 })
 const historyCompletedDeja = computed(() => {
-  return (historyData.value.completedOperators || []).filter(op => op.operatorType === 'DEJA_EN_POSTE')
+  return scopedCompletedOperators.value.filter(op => op.operatorType === 'DEJA_EN_POSTE')
 })
 
 // Department column names from summary data
@@ -460,15 +580,26 @@ const departmentNames = computed(() => {
   return first.departmentProgress ? Object.keys(first.departmentProgress) : [];
 });
 
+
+
+const scopedOperatorsSummary = computed(() => {
+  const scoped = filterOperators(allOperators.value)
+  const scopedIds = new Set(scoped.map(o => o.id))
+  return operatorsSummary.value.filter(op => scopedIds.has(op.operatorId || op.id))
+})
+
 // Filter operators in matrix
 const filteredOperators = computed(() => {
-  if (!searchQuery.value) return operatorsSummary.value;
+  if (!searchQuery.value) return scopedOperatorsSummary.value;
   const q = searchQuery.value.toLowerCase();
-  return operatorsSummary.value.filter(op =>
+  return scopedOperatorsSummary.value.filter(op =>
     (op.firstName + ' ' + op.lastName).toLowerCase().includes(q) ||
     (op.matricule || '').toLowerCase().includes(q)
   );
 });
+
+const pendingOperators = computed(() => filteredOperators.value.filter(op => !op.onboardingComplete))
+const completedOperators = computed(() => filteredOperators.value.filter(op => op.onboardingComplete))
 
 // Active department data for detail view
 const activeDeptData = computed(() => {
@@ -480,6 +611,7 @@ const activeDeptData = computed(() => {
 
 onMounted(async () => {
   try {
+    await loadUserProjects();
     const opsRes = await operatorsApi.getAll();
     allOperators.value = opsRes.data || [];
   } catch (e) {

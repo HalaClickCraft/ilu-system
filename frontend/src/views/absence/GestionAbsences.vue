@@ -1,137 +1,251 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Gestion des Absences</h1>
-        <p class="text-sm text-gray-500 mt-1">Marquer les absences, reprises et departs des operateurs</p>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Statuts & Absences des Opérateurs</h1>
+      <p class="text-sm text-gray-500 mt-1">
+        Déclarer les absences (RH uniquement), les reprises d'activités (RH/Chef d'équipe) et les départs (RH/Chef d'équipe).
+      </p>
+    </div>
+
+    <!-- Filter and Search Bar -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Rechercher un opérateur par nom ou matricule..."
+          class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+        />
       </div>
-      <div class="flex items-center gap-3">
-        <button @click="openModal('absent')" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-          Marquer Absent
-        </button>
-        <button @click="openModal('depart')" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          Marquer Depart
+
+      <!-- Tabs/Filters -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+        <button
+          v-for="status in ['TOUS', 'EN_POSTE', 'ABSENT', 'SORTI', 'HISTORIQUE']"
+          :key="status"
+          @click="selectedStatusFilter = status"
+          :class="[
+            selectedStatusFilter === status
+              ? 'bg-slate-800 text-white font-semibold'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            'px-4 py-2 rounded-lg text-xs transition whitespace-nowrap'
+          ]"
+        >
+          {{ statusLabel(status) }}
         </button>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-      <div class="border-b border-gray-200">
-        <nav class="flex">
-          <button @click="activeTab = 'active'" :class="activeTab === 'active' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="px-6 py-3 text-sm font-medium border-b-2 transition">Absences Actives ({{ activeAbsences.length }})</button>
-          <button @click="activeTab = 'all'" :class="activeTab === 'all' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="px-6 py-3 text-sm font-medium border-b-2 transition">Toutes</button>
-        </nav>
-      </div>
-
+    <!-- Operators Status Table -->
+    <div v-if="selectedStatusFilter !== 'HISTORIQUE'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Operateur</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Debut</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Retour Prevu</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Reprise</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Opérateur</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Affectation</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut Actuel</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="item in displayedItems" :key="item.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3">
-                <span class="text-sm font-medium text-gray-900">{{ item.operatorName }}</span>
-                <span class="block text-xs text-gray-400">{{ item.operatorEmployeeId || '' }}</span>
+            <tr v-for="op in filteredOperators" :key="op.id" class="hover:bg-gray-50/50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="font-semibold text-gray-900">{{ op.lastName }} {{ op.firstName }}</div>
+                <div class="text-xs text-gray-400">Matricule: {{ op.employeeId }}</div>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ formatDate(item.startDate) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ formatDate(item.expectedReturnDate) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ formatDate(item.actualReturnDate) }}</td>
-              <td class="px-4 py-3">
-                <span :class="item.status === 'EN_COURS' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                  {{ item.status === 'EN_COURS' ? 'En Cours' : 'Terminee' }}
+              <td class="px-6 py-4 whitespace-nowrap text-gray-600 text-xs">
+                <div>Projet: <span class="font-medium text-gray-800">{{ op.project?.name || '-' }}</span></div>
+                <div>Zone: <span class="font-medium text-gray-800">{{ op.zone?.name || '-' }}</span></div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span :class="badgeClass(getOperatorState(op))" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border">
+                  <span class="w-1.5 h-1.5 rounded-full" :class="dotClass(getOperatorState(op))"></span>
+                  {{ getOperatorStateLabel(op) }}
                 </span>
               </td>
-              <td class="px-4 py-3">
-                <button v-if="item.status === 'EN_COURS'" @click="markReturn(item)" class="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-800 font-medium">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  Marquer Reprise
-                </button>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-xs space-x-2">
+                <!-- Actions for EN_POSTE -->
+                <template v-if="getOperatorState(op) === 'EN_POSTE'">
+                  <button
+                    @click="promptAbsent(op)"
+                    :disabled="!canDeclareAbsent"
+                    :class="canDeclareAbsent ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'"
+                    class="px-3 py-1.5 border rounded-lg font-medium transition"
+                    title="Déclarer absent (Réservé RH)"
+                  >
+                    Déclarer Absent
+                  </button>
+                  <button
+                    @click="promptDeparture(op)"
+                    :disabled="!canManageRepriseOrSortie"
+                    :class="canManageRepriseOrSortie ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'"
+                    class="px-3 py-1.5 border rounded-lg font-medium transition"
+                  >
+                    Déclarer Départ
+                  </button>
+                </template>
+
+                <!-- Actions for ABSENT -->
+                <template v-else-if="getOperatorState(op) === 'ABSENT'">
+                  <button
+                    @click="promptReturn(op)"
+                    :disabled="!canManageRepriseOrSortie"
+                    :class="canManageRepriseOrSortie ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'"
+                    class="px-3 py-1.5 border rounded-lg font-medium transition"
+                  >
+                    Marquer Reprise
+                  </button>
+                </template>
+
+                <!-- Actions for SORTI -->
+                <template v-else-if="getOperatorState(op) === 'SORTI'">
+                  <button
+                    @click="promptReactivate(op)"
+                    :disabled="!canManageRepriseOrSortie"
+                    :class="canManageRepriseOrSortie ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'"
+                    class="px-3 py-1.5 border rounded-lg font-medium transition"
+                  >
+                    Réactiver
+                  </button>
+                </template>
               </td>
             </tr>
-            <tr v-if="displayedItems.length === 0">
-              <td colspan="6" class="px-4 py-12 text-center text-gray-400">Aucune absence trouvee</td>
+            <tr v-if="filteredOperators.length === 0">
+              <td colspan="4" class="px-6 py-12 text-center text-gray-400">Aucun opérateur trouvé</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Mark Absent Modal -->
-    <div v-if="showModal === 'absent'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showModal = null">
+    <!-- Absence History Table -->
+    <div v-else class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Opérateur</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date Début</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reprise Prévue</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reprise Réelle</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="item in filteredHistory" :key="item.id" class="hover:bg-gray-50/50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="font-semibold text-gray-900">{{ item.operatorName }}</div>
+                <div class="text-xs text-gray-400">Matricule: {{ item.employeeId }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-600 text-xs">
+                {{ item.startDate }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-600 text-xs">
+                {{ item.expectedReturnDate || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-600 text-xs">
+                {{ item.actualReturnDate || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span :class="item.status === 'EN_COURS' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border">
+                  <span class="w-1.5 h-1.5 rounded-full" :class="item.status === 'EN_COURS' ? 'bg-orange-500' : 'bg-emerald-500'"></span>
+                  {{ item.status === 'EN_COURS' ? 'Absent' : 'Reprise effectuée' }}
+                </span>
+              </td>
+            </tr>
+            <tr v-if="filteredHistory.length === 0">
+              <td colspan="5" class="px-6 py-12 text-center text-gray-400">Aucun historique d'absence trouvé</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Modal: Mark Absent -->
+    <div v-if="activeModal === 'absent'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeModal">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">Marquer Operateur Absent</h3>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Déclarer l'Opérateur Absent</h3>
+        <p class="text-xs text-gray-500 mb-4">
+          Marquer <strong class="text-gray-700">{{ selectedOperator?.lastName }} {{ selectedOperator?.firstName }}</strong> absent pour maladie ou congé de longue durée (+3 mois).
+        </p>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Operateur</label>
-            <select v-model="absenceForm.operatorId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option :value="null">Selectionner...</option>
-              <option v-for="op in activeOperators" :key="op.id" :value="op.id">{{ op.lastName }} {{ op.firstName }} ({{ op.employeeId }})</option>
-            </select>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Date de début d'absence</label>
+            <input v-model="absentForm.startDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date Debut</label>
-            <input v-model="absenceForm.startDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Retour Prevu (optionnel)</label>
-            <input v-model="absenceForm.expectedReturnDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Date de retour prévue (optionnel)</label>
+            <input v-model="absentForm.expectedReturnDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
           </div>
         </div>
         <div class="flex justify-end gap-3 mt-6">
-          <button @click="showModal = null" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-          <button @click="submitAbsent" :disabled="loading" class="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">Confirmer</button>
+          <button @click="closeModal" class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+          <button @click="submitAbsent" :disabled="loading" class="px-4 py-2 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 font-semibold">
+            Confirmer l'Absence
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Mark Departure Modal -->
-    <div v-if="showModal === 'depart'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showModal = null">
+    <!-- Modal: Mark Exit (Départ) -->
+    <div v-if="activeModal === 'depart'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeModal">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">Marquer Depart</h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Operateur</label>
-            <select v-model="departForm.operatorId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option :value="null">Selectionner...</option>
-              <option v-for="op in activeOperators" :key="op.id" :value="op.id">{{ op.lastName }} {{ op.firstName }} ({{ op.employeeId }})</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Date de Depart</label>
-            <input v-model="departForm.exitDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-          </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Déclarer le Départ de l'Opérateur</h3>
+        <p class="text-xs text-gray-500 mb-4">
+          Enregistrer le départ définitif (fin de contrat, démission, etc.) de <strong class="text-gray-700">{{ selectedOperator?.lastName }} {{ selectedOperator?.firstName }}</strong>.
+        </p>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Date de départ (sortie)</label>
+          <input v-model="exitForm.exitDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
         </div>
         <div class="flex justify-end gap-3 mt-6">
-          <button @click="showModal = null" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-          <button @click="submitDeparture" :disabled="loading" class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">Confirmer le Depart</button>
+          <button @click="closeModal" class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+          <button @click="submitDeparture" :disabled="loading" class="px-4 py-2 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-semibold">
+            Confirmer le Départ
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Return Confirmation -->
-    <div v-if="showModal === 'return'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showModal = null">
+    <!-- Modal: Mark Reprise -->
+    <div v-if="activeModal === 'reprise'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeModal">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-2">Confirmer la Reprise</h3>
-        <p class="text-sm text-gray-500 mb-4">Reprise de {{ returnItem?.operatorName }}. Un recyclage sera automatiquement planifie.</p>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Date de Reprise</label>
-          <input v-model="returnDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Déclarer la Reprise de l'Opérateur</h3>
+        <p class="text-xs text-gray-500 mb-4">
+          Valider le retour au travail de <strong class="text-gray-700">{{ selectedOperator?.lastName }} {{ selectedOperator?.firstName }}</strong>. Un recyclage sera automatiquement planifié.
+        </p>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Date de reprise (retour effectif)</label>
+          <input v-model="repriseForm.returnDate" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
         </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="closeModal" class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+          <button @click="submitReturn" :disabled="loading" class="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-semibold">
+            Confirmer la Reprise
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Reactivate -->
+    <div v-if="activeModal === 'reactivate'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeModal">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Réactiver l'Opérateur ?</h3>
+        <p class="text-xs text-gray-500 mb-6">
+          Voulez-vous réactiver l'opérateur <strong class="text-gray-700">{{ selectedOperator?.lastName }} {{ selectedOperator?.firstName }}</strong> ? Ses dates de départ et motifs d'absence seront réinitialisés.
+        </p>
         <div class="flex justify-end gap-3">
-          <button @click="showModal = null" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-          <button @click="confirmReturn" :disabled="loading" class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">Confirmer la Reprise</button>
+          <button @click="closeModal" class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+          <button @click="submitReactivate" :disabled="loading" class="px-4 py-2 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold">
+            Confirmer la Réactivation
+          </button>
         </div>
       </div>
     </div>
@@ -140,100 +254,237 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { absenceApi } from '@/services/absenceApi'
 import { operatorsApi } from '@/api/endpoints'
+import { absenceApi } from '@/services/absenceApi'
+import { useAuthStore } from '@/stores/auth'
+import { useUserScope } from '@/composables/useUserScope'
 
-const allAbsences = ref([])
-const activeOperators = ref([])
+const authStore = useAuthStore()
+const { loadUserProjects, filterOperators } = useUserScope()
+
+// State
+const operatorsList = ref([])
+const absencesHistory = ref([])
 const loading = ref(false)
-const activeTab = ref('active')
-const showModal = ref(null)
-const returnItem = ref(null)
-const returnDate = ref(new Date().toISOString().split('T')[0])
+const searchQuery = ref('')
+const selectedStatusFilter = ref('TOUS')
+const activeModal = ref(null)
+const selectedOperator = ref(null)
 
-const absenceForm = ref({ operatorId: null, startDate: '', expectedReturnDate: '' })
-const departForm = ref({ operatorId: null, exitDate: '' })
+// Forms State
+const absentForm = ref({ startDate: '', expectedReturnDate: '' })
+const exitForm = ref({ exitDate: '' })
+const repriseForm = ref({ returnDate: '' })
 
-const activeAbsences = computed(() => allAbsences.value.filter(a => a.status === 'EN_COURS'))
-const displayedItems = computed(() => activeTab.value === 'active' ? activeAbsences.value : allAbsences.value)
+// Permissions
+const canDeclareAbsent = computed(() => authStore.hasAnyRole(['RH', 'ADMIN']))
+const canManageRepriseOrSortie = computed(() => authStore.hasAnyRole(['CHEF_EQUIPE', 'RH', 'ADMIN']))
 
-async function loadData() {
- loading.value = true
+// Get operator state helper
+function getOperatorState(op) {
+  if (op.active === false) {
+    if (op.exitDate) return 'SORTI'
+    return 'ABSENT'
+  }
+  return 'EN_POSTE'
+}
+
+function getOperatorStateLabel(op) {
+  const state = getOperatorState(op)
+  if (state === 'EN_POSTE') return 'En poste'
+  if (state === 'ABSENT') return 'Absent'
+  return 'Sorti (Départ)'
+}
+
+// Styling classes
+function badgeClass(state) {
+  if (state === 'EN_POSTE') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (state === 'ABSENT') return 'bg-orange-50 text-orange-700 border-orange-200'
+  return 'bg-rose-50 text-rose-700 border-rose-200'
+}
+
+function dotClass(state) {
+  if (state === 'EN_POSTE') return 'bg-emerald-500'
+  if (state === 'ABSENT') return 'bg-orange-500'
+  return 'bg-rose-500'
+}
+
+function statusLabel(status) {
+  const map = { TOUS: 'Tous', EN_POSTE: 'En poste', ABSENT: 'Absents', SORTI: 'Sortis', HISTORIQUE: 'Historique des absences' }
+  return map[status] || status
+}
+
+// Fetch Operators list
+async function loadOperators() {
+  loading.value = true
   try {
-    const [absRes, opRes] = await Promise.all([
-      absenceApi.getAll(),
-      operatorsApi.getActive(),
-    ])
-    allAbsences.value = absRes.data || []
-    activeOperators.value = opRes.data || []
+    const res = await operatorsApi.getAll()
+    operatorsList.value = res.data || []
   } catch (e) {
-    console.error('Error loading data:', e)
+    console.error('Error loading operators:', e)
   } finally {
     loading.value = false
   }
 }
 
-function openModal(type) {
-  showModal.value = type
-  absenceForm.value = { operatorId: null, startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '' }
-  departForm.value = { operatorId: null, exitDate: new Date().toISOString().split('T')[0] }
+// Fetch Absences History
+async function loadHistory() {
+  try {
+    const res = await absenceApi.getAll()
+    absencesHistory.value = res.data || []
+  } catch (e) {
+    console.error('Error loading absences history:', e)
+  }
 }
 
+const scopedOperatorsList = computed(() => filterOperators(operatorsList.value))
+
+const filteredHistory = computed(() => {
+  let list = absencesHistory.value
+  const scopedOps = filterOperators(operatorsList.value)
+  const scopedOpIds = new Set(scopedOps.map(o => o.id))
+  list = list.filter(a => scopedOpIds.has(a.operatorId))
+
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(a => {
+      const name = (a.operatorName || '').toLowerCase()
+      const mat = (a.employeeId || '').toLowerCase()
+      return name.includes(q) || mat.includes(q)
+    })
+  }
+  return list
+})
+
+// Filtering
+const filteredOperators = computed(() => {
+  let list = scopedOperatorsList.value
+
+  // Status Filter
+  if (selectedStatusFilter.value !== 'TOUS') {
+    list = list.filter(op => getOperatorState(op) === selectedStatusFilter.value)
+  }
+
+  // Search Filter
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(op => {
+      const name = `${op.lastName || ''} ${op.firstName || ''}`.toLowerCase()
+      const mat = (op.employeeId || '').toLowerCase()
+      return name.includes(q) || mat.includes(q)
+    })
+  }
+
+  return list
+})
+
+// Modals Triggers
+function promptAbsent(op) {
+  selectedOperator.value = op
+  absentForm.value = { startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '' }
+  activeModal.value = 'absent'
+}
+
+function promptDeparture(op) {
+  selectedOperator.value = op
+  exitForm.value = { exitDate: new Date().toISOString().split('T')[0] }
+  activeModal.value = 'depart'
+}
+
+function promptReturn(op) {
+  selectedOperator.value = op
+  repriseForm.value = { returnDate: new Date().toISOString().split('T')[0] }
+  activeModal.value = 'reprise'
+}
+
+function promptReactivate(op) {
+  selectedOperator.value = op
+  activeModal.value = 'reactivate'
+}
+
+function closeModal() {
+  activeModal.value = null
+  selectedOperator.value = null
+}
+
+// Submit actions
 async function submitAbsent() {
-  if (!absenceForm.value.operatorId || !absenceForm.value.startDate) return
+  if (!selectedOperator.value || !absentForm.value.startDate) return
   loading.value = true
   try {
-    await absenceApi.markAbsent(absenceForm.value)
-    showModal.value = null
-    await loadData()
+    await absenceApi.markAbsent({
+      operatorId: selectedOperator.value.id,
+      startDate: absentForm.value.startDate,
+      expectedReturnDate: absentForm.value.expectedReturnDate || null
+    })
+    closeModal()
+    await loadOperators()
+    await loadHistory()
   } catch (e) {
-    console.error('Error:', e)
+    console.error(e)
+    alert("Erreur lors de la déclaration d'absence : " + (e.response?.data?.message || e.message))
   } finally {
     loading.value = false
   }
 }
 
 async function submitDeparture() {
-  if (!departForm.value.operatorId || !departForm.value.exitDate) return
+  if (!selectedOperator.value || !exitForm.value.exitDate) return
   loading.value = true
   try {
-    await absenceApi.markDeparture(departForm.value)
-    showModal.value = null
-    await loadData()
+    await absenceApi.markDeparture({
+      operatorId: selectedOperator.value.id,
+      exitDate: exitForm.value.exitDate
+    })
+    closeModal()
+    await loadOperators()
+    await loadHistory()
   } catch (e) {
-    console.error('Error:', e)
+    console.error(e)
+    alert("Erreur lors de la déclaration de départ : " + (e.response?.data?.message || e.message))
   } finally {
     loading.value = false
   }
 }
 
-function markReturn(item) {
-  returnItem.value = item
-  returnDate.value = new Date().toISOString().split('T')[0]
-  showModal.value = 'return'
-}
-
-async function confirmReturn() {
+async function submitReturn() {
+  if (!selectedOperator.value || !repriseForm.value.returnDate) return
   loading.value = true
   try {
-    await absenceApi.markReturn({ operatorId: returnItem.value.operatorId, returnDate: returnDate.value })
-    showModal.value = null
-    await loadData()
+    await absenceApi.markReturn({
+      operatorId: selectedOperator.value.id,
+      returnDate: repriseForm.value.returnDate
+    })
+    closeModal()
+    await loadOperators()
+    await loadHistory()
   } catch (e) {
-    console.error('Error:', e)
+    console.error(e)
+    alert("Erreur lors de la déclaration de reprise : " + (e.response?.data?.message || e.message))
   } finally {
     loading.value = false
   }
 }
 
-function formatDate(d) {
-  if (!d) return '-'
-  if (typeof d === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
-    const [day, month, year] = d.split('/').map(Number)
-    return new Date(year, month - 1, day).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+async function submitReactivate() {
+  if (!selectedOperator.value) return
+  loading.value = true
+  try {
+    await operatorsApi.activate(selectedOperator.value.id)
+    closeModal()
+    await loadOperators()
+    await loadHistory()
+  } catch (e) {
+    console.error(e)
+    alert("Erreur lors de la réactivation : " + (e.response?.data?.message || e.message))
+  } finally {
+    loading.value = false
   }
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-onMounted(() => loadData())
+onMounted(async () => {
+  await loadUserProjects()
+  loadOperators()
+  loadHistory()
+})
 </script>

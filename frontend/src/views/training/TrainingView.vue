@@ -6,7 +6,7 @@
         <p class="mt-1 text-gray-500">Suivi et planification des formations ILU</p>
       </div>
       <div v-if="canContribute" class="flex gap-2">
-        <button v-if="inProgressCount" @click="openDailyBatch" class="rounded-lg border border-emerald-600 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Saisie quotidienne</button>
+        <button @click="openDailyBatch" class="rounded-lg border border-sky-600 px-4 py-2.5 text-sm font-medium text-sky-700 hover:bg-sky-50">Saisie quotidienne</button>
       </div>
     </div>
 
@@ -21,24 +21,59 @@
     </div>
 
     <!-- Eligible operators -->
-    <div v-if="canContribute" class="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div class="border-b border-gray-100 p-4">
-        <h2 class="font-semibold text-gray-900">Opérateurs éligibles à la formation pratique</h2>
-        <p class="mt-1 text-sm text-gray-500">Modules théoriques terminés. Sélectionnez un poste pour démarrer.</p>
+    <div v-if="canAssignPost" class="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div class="border-b border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Opérateurs prêts pour affectation & qualification au poste
+          </h2>
+          <p class="mt-1 text-sm text-gray-500">
+            Sélectionnez un opérateur disponible (Nouvelle recrue ayant validé la théorie OU Opérateur déjà en poste) pour démarrer un suivi au poste.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input v-model="eligibleSearch" type="text" placeholder="Rechercher éligible..." class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 w-44">
+          <div class="flex gap-1 bg-gray-100 p-1 rounded-lg text-xs font-medium">
+            <button @click="eligibleTypeFilter = 'ALL'" class="px-2 py-1 rounded transition-colors" :class="eligibleTypeFilter === 'ALL' ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'">Tous</button>
+            <button @click="eligibleTypeFilter = 'DEJA_EN_POSTE'" class="px-2 py-1 rounded transition-colors" :class="eligibleTypeFilter === 'DEJA_EN_POSTE' ? 'bg-white shadow-sm text-blue-700 font-semibold' : 'text-gray-500 hover:text-gray-700'">Déjà en poste</button>
+            <button @click="eligibleTypeFilter = 'NOUVEAU_RECRU'" class="px-2 py-1 rounded transition-colors" :class="eligibleTypeFilter === 'NOUVEAU_RECRU' ? 'bg-white shadow-sm text-purple-700 font-semibold' : 'text-gray-500 hover:text-gray-700'">Nouvelle recrue</button>
+          </div>
+        </div>
       </div>
-      <div v-if="eligibleOperators.length" class="overflow-x-auto">
+      <div v-if="filteredEligibleOperators.length" class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left font-medium text-gray-500">Opérateur</th><th class="px-4 py-3 text-left font-medium text-gray-500">Matricule</th><th class="px-4 py-3 text-right font-medium text-gray-500">Action</th></tr></thead>
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium text-gray-500">Opérateur</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500">Matricule</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500">Statut Recrutement</th>
+              <th class="px-4 py-3 text-right font-medium text-gray-500">Action</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="operator in eligibleOperators" :key="operator.id" class="border-b border-gray-50">
-              <td class="px-4 py-3 font-medium">{{ operator.lastName }} {{ operator.firstName }}</td>
-              <td class="px-4 py-3 text-gray-500">{{ operator.employeeId }}</td>
-              <td class="px-4 py-3 text-right"><button @click="startFormation(operator)" class="text-emerald-600 hover:underline">Démarrer au poste</button></td>
+            <tr v-for="operator in filteredEligibleOperators" :key="operator.id" class="border-b border-gray-50 hover:bg-gray-50/80 transition">
+              <td class="px-4 py-3 font-semibold text-gray-900">{{ operator.lastName }} {{ operator.firstName }}</td>
+              <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ operator.employeeId }}</td>
+              <td class="px-4 py-3">
+                <span v-if="operator.operatorType === 'DEJA_EN_POSTE'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span> Déjà en poste
+                </span>
+                <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-600"></span> Nouvelle recrue (Théorie Validée)
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button @click="startFormation(operator)" class="inline-flex items-center gap-1 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium rounded-lg shadow-sm transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  Démarrer au poste
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div v-else class="p-6 text-center text-sm text-gray-400">Aucun opérateur n'est actuellement éligible.</div>
+      <div v-else class="p-6 text-center text-sm text-gray-400">Aucun opérateur disponible ne correspond à votre recherche.</div>
     </div>
 
     <!-- Formations en retard -->
@@ -76,10 +111,10 @@
             <button v-for="tab in tabs" :key="tab.value" @click="activeTab = tab.value" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="activeTab === tab.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'">{{ tab.label }}<span class="ml-1.5 text-xs opacity-60">{{ tab.count }}</span></button>
           </div>
           <div class="flex flex-col sm:flex-row gap-2">
-            <input v-model="search" type="text" placeholder="Rechercher un operateur..." class="rounded-lg border border-gray-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-64">
+            <input v-model="search" type="text" placeholder="Rechercher un operateur..." class="rounded-lg border border-gray-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 sm:w-64">
             <div v-if="showProjectFilter" class="flex items-center gap-2">
               <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Projet:</label>
-              <select v-model="selectedProject" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 min-w-[180px]">
+              <select v-model="selectedProject" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500 min-w-[180px]">
                 <option value="">Tous les projets</option>
                 <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
@@ -87,7 +122,7 @@
           </div>
         </div>
         <!-- Project filter active header -->
-        <div v-if="selectedProject && !loading" class="mt-3 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-emerald-800">
+        <div v-if="selectedProject && !loading" class="mt-3 px-4 py-2 bg-sky-50 border border-sky-200 rounded-lg text-sm font-medium text-sky-800">
           <svg class="w-4 h-4 inline -mt-0.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
           {{ selectedProjectName }} — {{ filteredGroups.length }} operateur(s)
         </div>
@@ -112,7 +147,7 @@
               </span>
               <span v-if="op.completed" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ op.completed }} réussie{{ op.completed > 1 ? 's' : '' }}</span>
               <span v-if="op.failed" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ op.failed }} échouée{{ op.failed > 1 ? 's' : '' }}</span>
-              <span v-if="canContribute && op.hasCompletedFormation" @click.stop="startFormation({ id: op.operatorId })" class="text-xs text-emerald-600 hover:underline cursor-pointer ml-1">+ Nouveau poste</span>
+              <span v-if="canAssignPost && op.hasCompletedFormation" @click.stop="startFormation({ id: op.operatorId })" class="text-xs text-sky-600 hover:underline cursor-pointer ml-1">+ Nouveau poste</span>
             </div>
           </div>
 
@@ -135,7 +170,7 @@
                   <td class="px-4 py-2.5 text-center" :class="f.totalDefects < (f.qualityObjective ?? 7) ? 'text-emerald-600' : 'text-red-600'">{{ f.totalDefects ?? 0 }} / {{ f.qualityObjective ?? 7 }}</td>
                   <td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(f.status)">{{ statusLabel(f.status) }}</span></td>
                   <td class="px-4 py-2.5 text-right">
-                    <router-link :to="'/training/' + f.id" class="text-emerald-600 hover:underline text-xs font-medium">{{ f.status === 'IN_PROGRESS' ? 'Saisir' : 'Détail' }}</router-link>
+                    <router-link :to="'/training/' + f.id" class="text-sky-600 hover:underline text-xs font-medium">{{ f.status === 'IN_PROGRESS' ? 'Saisir' : 'Détail' }}</router-link>
                   </td>
                 </tr>
                 <tr v-if="op.formations.length === 0"><td colspan="6" class="px-4 py-4 text-center text-gray-400 text-xs">Aucune formation</td></tr>
@@ -155,7 +190,7 @@
         <div><label class="mb-1 block text-sm font-medium">Projet</label><select v-model="form.projectId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" @change="form.zoneId = ''; form.workstationId = ''"><option value="">Sélectionner</option><option v-for="project in availableStructure" :key="project.id" :value="project.id">{{ project.name }}</option></select></div>
         <div><label class="mb-1 block text-sm font-medium">Zone</label><select v-model="form.zoneId" required :disabled="!form.projectId" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" @change="form.workstationId = ''"><option value="">Sélectionner</option><option v-for="zone in availableZones" :key="zone.id" :value="zone.id">{{ zone.name }}</option></select></div>
         <div><label class="mb-1 block text-sm font-medium">Poste de travail</label><select v-model="form.workstationId" required :disabled="!form.zoneId" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"><option value="">Sélectionner</option><option v-for="workstation in availableWorkstations" :key="workstation.id" :value="workstation.id">{{ workstation.name }}</option></select></div>
-        <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreate = false" class="px-4 py-2 text-sm text-gray-600">Annuler</button><button type="submit" :disabled="creating" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">Démarrer</button></div>
+        <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreate = false" class="px-4 py-2 text-sm text-gray-600">Annuler</button><button type="submit" :disabled="creating" class="rounded-lg bg-sky-600 hover:bg-sky-700 px-4 py-2 text-sm text-white disabled:opacity-50">Démarrer</button></div>
       </form>
     </div>
 
@@ -192,7 +227,7 @@
               <td class="px-3 py-2 text-gray-500">{{ formation.workstationName }}</td>
               <td class="px-3 py-2">
                 <div class="flex items-center gap-1.5">
-                  <span class="inline-flex h-7 w-10 items-center justify-center rounded-md bg-emerald-50 text-xs font-bold text-emerald-700 border border-emerald-200">
+                  <span class="inline-flex h-7 w-10 items-center justify-center rounded-md bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200">
                     J{{ batchEntries[formation.id]?.dayNumber }}
                   </span>
                   <input v-model.number="batchEntries[formation.id].dayNumber" type="number" min="1" max="12"
@@ -202,12 +237,18 @@
               <td v-if="canEditCadence" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].cadence" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td>
               <td v-if="canEditDefects" class="px-3 py-2"><input v-model.number="batchEntries[formation.id].defauts" min="0" type="number" class="w-24 rounded border border-gray-300 px-2 py-1"></td>
             </tr>
-            <tr v-if="!batchFilteredFormations.length">
-              <td colspan="5" class="px-3 py-6 text-center text-gray-400 text-sm">Aucune formation en cours à saisir (toutes les formations en cours ont déjà leurs 12 jours - passez à l'évaluation).</td>
+            <tr v-if="batchFilteredFormations.length === 0">
+              <td colspan="5" class="px-4 py-10 text-center">
+                <div class="flex flex-col items-center gap-2">
+                  <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <p class="text-sm font-medium text-gray-500">Aucun opérateur en formation active</p>
+                  <p class="text-xs text-gray-400">La saisie quotidienne est disponible dès qu'un opérateur est en cours de formation (J1–J12).</p>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
-        <div class="mt-5 flex justify-end gap-3"><button type="button" @click="showDailyBatch = false" class="px-4 py-2 text-sm text-gray-600">Annuler</button><button :disabled="savingBatch" type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">Enregistrer la saisie</button></div>
+        <div class="mt-5 flex justify-end gap-3"><button type="button" @click="showDailyBatch = false" class="px-4 py-2 text-sm text-gray-600">Annuler</button><button :disabled="savingBatch" type="submit" class="rounded-lg bg-sky-600 hover:bg-sky-700 px-4 py-2 text-sm text-white disabled:opacity-50">Enregistrer la saisie</button></div>
       </form>
     </div>
   </div>
@@ -233,8 +274,36 @@ const savingBatch = ref(false)
 const showCreate = ref(false)
 const showDailyBatch = ref(false)
 const search = ref('')
+const eligibleSearch = ref('')
+const eligibleTypeFilter = ref('ALL')
 const activeTab = ref('ALL')
 const error = ref('')
+
+const myChefMember = computed(() => {
+  const empId = authStore.user?.employeeId
+  for (const p of projects.value) {
+    const m = p.members?.find(mem => mem.employeeId === empId)
+    if (m) return m
+  }
+  return null
+})
+
+const myShift = computed(() => myChefMember.value?.shift || null)
+
+const filteredEligibleOperators = computed(() => {
+  let list = filterOperators(eligibleOperators.value)
+  if (eligibleTypeFilter.value !== 'ALL') {
+    list = list.filter(o => o.operatorType === eligibleTypeFilter.value)
+  }
+  if (eligibleSearch.value && eligibleSearch.value.trim()) {
+    const q = eligibleSearch.value.trim().toLowerCase()
+    list = list.filter(o => 
+      `${o.lastName} ${o.firstName}`.toLowerCase().includes(q) ||
+      (o.employeeId && o.employeeId.toLowerCase().includes(q))
+    )
+  }
+  return list
+})
 const batchEntries = reactive({})
 const form = reactive({ projectId: '', zoneId: '', workstationId: '', operatorIds: [] })
 const expandedOperators = ref(new Set())
@@ -264,10 +333,17 @@ const getProjectNamesForOperator = (operatorId) => {
 const canEditCadence = computed(() => authStore.isChefEquipe)
 const canEditDefects = computed(() => authStore.isAgentQualite)
 const canContribute = computed(() => canEditCadence.value || canEditDefects.value)
-const inProgressFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
-const inProgressCount = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS').length)
-const completedCount = computed(() => formations.value.filter(f => f.status === 'COMPLETED').length)
-const failedCount = computed(() => formations.value.filter(f => f.status === 'FAILED').length)
+const canAssignPost = computed(() => authStore.isChefEquipe || authStore.isAdmin || authStore.isSuperviseur)
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterOperators, filterFormations } = useUserScope()
+
+const scopedFormations = computed(() => filterFormations(formations.value, allOperatorsData.value))
+
+const inProgressFormations = computed(() => scopedFormations.value.filter(f => f.status === 'IN_PROGRESS'))
+const inProgressCount = computed(() => scopedFormations.value.filter(f => f.status === 'IN_PROGRESS').length)
+const completedCount = computed(() => scopedFormations.value.filter(f => f.status === 'COMPLETED').length)
+const failedCount = computed(() => scopedFormations.value.filter(f => f.status === 'FAILED').length)
 const selectedFormProject = computed(() => availableStructure.value.find(p => p.id === form.projectId))
 const availableZones = computed(() => selectedFormProject.value?.zones || [])
 const selectedZone = computed(() => availableZones.value.find(z => z.id === form.zoneId))
@@ -324,7 +400,7 @@ const batchFilteredFormations = computed(() => {
 // ===== GROUP FORMATIONS BY OPERATOR =====
 const operatorGroups = computed(() => {
   const map = new Map()
-  for (const f of formations.value) {
+  for (const f of scopedFormations.value) {
     if (!map.has(f.operatorId)) {
       map.set(f.operatorId, { operatorId: f.operatorId, operatorName: f.operatorName, matricule: f.operatorEmployeeId, formations: [], inProgress: 0, completed: 0, failed: 0, hasCompletedFormation: false, currentFormation: null })
     }
@@ -397,17 +473,15 @@ const load = async () => {
   eligibleOperators.value = operatorsResponse.data.filter(
     operator => completion[operator.id] && !operatorsInProgress.has(operator.id)
   )
-  // Fetch project/teams/operator data for multi-project filtering
-  if (isMultiProjectRole.value) {
-    const [projRes, teamsRes, opsRes] = await Promise.allSettled([
-      structureApi.getAll(),
-      structureApi.getTeams(),
-      operatorsApi.getAll(),
-    ])
-    if (projRes.status === 'fulfilled') projects.value = projRes.value.data || []
-    if (teamsRes.status === 'fulfilled') teams.value = teamsRes.value.data || []
-    if (opsRes.status === 'fulfilled') allOperatorsData.value = opsRes.value.data || []
-  }
+  // Fetch project/teams/operator data for project & shift filtering
+  const [projRes, teamsRes, opsRes] = await Promise.allSettled([
+    structureApi.getAll(),
+    structureApi.getTeams(),
+    operatorsApi.getAll(),
+  ])
+  if (projRes.status === 'fulfilled') projects.value = projRes.value.data || []
+  if (teamsRes.status === 'fulfilled') teams.value = teamsRes.value.data || []
+  if (opsRes.status === 'fulfilled') allOperatorsData.value = opsRes.value.data || []
   // Load evaluation sessions to check for overdue evaluations
   if (canSeeRetard.value) {
     try {
@@ -472,7 +546,10 @@ const saveDailyBatch = async () => {
 }
 
 onMounted(async () => {
-  try { await load() } catch (e) {
+  try {
+    await loadUserProjects()
+    await load()
+  } catch (e) {
     error.value = e.response?.data?.message || 'Impossible de charger les formations.'
   } finally { loading.value = false }
 })

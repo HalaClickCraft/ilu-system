@@ -25,11 +25,14 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
     public LoginResponse login(LoginRequest request) {
+        String empId = request.getEmployeeId() != null ? request.getEmployeeId().trim() : "";
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmployeeId(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(empId, request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = jwtTokenProvider.generateToken(authentication);
-        User user = userRepository.findByEmployeeId(request.getEmployeeId()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmployeeIdIgnoreCase(empId)
+                .orElseGet(() -> userRepository.findByEmployeeId(empId)
+                .orElseThrow(() -> new RuntimeException("User not found")));
         LoginResponse response = new LoginResponse();
         response.setId(user.getId());
         response.setToken(token);

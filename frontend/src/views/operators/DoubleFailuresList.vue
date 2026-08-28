@@ -65,7 +65,7 @@
             <td class="px-6 py-4 text-xs text-gray-600">
               <ul class="space-y-1.5 list-disc list-inside">
                 <li v-for="(f, fIdx) in item.failures" :key="fIdx">
-                  <span class="font-medium text-gray-800">{{ f.type }}</span> le <span class="font-semibold">{{ f.date }}</span>
+                  <span class="font-medium text-gray-800">{{ formatFailureType(f.type) }}</span> le <span class="font-semibold">{{ f.date }}</span>
                   <span class="text-gray-400"> ({{ f.details }})</span>
                 </li>
               </ul>
@@ -93,9 +93,7 @@ async function fetchFailures() {
     failures.value = res.data || []
   } catch (err) {
     console.error('Error fetching double failures:', err)
-    // FIX: don't silently swallow the error - a 403 (missing role) or 500
-    // used to render the exact same "no failures" empty state, making a
-    // real problem indistinguishable from a genuinely empty list.
+
     if (err.response?.status === 403) {
       loadError.value = "Vous n'avez pas les droits pour consulter cette liste."
     } else {
@@ -104,6 +102,15 @@ async function fetchFailures() {
   } finally {
     loading.value = false
   }
+}
+
+function formatFailureType(type) {
+  if (!type) return '-'
+  if (type.includes('NOUVELLE_RECRUE')) return 'Évaluation nouvelle recrue'
+  if (type.includes('RECYCLAGE')) return 'Évaluation de recyclage'
+  if (type.includes('ANNUELLE')) return 'Évaluation annuelle'
+  if (type.includes('INITIAL')) return 'Évaluation initiale'
+  return type
 }
 
 onMounted(fetchFailures)

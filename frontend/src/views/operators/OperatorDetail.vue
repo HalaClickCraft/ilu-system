@@ -1,6 +1,7 @@
 <template>
   <div class="space-y-6">
     <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+    <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
     <template v-else-if="operator">
       <BreadcrumbNav :crumbs="[{ label: 'Opérateurs', to: '/operators' }, { label: operator.lastName + ' ' + operator.firstName }]" />
     <div class="flex items-center gap-4">
@@ -18,7 +19,6 @@
             <div class="flex justify-between"><dt class="text-gray-500">Type d'opérateur</dt><dd class="font-medium">{{ operator.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Date d'embauche</dt><dd class="font-medium">{{ formatDate(operator.hireDate) }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Date de sortie</dt><dd class="font-medium">{{ formatDate(operator.exitDate) }}</dd></div>
-            <div class="flex justify-between"><dt class="text-gray-500">Motif d'absence</dt><dd class="font-medium">{{ operator.absenceReason || '-' }}</dd></div>
           </dl>
         </div>
       </div>
@@ -46,13 +46,44 @@ const operator = ref(null)
 const formations = ref([])
 const loading = ref(true)
 const formationsLoading = ref(true)
+const error = ref('')
 
 const statusLabel = (s) => ({ IN_PROGRESS: 'En Cours', COMPLETED: 'Terminee', PLANNED: 'Planifiee' })[s] || s
 const statusClass = (s) => ({ IN_PROGRESS: 'bg-amber-100 text-amber-700', COMPLETED: 'bg-emerald-100 text-emerald-700', PLANNED: 'bg-gray-100 text-gray-600' })[s] || 'bg-gray-100 text-gray-600'
-// formatDate imported from shared/utils/date
+
+import { useUserScope } from '@/composables/useUserScope'
+const { loadUserProjects, filterOperators } = useUserScope()
 
 onMounted(async () => {
-  try { const r = await operatorsApi.getById(route.params.id); operator.value = r.data } catch (e) { console.error(e) } finally { loading.value = false }
-  try { const r = await operatorsApi.getFormations(route.params.id); formations.value = r.data } catch (e) { console.error(e) } finally { formationsLoading.value = false }
+  loading.value = true
+  try {
+    await loadUserProjects()
+    const r = await operatorsApi.getById(route.params.id)
+    const op = r.data
+    const scopedList = filterOperators([op])
+    if (scopedList.length === 0) {
+      error.value = "Vous n'avez pas l'autorisation d'accéder à cet opérateur."
+    } else {
+      operator.value = op
+    }
+  } catch (e) {
+    console.error(e)
+    error.value = "Erreur lors du chargement de l'opérateur."
+  } finally {
+    loading.value = false
+  }
+
+  if (operator.value) {
+    try {
+      const r = await operatorsApi.getFormations(route.params.id)
+      formations.value = r.data
+    } catch (e) {
+      console.error(e)
+    } finally {
+      formationsLoading.value = false
+    }
+  } else {
+    formationsLoading.value = false
+  }
 })
 </script>

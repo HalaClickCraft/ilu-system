@@ -92,11 +92,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { trainingApi } from '@/api/endpoints'
+import { trainingApi, operatorsApi } from '@/api/endpoints'
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterFormations } = useUserScope()
 
 const loading = ref(true)
-const formations = ref([])
+const rawFormations = ref([])
+const operators = ref([])
 const stats = ref({})
+
+const formations = computed(() => filterFormations(rawFormations.value, operators.value))
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
@@ -106,24 +112,27 @@ const completedCount = computed(() => completedFormations.value.length)
 
 const averageLevel = computed(() => {
   const active = activeFormations.value
-  if (active.length === 0) return '0'
-  const sum = active.reduce((s, f) => s + (f.achievedLevel || 0), 0)
-  return (sum / active.length).toFixed(1)
+  if (active.length === 0) return 'L'
+  const uCount = active.filter(f => f.achievedLevel === 'U' || f.niveau === 'U').length
+  const lCount = active.filter(f => f.achievedLevel === 'L' || f.niveau === 'L').length
+  if (uCount >= lCount) return 'U'
+  if (lCount > 0) return 'L'
+  return 'I'
 })
 
 const nonConformingCount = computed(() => {
-  return activeFormations.value.filter(f => (f.achievedLevel || 0) < (f.targetLevel || 5) * 0.5).length
+  return activeFormations.value.filter(f => !f.achievedLevel || f.achievedLevel === 'I').length
 })
 
 const attentionFormations = computed(() => {
-  return activeFormations.value.filter(f => (f.achievedLevel || 0) === 0).slice(0, 5)
+  return activeFormations.value.filter(f => !f.achievedLevel || f.achievedLevel === 'I').slice(0, 5)
 })
 
 const levelDistribution = computed(() => {
-  const levels = [1, 2, 3, 4, 5]
-  const colors = ['bg-red-400', 'bg-orange-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-600']
+  const levels = ['I', 'L', 'U']
+  const colors = ['bg-amber-400', 'bg-blue-500', 'bg-emerald-600']
   return levels.map((level, i) => {
-    const count = formations.value.filter(f => (f.achievedLevel || 0) === level).length
+    const count = formations.value.filter(f => (f.achievedLevel || f.niveau || 'I') === level).length
     return { level, count, percent: formations.value.length > 0 ? Math.round((count / formations.value.length) * 100) : 0, color: colors[i] }
   })
 })
@@ -134,9 +143,11 @@ const gapClass = (f) => { const gap = (f.targetLevel || 5) - (f.achievedLevel ||
 onMounted(async () => {
   loading.value = true
   try {
-    const [f, s] = await Promise.all([trainingApi.getFormations(), trainingApi.getStatistics()])
-    formations.value = f.data
+    await loadUserProjects()
+    const [f, s, o] = await Promise.all([trainingApi.getFormations(), trainingApi.getStatistics(), operatorsApi.getAll()])
+    rawFormations.value = f.data
     stats.value = s.data
+    operators.value = o.data
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 </script>

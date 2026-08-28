@@ -4,16 +4,12 @@
       :class="[sidebarOpen ? 'w-64' : 'w-20']"
       class="bg-slate-900 text-white transition-all duration-300 flex flex-col fixed h-full z-30"
     >
-      <div class="flex items-center justify-between p-4 border-b border-slate-700">
+      <div class="flex items-center justify-between p-4 border-b border-slate-700 min-h-[65px]">
         <div v-if="sidebarOpen" class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-            </svg>
-          </div>
-          <span class="font-bold text-lg">ILU</span>
+          <img src="/opmobility-logo.svg" alt="OPmobility Logo" class="h-5 w-auto filter brightness-0 invert" />
+          <span class="font-bold text-xs bg-sky-600 text-white px-1.5 py-0.5 rounded leading-none">ILU</span>
         </div>
-        <button @click="sidebarOpen = !sidebarOpen" class="p-1 rounded hover:bg-slate-700 transition">
+        <button @click="sidebarOpen = !sidebarOpen" class="p-1 rounded hover:bg-slate-700 transition shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
           </svg>
@@ -84,7 +80,7 @@
             <span v-if="sidebarOpen">Validation Questions</span>
           </router-link>
 
-          <router-link v-if="canAccessEvaluation" to="/evaluation/templates" class="nav-item" :class="{ active: $route.path.startsWith('/evaluation/templates') }">
+          <router-link v-if="canAccessTemplates" to="/evaluation/templates" class="nav-item" :class="{ active: $route.path.startsWith('/evaluation/templates') }">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 3h8m-8 4h8m-8 4h5"></path></svg>
             <span v-if="sidebarOpen">Templates Questions</span>
           </router-link>
@@ -96,7 +92,7 @@
         </div>
 
         <!-- ===== SECTION: ORGANISATION ===== -->
-        <div v-if="!isDeptOnly" class="mt-2">
+        <div v-if="!isDeptOnly && canAccessStructure" class="mt-2">
           <div v-if="sidebarOpen" class="px-4 pt-3 pb-1"><span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Organisation</span></div>
           <div v-else class="my-2 mx-4 border-t border-slate-700"></div>
 
@@ -141,7 +137,11 @@
     </aside>
     <main :class="[sidebarOpen ? 'ml-64' : 'ml-20']" class="flex-1 transition-all duration-300">
       <div class="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3"></div>
+        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <span>OPmobility</span>
+          <span class="text-gray-300">/</span>
+          <span class="text-gray-600 font-bold">{{ currentRouteName }}</span>
+        </div>
         <div class="flex items-center gap-3">
           <NotificationBell v-if="canSeeNotifications" :key="authStore.isAuthenticated + '_' + (authStore.user ? Array.from(authStore.user.roles).join(',') : '')" />
         </div>
@@ -169,32 +169,52 @@ const DEPT_ONLY_ROLES = ['DEPT_PROCESS', 'DEPT_MAINTENANCE', 'DEPT_DGT_MANUFACTU
 
 const isDeptOnly = computed(() => authStore.hasAnyRole(DEPT_ONLY_ROLES))
 
-const showEvaluationSection = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'AGENT_QUALITE', 'RESP_QUALITE', 'RESP_HSE', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RH'])
+const canSeeNotifications = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE', 'AGENT_QUALITE', 'RESP_HSE'])
 )
-const canAccessEvaluation = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'CHEF_EQUIPE', 'RESP_HSE', 'AGENT_QUALITE', 'RESP_QUALITE'])
-)
-const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE']))
-const showDoubleFailures = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'RH', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'])
+
+const showEvaluationSection = computed(() => true)
+const canAccessTraining = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_QUALITE'])
 )
 const canAccessRecyclage = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE'])
+  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_HSE'])
 )
 const canManageAbsences = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'])
+  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'])
 )
-const canSeeNotifications = computed(() => {
-  const user = authStore.user
-  if (!user || !user.roles) return false
-  return ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_QUALITE', 'AGENT_QUALITE'].some(r => user.roles.has(r))
-})
-// "Repartition Projets" - who works on which project. Primarily for RH/Superviseur
-// (need it to affect people to projects) but Chef Equipe can see their own project too.
+const canAccessStructure = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_HSE'])
+)
+const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE']))
+const canAccessTemplates = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR']))
 const showProjectAssignments = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'])
 )
+
+const showDoubleFailures = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'RH', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'])
+)
+const currentRouteName = computed(() => {
+  const path = router.currentRoute.value.path
+  if (path === '/') return 'Tableau de Bord'
+  if (path.startsWith('/operators')) return 'Opérateurs'
+  if (path.startsWith('/training')) return 'Formation'
+  if (path.startsWith('/onboarding')) return 'Onboarding'
+  if (path.startsWith('/recyclage/calendar')) return 'Calendrier Recyclage'
+  if (path.startsWith('/recyclage')) return 'Recyclage'
+  if (path.startsWith('/absences')) return 'Absences et Départs'
+  if (path.startsWith('/evaluation/initial')) return 'Évaluation Initiale'
+  if (path.startsWith('/evaluation/matrix')) return 'Matrice de Polyvalence'
+  if (path.startsWith('/evaluation/history')) return 'Historique des Évaluations'
+  if (path.startsWith('/evaluation/questions')) return 'Validation des Questions'
+  if (path.startsWith('/evaluation/templates')) return 'Templates de Questions'
+  if (path.startsWith('/evaluation/double-failures')) return 'Double Échecs'
+  if (path.startsWith('/structure')) return 'Structure Usine'
+  if (path.startsWith('/teams')) return 'Répartition Projets'
+  if (path.startsWith('/admin/users')) return 'Gestion Utilisateurs'
+  return 'ILU System'
+})
 
 const roleLabels = {
   ADMIN: 'Administrateur',
@@ -262,7 +282,7 @@ onMounted(() => {
   color: #f1f5f9;
 }
 .nav-item.active {
-  background: #059669;
+  background: #0284c7;
   color: #fff;
   font-weight: 500;
 }

@@ -280,8 +280,9 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
-import { trainingApi, evaluationApi } from '@/api/endpoints'
+import { trainingApi, evaluationApi, operatorsApi } from '@/api/endpoints'
 import { useAuthStore } from '@/stores/auth'
+import { useUserScope } from '@/composables/useUserScope'
 
 ChartJS.register(
   CategoryScale,
@@ -298,6 +299,8 @@ ChartJS.register(
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { loadUserProjects, filterOperators } = useUserScope()
+
 const formation = ref(null)
 const loading = ref(true)
 const saving = ref(false)
@@ -508,7 +511,26 @@ const load = async () => {
     trainingApi.getFormationDetail(route.params.id),
     trainingApi.getTracking(route.params.id),
   ])
-  if (detailRes.status === 'fulfilled') formation.value = detailRes.value.data
+  if (detailRes.status === 'fulfilled') {
+    formation.value = detailRes.value.data
+    if (formation.value) {
+      await loadUserProjects()
+      try {
+        const opRes = await operatorsApi.getById(formation.value.operatorId)
+        const scopedList = filterOperators([opRes.data])
+        if (scopedList.length === 0) {
+          formation.value = null
+          error.value = "Vous n'avez pas l'autorisation d'accéder à cette formation."
+          return
+        }
+      } catch (e) {
+        console.error(e)
+        formation.value = null
+        error.value = "Impossible de valider les droits d'accès à cette formation."
+        return
+      }
+    }
+  }
   for (let day = 1; day <= 12; day++)
     dayData[day] = {
       cadence: null,

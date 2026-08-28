@@ -104,11 +104,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { trainingApi, operatorsApi } from '@/api/endpoints'
+import { useUserScope } from '@/composables/useUserScope'
+
+const { loadUserProjects, filterOperators, filterFormations } = useUserScope()
 
 const loading = ref(true)
-const operators = ref([])
-const formations = ref([])
+const rawOperators = ref([])
+const rawFormations = ref([])
 const stats = ref({})
+
+const operators = computed(() => filterOperators(rawOperators.value))
+const formations = computed(() => filterFormations(rawFormations.value, rawOperators.value))
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeOperators = computed(() => operators.value.filter(o => o.active !== false))
@@ -137,9 +143,10 @@ const getOperatorLevel = (op) => {
 onMounted(async () => {
   loading.value = true
   try {
+    await loadUserProjects()
     const [o, f, s] = await Promise.all([operatorsApi.getAll(), trainingApi.getFormations(), trainingApi.getStatistics()])
-    operators.value = o.data
-    formations.value = f.data
+    rawOperators.value = o.data
+    rawFormations.value = f.data
     stats.value = s.data
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
