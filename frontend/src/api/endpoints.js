@@ -153,3 +153,8 @@ export const projectTransferApi = {
   approveRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/approve`),
   rejectRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/reject`),
 }
+
+export const chatbotApi = {
+  chat: (message, sessionId) => api.post('/chatbot/chat', { message, sessionId }),
+}
+

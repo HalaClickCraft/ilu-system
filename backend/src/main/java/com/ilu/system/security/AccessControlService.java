@@ -32,17 +32,19 @@ public class AccessControlService {
         User user = currentUser(authentication);
         if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR")) return;
         if (!hasRole(user, "CHEF_EQUIPE")) deny();
-        Long projectId = operatorRepository.findById(operatorId)
-                .map(operator -> operator.getProject() != null ? operator.getProject().getId() : null)
+        
+        Operator operator = operatorRepository.findById(operatorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
-        requireChefProject(user, projectId);
+        
+        boolean isMyOperator = operator.getTeam() != null 
+                && user.getEmployeeId().equals(operator.getTeam().getTeamLeaderEmployeeId());
+        if (!isMyOperator) deny();
     }
 
     public void requireRecyclageManagement(Authentication authentication, Long projectId) {
         User user = currentUser(authentication);
-        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR", "RESP_QUALITE", "RESP_HSE")) return;
-        if (!hasRole(user, "CHEF_EQUIPE")) deny();
-        requireChefProject(user, projectId);
+        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR", "RESP_QUALITE", "RESP_HSE", "CHEF_EQUIPE")) return;
+        deny();
     }
 
     public boolean hasRole(User user, String role) {

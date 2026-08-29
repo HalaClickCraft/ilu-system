@@ -123,6 +123,11 @@ public class TrainingService {
 
     public List<Map<String, Object>> getAvailableStructure(String employeeId, Set<String> roles) {
         requireStarter(roles);
+        if (roles.contains("CHEF_EQUIPE")) {
+            return projectRepo.findAll().stream()
+                    .map(this::toStructureMap)
+                    .collect(Collectors.toList());
+        }
         return projectRepo.findAll().stream()
                 .filter(project -> projectMemberRepo.existsByProjectIdAndEmployeeId(project.getId(), employeeId))
                 .map(this::toStructureMap)
@@ -404,7 +409,7 @@ public class TrainingService {
     }
 
     public FormationStatisticsDto getStatistics(String employeeId, Set<String> roles) {
-        boolean isRestricted = !roles.contains("ADMIN") && !roles.contains("RH");
+        boolean isRestricted = !roles.contains("ADMIN") && !roles.contains("RH") && !roles.contains("CHEF_EQUIPE");
         final List<Long> myProjectIds = isRestricted
                 ? projectMemberRepo.findByEmployeeId(employeeId).stream()
                         .map(m -> m.getProject().getId())
@@ -464,7 +469,7 @@ public class TrainingService {
     }
 
     private void validateWorkstationAccess(Workstation workstation, String employeeId, Set<String> roles) {
-        if (roles.contains("AGENT_QUALITE")) {
+        if (roles.contains("AGENT_QUALITE") || roles.contains("CHEF_EQUIPE")) {
             return;
         }
 
@@ -585,6 +590,11 @@ public class TrainingService {
         if (roles.contains("RESP_HSE")) {
             return false;
         }
+        if (roles.contains("CHEF_EQUIPE")) {
+            return formation.getOperator() != null 
+                    && formation.getOperator().getTeam() != null 
+                    && employeeId.equals(formation.getOperator().getTeam().getTeamLeaderEmployeeId());
+        }
         if (formation == null || formation.getWorkstation() == null) {
             return true;
         }
@@ -600,14 +610,6 @@ public class TrainingService {
 
         if (pmOpt.isEmpty()) {
             return true;
-        }
-
-        ProjectMember pm = pmOpt.get();
-        if (roles.contains("CHEF_EQUIPE") && pm.getShift() != null && !pm.getShift().isBlank()) {
-            String opShift = formation.getOperator() != null ? formation.getOperator().getShift() : null;
-            if (opShift != null && !opShift.isBlank()) {
-                return pm.getShift().equalsIgnoreCase(opShift.trim());
-            }
         }
 
         return true;

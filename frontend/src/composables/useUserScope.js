@@ -69,7 +69,7 @@ export function useUserScope() {
 
   // Helper to filter workstations list strictly by user assigned projects
   const filterWorkstations = (workstationList) => {
-    if (!isRestrictedRole.value) return workstationList || []
+    if (!isRestrictedRole.value || authStore.primaryRole === 'CHEF_EQUIPE') return workstationList || []
     if (myProjectIds.value.size === 0) return []
     return (workstationList || []).filter(ws => myWorkstationIds.value.has(ws.id))
   }
@@ -77,6 +77,11 @@ export function useUserScope() {
   // Helper to filter operators list strictly by user assigned projects
   const filterOperators = (operatorList) => {
     if (!isRestrictedRole.value) return operatorList || []
+    if (authStore.primaryRole === 'CHEF_EQUIPE') {
+      return (operatorList || []).filter(op => {
+        return op.team && op.team.teamLeaderEmployeeId === empId.value
+      })
+    }
     if (myProjectIds.value.size === 0) return [] // 0 assigned projects = 0 operators!
 
     return (operatorList || []).filter(op => {
@@ -88,16 +93,16 @@ export function useUserScope() {
   // Helper to filter formations by valid scoped operators
   const filterFormations = (formationList, operatorList) => {
     if (!isRestrictedRole.value) return formationList || []
-    if (myProjectIds.value.size === 0) return []
-
     const validOpIds = new Set(filterOperators(operatorList).map(o => o.id))
-    return (formationList || []).filter(f => validOpIds.has(f.operatorId))
+    return (formationList || []).filter(f => {
+      const fOpId = f.operator?.id || f.operatorId
+      return fOpId && validOpIds.has(fOpId)
+    })
   }
 
   // Helper to filter projects list strictly by user assigned projects
   const filterProjects = (projectList) => {
-    if (!isRestrictedRole.value) return projectList || []
-
+    if (!isRestrictedRole.value || authStore.primaryRole === 'CHEF_EQUIPE') return projectList || []
     if (myProjectIds.value.size === 0) return []
     return (projectList || []).filter(p => myProjectIds.value.has(p.id))
   }

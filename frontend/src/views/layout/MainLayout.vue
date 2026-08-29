@@ -151,6 +151,7 @@
         <ConfirmDialog />
       </div>
     </main>
+    <ChatAssistant />
   </div>
 </template>
 
@@ -160,6 +161,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
+import ChatAssistant from '@/components/ChatAssistant.vue'
+
 
 const router = useRouter()
 const authStore = useAuthStore()
