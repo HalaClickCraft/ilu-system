@@ -148,13 +148,16 @@ export const teamsApi = {
 }
 
 export const projectTransferApi = {
-  requestTransfer: (employeeId, targetProjectId) => api.post('/project-transfers/request', null, { params: { employeeId, targetProjectId } }),
+  requestTransfer: (employeeId, targetProjectId, targetTeamId) =>
+    api.post('/project-transfers/request', null, { params: { employeeId, targetProjectId, targetTeamId } }),
   getPendingRequests: () => api.get('/project-transfers/pending'),
+  getAllRequests: () => api.get('/project-transfers/all'),
   approveRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/approve`),
   rejectRequest: (requestId) => api.post(`/project-transfers/requests/${requestId}/reject`),
+  changeShift: (employeeId, targetTeamId) =>
+    api.post('/project-transfers/change-shift', null, { params: { employeeId, targetTeamId } }),
 }
 
 export const chatbotApi = {
   chat: (message, sessionId) => api.post('/chatbot/chat', { message, sessionId }),
 }
-

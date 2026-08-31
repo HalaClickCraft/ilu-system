@@ -13,30 +13,66 @@
       </div>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <!-- Filters bar -->
+      <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div class="relative flex-1 max-w-sm w-full">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Rechercher un utilisateur (nom, matricule, CIN)..."
+            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+          />
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Taille de page:</label>
+          <select
+            v-model="pageSize"
+            class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+          >
+            <option :value="10">10</option>
+            <option :value="15">15</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
+      </div>
+
       <div v-if="loading" class="flex items-center justify-center py-16"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-      <div v-else-if="users.length" class="overflow-x-auto">
+      <div v-else-if="filteredUsers.length" class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-gray-50">
             <tr>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Nom</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">CIN</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Roles</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Statut</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Mot de passe</th>
-              <th class="text-right py-3 px-4 font-medium text-gray-500">Actions</th>
+              <th scope="col" @click="handleSort('name')" class="text-left py-3 px-4 font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 select-none">
+                Nom <span v-if="sortBy === 'name'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th scope="col" @click="handleSort('employeeId')" class="text-left py-3 px-4 font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 select-none">
+                Matricule <span v-if="sortBy === 'employeeId'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th scope="col" @click="handleSort('nationalId')" class="text-left py-3 px-4 font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 select-none">
+                CIN <span v-if="sortBy === 'nationalId'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th scope="col" class="text-left py-3 px-4 font-semibold text-gray-500">Rôles</th>
+              <th scope="col" @click="handleSort('active')" class="text-left py-3 px-4 font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 select-none">
+                Statut <span v-if="sortBy === 'active'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
+              <th scope="col" class="text-left py-3 px-4 font-semibold text-gray-500">Mot de passe</th>
+              <th scope="col" class="text-right py-3 px-4 font-semibold text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.id" class="border-b border-gray-50 hover:bg-gray-50">
+            <tr v-for="user in paginatedUsers" :key="user.id" class="border-b border-gray-50 hover:bg-gray-50">
               <td class="py-3 px-4 font-medium">{{ user.name }}</td>
               <td class="py-3 px-4 text-gray-500">{{ user.employeeId }}</td>
               <td class="py-3 px-4 text-gray-500">{{ user.nationalId }}</td>
               <td class="py-3 px-4"><div class="flex flex-wrap gap-1"><span v-for="role in user.roles" :key="role" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{{ roleLabel(role) }}</span></div></td>
               <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="user.active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ user.active ? 'Actif' : 'Inactif' }}</span></td>
-              <td class="py-3 px-4"><span v-if="user.mustChangePassword" class="text-xs text-amber-600 font-medium">A changer</span><span v-else class="text-xs text-gray-400">Defini</span></td>
+              <td class="py-3 px-4"><span v-if="user.mustChangePassword" class="text-xs text-amber-600 font-medium">À changer</span><span v-else class="text-xs text-gray-400">Défini</span></td>
               <td class="py-3 px-4 text-right space-x-2">
-                <button @click="toggleStatus(user.id)" class="text-gray-400 hover:text-amber-600 transition" :title="user.active ? 'Desactiver' : 'Activer'">
+                <button @click="toggleStatus(user.id)" class="text-gray-400 hover:text-amber-600 transition" :title="user.active ? 'Désactiver' : 'Activer'">
                   <svg v-if="user.active" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
                   <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 </button>
@@ -47,8 +83,18 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Pagination Footer -->
+        <div v-if="totalPages > 1" class="px-6 py-3.5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-500 font-medium">
+          <span>Affichage de {{ (currentPage - 1) * pageSize + 1 }} à {{ Math.min(currentPage * pageSize, filteredUsers.length) }} sur {{ filteredUsers.length }} utilisateur(s)</span>
+          <div class="flex gap-1">
+            <button :disabled="currentPage === 1" @click="currentPage--" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Précédent</button>
+            <span class="px-3 py-1.5 bg-gray-100 rounded-lg flex items-center font-semibold text-gray-800">Page {{ currentPage }} sur {{ totalPages }}</span>
+            <button :disabled="currentPage === totalPages" @click="currentPage++" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Suivant</button>
+          </div>
+        </div>
       </div>
-      <div v-else class="text-center py-16 text-gray-400">Aucun utilisateur</div>
+      <div v-else class="text-center py-16 text-gray-400">Aucun utilisateur trouvé</div>
     </div>
 
     <!-- Create User Modal -->
@@ -76,7 +122,7 @@
   </div>
 </template>
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { usersApi } from '@/api/endpoints'
 
 const users = ref([])
@@ -87,11 +133,83 @@ const error = ref('')
 const passwordManuallyChanged = ref(false)
 const form = ref({ name: '', employeeId: '', nationalId: '', password: '', roles: [] })
 
+const searchQuery = ref('')
+const currentPage = ref(1)
+const pageSize = ref(15)
+const sortBy = ref('name')
+const sortOrder = ref('asc')
+
 // Auto-fill password with CIN value when CIN changes
 watch(() => form.value.nationalId, (newCin) => {
   if (newCin && !passwordManuallyChanged.value) {
     form.value.password = newCin
   }
+})
+
+const filteredUsers = computed(() => {
+  let list = users.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(u => {
+      const name = (u.name || '').toLowerCase()
+      const mat = (u.employeeId || '').toLowerCase()
+      const cin = (u.nationalId || '').toLowerCase()
+      return name.includes(q) || mat.includes(q) || cin.includes(q)
+    })
+  }
+  return list
+})
+
+const sortedUsers = computed(() => {
+  const result = [...filteredUsers.value]
+  const field = sortBy.value
+  const order = sortOrder.value === 'asc' ? 1 : -1
+  
+  result.sort((a, b) => {
+    let valA = '', valB = ''
+    if (field === 'name') {
+      valA = (a.name || '').toLowerCase()
+      valB = (b.name || '').toLowerCase()
+    } else if (field === 'employeeId') {
+      valA = (a.employeeId || '').toLowerCase()
+      valB = (b.employeeId || '').toLowerCase()
+    } else if (field === 'nationalId') {
+      valA = (a.nationalId || '').toLowerCase()
+      valB = (b.nationalId || '').toLowerCase()
+    } else if (field === 'active') {
+      valA = a.active ? '1' : '0'
+      valB = b.active ? '1' : '0'
+    }
+    
+    if (valA < valB) return -1 * order
+    if (valA > valB) return 1 * order
+    return 0
+  })
+  
+  return result
+})
+
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return sortedUsers.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredUsers.value.length / pageSize.value) || 1
+})
+
+const handleSort = (field) => {
+  if (sortBy.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+watch([searchQuery, pageSize], () => {
+  currentPage.value = 1
 })
 
 const availableRoles = [

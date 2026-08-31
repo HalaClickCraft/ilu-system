@@ -142,16 +142,27 @@
                 </td>
                 <td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td>
               </tr>
-              <tr>
-                <td class="px-3 py-2 text-xs font-medium">Cadence realisee</td>
+              <tr class="hover:bg-gray-50/50">
+                <td class="px-3 py-2 text-xs font-semibold text-emerald-700 border-l-4 border-emerald-500">
+                  Cadence réalisée
+                  <span class="block text-[9px] text-gray-400 font-normal mt-0.5">Chef d'Équipe</span>
+                </td>
                 <td v-for="day in 12" :key="'cadence' + day" class="px-1 py-2 text-center">
                   <input
                     v-if="canEditCadence && canEdit"
                     v-model.number="dayData[day].cadence"
                     min="0"
                     type="number"
-                    class="w-14 rounded border border-emerald-300 py-1 text-center text-xs"
+                    class="w-14 rounded border border-emerald-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 py-1 text-center text-xs bg-emerald-50/20"
                     @input="dirtyDays.add(day)"
+                  />
+                  <input
+                    v-else-if="canEdit"
+                    :value="dayData[day].cadence"
+                    disabled
+                    type="number"
+                    class="w-14 rounded border border-dashed border-gray-200 bg-gray-50/50 py-1 text-center text-xs text-gray-400 cursor-not-allowed"
+                    title="Saisie de la cadence réservée au Chef d'Équipe"
                   />
                   <span
                     v-else
@@ -173,16 +184,27 @@
                 </td>
                 <td class="bg-gray-100 px-3 py-2 text-center text-xs">-</td>
               </tr>
-              <tr>
-                <td class="px-3 py-2 text-xs font-medium">Nombre de défauts</td>
+              <tr class="hover:bg-gray-50/50">
+                <td class="px-3 py-2 text-xs font-semibold text-purple-800 border-l-4 border-purple-500">
+                  Nombre de défauts
+                  <span class="block text-[9px] text-gray-400 font-normal mt-0.5">Agent Qualité</span>
+                </td>
                 <td v-for="day in 12" :key="'defects' + day" class="px-1 py-2 text-center">
                   <input
                     v-if="canEditDefects && canEdit"
                     v-model.number="dayData[day].defects"
                     min="0"
                     type="number"
-                    class="w-14 rounded border border-purple-300 py-1 text-center text-xs"
+                    class="w-14 rounded border border-purple-300 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 py-1 text-center text-xs bg-purple-50/20"
                     @input="dirtyDays.add(day)"
+                  />
+                  <input
+                    v-else-if="canEdit"
+                    :value="dayData[day].defects"
+                    disabled
+                    type="number"
+                    class="w-14 rounded border border-dashed border-gray-200 bg-gray-50/50 py-1 text-center text-xs text-gray-400 cursor-not-allowed"
+                    title="Saisie des défauts réservée à l'Agent Qualité"
                   />
                   <span
                     v-else
@@ -564,11 +586,28 @@ const saveAll = async () => {
   try {
     const toIntOrNull = (v) =>
       v === '' || v === null || v === undefined || Number.isNaN(v) ? null : v
+    
+    // Frontend validation
+    for (const dayNumber of dirtyDays) {
+      const cad = toIntOrNull(dayData[dayNumber].cadence)
+      const def = toIntOrNull(dayData[dayNumber].defects)
+      if (cad !== null && (cad < 0 || !Number.isInteger(Number(cad)))) {
+        error.value = `La cadence au Jour ${dayNumber} doit être un nombre entier positif.`
+        saving.value = false
+        return
+      }
+      if (def !== null && (def < 0 || !Number.isInteger(Number(def)))) {
+        error.value = `Le nombre de défauts au Jour ${dayNumber} doit être un nombre entier positif.`
+        saving.value = false
+        return
+      }
+    }
+
     const days = [...dirtyDays].map((dayNumber) => ({
       dayNumber,
       trackingDate: new Date().toISOString().slice(0, 10),
-      ...(canEditCadence.value ? { actualCadence: toIntOrNull(dayData[dayNumber].cadence) } : {}),
-      ...(canEditDefects.value ? { defects: toIntOrNull(dayData[dayNumber].defects) } : {}),
+      actualCadence: toIntOrNull(dayData[dayNumber].cadence),
+      defects: toIntOrNull(dayData[dayNumber].defects),
     }))
     await trainingApi.batchSave(route.params.id, days)
     for (const dayNumber of dirtyDays) {

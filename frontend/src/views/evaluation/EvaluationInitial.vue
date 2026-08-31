@@ -174,7 +174,7 @@ const selectedProjectName = computed(() => {
 const availableZones = computed(() => {
   if (!selectedProject.value) return []
   const p = projects.value.find(pr => pr.id === Number(selectedProject.value))
-  return (p?.zones || []).map(z => ({ id: z.id, name: z.name }))
+  return (p?.zones || []).map(z => ({ id: z.id, name: z.name, workstations: z.workstations }))
 })
 const availablePostes = computed(() => {
   if (!selectedZone.value) {

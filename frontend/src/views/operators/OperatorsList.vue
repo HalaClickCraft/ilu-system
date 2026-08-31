@@ -31,172 +31,223 @@
         </button>
       </div>
     </div>
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-      <!-- Filters bar -->
-      <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div class="relative flex-1 max-w-sm">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Rechercher un opérateur..."
-            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-          />
+    <!-- Stats Cards Summary (Quick Overview) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-gray-500 font-medium">Opérateurs Actifs</p>
+          <p class="text-xl font-bold text-emerald-600 mt-0.5">{{ totalActiveCount }}</p>
         </div>
-        <!-- FIX 5a: Always show project filter for multi-project roles -->
-        <div v-if="showProjectFilter" class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Projet:</label>
-          <select
-            v-model="selectedProjectFilter"
-            class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none min-w-[180px]"
-          >
-            <option value="">Tous les projets</option>
-            <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </div>
-        <!-- Team filter -->
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Équipe:</label>
-          <select
-            v-model="selectedTeamFilter"
-            class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none min-w-[160px]"
-          >
-            <option value="">Toutes</option>
-            <option v-for="t in teamList" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
+        <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
         </div>
       </div>
-
-      <!-- Project group header when filter is active -->
-      <div v-if="selectedProjectFilter && !loading" class="px-4 py-2 bg-sky-50 border-b border-sky-100">
-        <span class="text-sm font-medium text-sky-800">
-          <svg class="w-4 h-4 inline -mt-0.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-          {{ selectedProjectName }} — {{ filteredOperators.length }} opérateur(s)
-        </span>
+      <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-gray-500 font-medium">Nouvelles Recrues</p>
+          <p class="text-xl font-bold text-purple-600 mt-0.5">{{ totalNewRecruits }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </div>
       </div>
-
-      <div v-if="loading" class="flex items-center justify-center py-16">
-        <div class="w-8 h-8 border-4 border-sky-200 border-t-sky-600 rounded-full animate-spin"></div>
+      <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-gray-500 font-medium">Inactifs / Départs</p>
+          <p class="text-xl font-bold text-red-600 mt-0.5">{{ totalInactives }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </div>
       </div>
+    </div>
 
-      <!-- Grouped by project view -->
-      <div v-else-if="!selectedProjectFilter && showProjectFilter && !search && !selectedTeamFilter && groupedByProject.length" class="divide-y divide-gray-100">
-        <div v-for="group in groupedByProject" :key="group.projectId || '_none'">
-          <div class="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <svg v-if="group.projectId" class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-              <svg v-else class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
-              <span class="text-sm font-semibold text-gray-700">{{ group.projectName }}</span>
-            </div>
-            <span class="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full border">{{ group.operators.length }} opérateur(s)</span>
+    <!-- Master-Detail Split Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+      <!-- Left Pane: Operator Directory (Annuaire) - 2/5 width -->
+      <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[70vh]">
+        <!-- Search bar inside left pane -->
+        <div class="p-3 border-b border-gray-100 space-y-2">
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input
+              v-model="search"
+              type="text"
+              placeholder="Rechercher un opérateur..."
+              class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500"
+            />
           </div>
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50/50">
-              <tr>
-                <th class="text-left py-2 px-4 font-medium text-gray-500 text-xs">Nom</th>
-                <th class="text-left py-2 px-4 font-medium text-gray-500 text-xs">Matricule</th>
-                <th class="text-left py-2 px-4 font-medium text-gray-500 text-xs">Équipe</th>
-                <th class="text-left py-2 px-4 font-medium text-gray-500 text-xs">Date Sortie</th>
-                <th class="text-left py-2 px-4 font-medium text-gray-500 text-xs">Statut</th>
-                <th class="text-right py-2 px-4 font-medium text-gray-500 text-xs">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="op in group.operators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50/50">
-                <td class="py-2.5 px-4">
-                  <div class="flex flex-col">
-                    <router-link :to="'/operators/' + op.id" class="font-medium text-sky-600 hover:underline text-sm">{{ op.lastName }} {{ op.firstName }}</router-link>
-                    <span class="text-[10px] text-gray-500 font-medium bg-gray-100 border rounded px-1.5 py-0.25 w-max mt-0.5">
-                      {{ op.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}
-                    </span>
-                  </div>
-                </td>
-                <td class="py-2.5 px-4 text-gray-500 text-sm">{{ op.employeeId || '-' }}</td>
-                <td class="py-2.5 px-4 text-gray-500 text-sm">{{ op.team?.name || '-' }}</td>
-                <td class="py-2.5 px-4 text-sm" :class="op.exitDate ? 'text-red-600' : 'text-gray-400'">{{ formatDate(op.exitDate) }}</td>
-                <td class="py-2.5 px-4">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="op.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ op.active !== false ? 'Actif' : 'Inactif' }}</span>
-                </td>
-                <td class="py-2.5 px-4 text-right space-x-2">
-                  <button @click="$router.push('/operators/' + op.id)" class="text-gray-400 hover:text-sky-600 transition" title="Détails">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                  </button>
-                  <button v-if="auth.hasAnyRole(['ADMIN', 'RH'])" @click="openEditModal(op)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                  </button>
-                  <button v-if="op.active !== false" @click="deactivateOperator(op.id)" class="text-gray-400 hover:text-red-600 transition" title="Désactiver">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                  </button>
-                  <button v-else @click="activateOperator(op.id)" class="text-gray-400 hover:text-sky-600 transition" title="Activer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="flex gap-2">
+            <select v-model="selectedProjectFilter" class="w-1/2 px-2 py-1 border border-gray-200 rounded text-[11px] outline-none">
+              <option value="">Tous les projets</option>
+              <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <select v-model="selectedTeamFilter" class="w-1/2 px-2 py-1 border border-gray-200 rounded text-[11px] outline-none">
+              <option value="">Toutes les équipes</option>
+              <option v-for="t in teamList" :key="t.id" :value="t.id">{{ t.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Directory list -->
+        <div v-if="loading" class="flex items-center justify-center flex-1">
+          <div class="w-6 h-6 border-2 border-sky-200 border-t-sky-600 rounded-full animate-spin"></div>
+        </div>
+        <div v-else-if="!paginatedOperators.length" class="p-8 text-center text-xs text-gray-400 flex-1">
+          Aucun opérateur trouvé
+        </div>
+        <div v-else class="flex-1 overflow-y-auto divide-y divide-gray-50">
+          <div
+            v-for="op in paginatedOperators"
+            :key="op.id"
+            @click="selectedOperatorId = op.id"
+            class="p-3 flex items-center justify-between cursor-pointer transition-colors"
+            :class="selectedOperatorId === op.id ? 'bg-sky-50/70 border-l-4 border-sky-600 pl-2' : 'hover:bg-gray-50 border-l-4 border-transparent'"
+          >
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center font-bold text-xs text-sky-700 flex-shrink-0">
+                {{ (op.lastName || '')[0] }}{{ (op.firstName || '')[0] }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-gray-800 truncate">{{ op.lastName }} {{ op.firstName }}</p>
+                <p class="text-[10px] text-gray-400 font-mono mt-0.5">{{ op.employeeId }} · {{ op.team?.name || 'Sans équipe' }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <span class="w-2 h-2 rounded-full" :class="op.active !== false ? 'bg-emerald-500' : 'bg-red-400'"></span>
+              <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border">{{ op.project?.name || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Directory Footer controls -->
+        <div class="p-2 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-500 bg-gray-50/50">
+          <span>Page {{ currentPage }} / {{ totalPages }}</span>
+          <div class="flex gap-1">
+            <button :disabled="currentPage === 1" @click="currentPage--" class="px-2.5 py-0.5 bg-white border rounded disabled:opacity-50 font-semibold">Préc.</button>
+            <button :disabled="currentPage === totalPages" @click="currentPage++" class="px-2.5 py-0.5 bg-white border rounded disabled:opacity-50 font-semibold">Suiv.</button>
+          </div>
         </div>
       </div>
 
-      <!-- Flat table view -->
-      <div v-else-if="filteredOperators.length" class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Nom</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th>
-              <!-- FIX: Column order Projet → Zone → Poste (but operators table doesn't have zone/poste columns directly) -->
-              <th v-if="showProjectColumn" class="text-left py-3 px-4 font-medium text-gray-500">Projet</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Équipe</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Date Embauche</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th>
-              <th class="text-left py-3 px-4 font-medium text-gray-500">Statut</th>
-              <th class="text-right py-3 px-4 font-medium text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="op in filteredOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="py-3 px-4">
-                <div class="flex flex-col">
-                  <router-link :to="'/operators/' + op.id" class="font-medium text-sky-600 hover:underline">{{ op.lastName }} {{ op.firstName }}</router-link>
-                  <span class="text-[10px] text-gray-500 font-medium bg-gray-100 border rounded px-1.5 py-0.25 w-max mt-0.5">
-                    {{ op.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}
+      <!-- Right Pane: Contextual Profile Details & Workspace - 3/5 width -->
+      <div class="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-y-auto h-[70vh] flex flex-col justify-between">
+        <div v-if="!selectedOperator" class="flex flex-col items-center justify-center text-center py-20 text-gray-400 flex-1">
+          <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <p class="text-sm font-semibold">Sélectionnez un opérateur</p>
+          <p class="text-xs mt-1">Choisissez un opérateur dans la liste de gauche pour afficher son profil complet et ses actions.</p>
+        </div>
+        <div v-else class="space-y-6 flex-1">
+          <!-- Profile header -->
+          <div class="flex items-center justify-between gap-4 pb-4 border-b">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
+                {{ (selectedOperator.lastName || '')[0] }}{{ (selectedOperator.firstName || '')[0] }}
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-gray-900 leading-tight">{{ selectedOperator.lastName }} {{ selectedOperator.firstName }}</h2>
+                <p class="text-xs text-gray-500 font-medium">Matricule: <span class="font-mono">{{ selectedOperator.employeeId }}</span> · Équipe: {{ selectedOperator.team?.name || 'Aucune' }}</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" :class="selectedOperator.active !== false ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'">
+              {{ selectedOperator.active !== false ? 'Actif' : 'Inactif' }}
+            </span>
+          </div>
+
+          <!-- Quick action panel -->
+          <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-wrap gap-2">
+            <button
+              v-if="selectedOperator.active !== false && auth.hasAnyRole(['CHEF_EQUIPE', 'SUPERVISEUR', 'ADMIN', 'RH', 'AGENT_QUALITE'])"
+              @click="$router.push('/training?operatorId=' + selectedOperator.id)"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-md transition transform hover:scale-105"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Affecter à un nouveau poste
+            </button>
+            <button
+              v-if="auth.hasAnyRole(['ADMIN', 'RH'])"
+              @click="openEditModal(selectedOperator)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Modifier
+            </button>
+            <button
+              v-if="selectedOperator.active !== false && auth.hasAnyRole(['ADMIN', 'RH'])"
+              @click="deactivateOperator(selectedOperator.id)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+              Désactiver
+            </button>
+            <button
+              v-if="selectedOperator.active === false && auth.hasAnyRole(['ADMIN', 'RH'])"
+              @click="activateOperator(selectedOperator.id)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Activer
+            </button>
+          </div>
+
+          <!-- Profile details -->
+          <div class="grid grid-cols-2 gap-4 text-xs">
+            <div class="border rounded-lg p-3">
+              <span class="text-gray-400 font-medium">Type d'opérateur</span>
+              <p class="font-semibold text-gray-800 mt-1">{{ selectedOperator.operatorType === 'DEJA_EN_POSTE' ? 'Déjà en poste' : 'Nouvelle recrue' }}</p>
+            </div>
+            <div class="border rounded-lg p-3">
+              <span class="text-gray-400 font-medium">Rôle</span>
+              <p class="font-semibold text-gray-800 mt-1">{{ selectedOperator.role || 'Opérateur' }}</p>
+            </div>
+            <div class="border rounded-lg p-3">
+              <span class="text-gray-400 font-medium">Projet affecté</span>
+              <p class="font-semibold text-sky-700 mt-1">{{ selectedOperator.project?.name || '-' }}</p>
+            </div>
+            <div class="border rounded-lg p-3">
+              <span class="text-gray-400 font-medium">Zone</span>
+              <p class="font-semibold text-gray-800 mt-1">{{ selectedOperator.zone?.name || '-' }}</p>
+            </div>
+            <div class="border rounded-lg p-3">
+              <span class="text-gray-400 font-medium">Date d'embauche</span>
+              <p class="font-semibold text-gray-800 mt-1">{{ formatDate(selectedOperator.hireDate) }}</p>
+            </div>
+            <div class="border rounded-lg p-3" v-if="selectedOperator.exitDate">
+              <span class="text-red-500 font-medium">Date de sortie</span>
+              <p class="font-semibold text-red-700 mt-1">{{ formatDate(selectedOperator.exitDate) }}</p>
+            </div>
+          </div>
+
+          <!-- Training qualifications timeline -->
+          <div class="space-y-3">
+            <h3 class="font-semibold text-gray-900 text-xs border-b pb-1">Formations & Certifications</h3>
+            <div v-if="formationsLoading" class="flex justify-center py-6">
+              <div class="w-6 h-6 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+            </div>
+            <div v-else-if="!selectedOperatorFormations.length" class="text-center py-6 text-xs text-gray-400">
+              Aucun suivi de formation disponible
+            </div>
+            <div v-else class="space-y-2 max-h-[25vh] overflow-y-auto pr-1">
+              <div
+                v-for="f in selectedOperatorFormations"
+                :key="f.id"
+                class="flex items-center justify-between border border-gray-100 rounded-lg p-2.5 hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <p class="text-xs font-semibold text-gray-800">{{ f.workstationName }}</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5">Niveau cible: <span class="font-bold">{{ formatNiveau(f.targetLevel) }}</span> · Début: {{ formatDate(f.startDate) }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-semibold" :class="opStatusClass(f.status)">
+                    {{ opStatusLabel(f.status) }}
                   </span>
+                  <router-link :to="'/training/' + f.id" class="text-sky-600 hover:text-sky-700 text-xs font-semibold">Détails</router-link>
                 </div>
-              </td>
-              <td class="py-3 px-4 text-gray-500">{{ op.employeeId || '-' }}</td>
-              <td v-if="showProjectColumn" class="py-3 px-4">
-                <div class="flex flex-wrap gap-1">
-                  <span v-for="proj in getOperatorProjects(op)" :key="proj" class="text-xs bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full">{{ proj }}</span>
-                  <span v-if="!getOperatorProjects(op).length" class="text-xs text-gray-400">-</span>
-                </div>
-              </td>
-              <td class="py-3 px-4 text-gray-500">{{ op.team?.name || '-' }}</td>
-              <td class="py-3 px-4 text-gray-500">{{ formatDate(op.hireDate) }}</td>
-              <td class="py-3 px-4 text-sm" :class="op.exitDate ? 'text-red-600 font-medium' : 'text-gray-400'">{{ formatDate(op.exitDate) }}</td>
-              <td class="py-3 px-4">
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="op.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ op.active !== false ? 'Actif' : 'Inactif' }}</span>
-              </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <button @click="$router.push('/operators/' + op.id)" class="text-gray-400 hover:text-sky-600 transition" title="Détails">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                </button>
-                <button v-if="auth.hasAnyRole(['ADMIN', 'RH'])" @click="openEditModal(op)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                </button>
-                <button v-if="op.active !== false" @click="deactivateOperator(op.id)" class="text-gray-400 hover:text-red-600 transition" title="Désactiver">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                </button>
-                <button v-else @click="activateOperator(op.id)" class="text-gray-400 hover:text-sky-600 transition" title="Activer">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div v-else class="text-center py-16 text-gray-400">Aucun opérateur trouvé</div>
     </div>
 
     <!-- Create Operator Modal -->
@@ -229,9 +280,16 @@
           <p class="text-sm font-medium text-gray-700">Affectation</p>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Projet</label>
-            <select v-model="form.projectId" @change="form.zoneId = ''; form.workstationId = ''" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+            <select v-model="form.projectId" @change="form.zoneId = ''; form.workstationId = ''; form.teamId = ''" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
               <option value="">-- Aucun --</option>
               <option v-for="p in useChefProjects ? chefProjects : projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div v-if="!auth.isChefEquipe">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe / Shift</label>
+            <select v-model="form.teamId" :disabled="!form.projectId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none disabled:bg-gray-100">
+              <option value="">-- Choisir une équipe --</option>
+              <option v-for="t in filteredTeams" :key="t.id" :value="t.id">{{ t.name }} (Chef: {{ t.teamLeader || 'Aucun' }})</option>
             </select>
           </div>
           <div>
@@ -288,9 +346,16 @@
           <p class="text-sm font-medium text-gray-700">Affectation</p>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Projet</label>
-            <select v-model="editForm.projectId" @change="editForm.zoneId = ''" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+            <select v-model="editForm.projectId" @change="editForm.zoneId = ''; editForm.teamId = ''" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
               <option value="">-- Aucun --</option>
               <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div v-if="!auth.isChefEquipe">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe / Shift</label>
+            <select v-model="editForm.teamId" :disabled="!editForm.projectId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none disabled:bg-gray-100">
+              <option value="">-- Choisir une équipe --</option>
+              <option v-for="t in filteredEditTeams" :key="t.id" :value="t.id">{{ t.name }} (Chef: {{ t.teamLeader || 'Aucun' }})</option>
             </select>
           </div>
           <div>
@@ -356,7 +421,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { operatorsApi, structureApi } from '@/api/endpoints'
 import { formatDate } from '@/shared/utils/date'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -365,8 +430,63 @@ import { useAuthStore } from '@/stores/auth'
 import * as XLSX from 'xlsx'
 
 const auth = useAuthStore()
+
+function formatNiveau(level) {
+  if (!level) return '-'
+  const upper = String(level).toUpperCase().trim()
+  if (upper === 'I' || upper === 'NIVEAU_1' || upper === '1') return 'I'
+  if (upper === 'L' || upper === 'NIVEAU_2' || upper === '2') return 'L'
+  if (upper === 'U' || upper === 'NIVEAU_3' || upper === '3') return 'U'
+  return level
+}
+
 const operators = ref([])
 const projects = ref([])
+
+const selectedOperatorId = ref(null)
+const selectedOperatorFormations = ref([])
+const formationsLoading = ref(false)
+
+const selectedOperator = computed(() => {
+  const list = sortedOperators.value
+  if (!selectedOperatorId.value && list.length > 0) {
+    return list[0]
+  }
+  return operators.value.find(op => op.id === selectedOperatorId.value) || null
+})
+
+watch(() => selectedOperator.value?.id, (newId) => {
+  if (newOpIdVal(newId)) {
+    selectedOperatorId.value = newId
+  }
+})
+
+function newOpIdVal(id) {
+  return id && selectedOperatorId.value !== id
+}
+
+watch(selectedOperatorId, async (newId) => {
+  if (!newId) {
+    selectedOperatorFormations.value = []
+    return
+  }
+  formationsLoading.value = true
+  try {
+    const res = await operatorsApi.getFormations(newId)
+    selectedOperatorFormations.value = res.data || []
+  } catch (e) {
+    console.error('Error loading formations:', e)
+  } finally {
+    formationsLoading.value = false
+  }
+}, { immediate: true })
+
+const opStatusLabel = (s) => ({ IN_PROGRESS: 'En Cours', COMPLETED: 'Terminée', FAILED: 'Échouée', PLANNED: 'Planifiée' })[s] || s
+const opStatusClass = (s) => ({ IN_PROGRESS: 'bg-amber-50 text-amber-700 border border-amber-200', COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-200', FAILED: 'bg-red-50 text-red-700 border border-red-200', PLANNED: 'bg-gray-50 text-gray-600' })[s] || 'bg-gray-50 text-gray-600'
+
+const totalActiveCount = computed(() => scopedOperators.value.filter(o => o.active !== false).length)
+const totalNewRecruits = computed(() => scopedOperators.value.filter(o => o.operatorType !== 'DEJA_EN_POSTE').length)
+const totalInactives = computed(() => scopedOperators.value.filter(o => o.active === false).length)
 const teams = ref([])
 const chefProjects = ref([])
 const useChefProjects = ref(false)
@@ -377,6 +497,48 @@ const selectedTeamFilter = ref('')
 const showCreateModal = ref(false)
 const creating = ref(false)
 const error = ref('')
+
+// Pagination and Sorting state
+const currentPage = ref(1)
+const pageSize = ref(15)
+const sortBy = ref('lastName')
+const sortOrder = ref('asc')
+
+const projectPages = ref({})
+const collapsedProjects = ref(new Set())
+
+const toggleProjectCollapse = (projectId) => {
+  const key = projectId || '_none'
+  if (collapsedProjects.value.has(key)) {
+    collapsedProjects.value.delete(key)
+  } else {
+    collapsedProjects.value.add(key)
+  }
+}
+
+const getProjectPage = (projectId) => {
+  const key = projectId || '_none'
+  return projectPages.value[key] || 1
+}
+
+const setProjectPage = (projectId, page) => {
+  const key = projectId || '_none'
+  projectPages.value[key] = page
+}
+
+const handleSort = (field) => {
+  if (sortBy.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+// Reset page when filters change
+watch([search, selectedProjectFilter, selectedTeamFilter, pageSize], () => {
+  currentPage.value = 1
+})
 
 const showImportModal = ref(false)
 const importFile = ref(null)
@@ -412,6 +574,16 @@ const projectList = computed(() => {
 // Build team list from teams data
 const teamList = computed(() => {
   return teams.value.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const filteredTeams = computed(() => {
+  if (!form.value.projectId) return []
+  return teams.value.filter(t => t.projects?.some(p => p.id === Number(form.value.projectId)))
+})
+
+const filteredEditTeams = computed(() => {
+  if (!editForm.value.projectId) return []
+  return teams.value.filter(t => t.projects?.some(p => p.id === Number(editForm.value.projectId)))
 })
 
 // Project(s) led by the current chef d'equipe (based on project membership),
@@ -499,6 +671,96 @@ const groupedByProject = computed(() => {
   })
 })
 
+const sortedOperators = computed(() => {
+  const result = [...filteredOperators.value]
+  const field = sortBy.value
+  const order = sortOrder.value === 'asc' ? 1 : -1
+  
+  result.sort((a, b) => {
+    let valA = '', valB = ''
+    if (field === 'lastName') {
+      valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase()
+      valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase()
+    } else if (field === 'employeeId') {
+      valA = (a.employeeId || '').toLowerCase()
+      valB = (b.employeeId || '').toLowerCase()
+    } else if (field === 'team') {
+      valA = (a.team?.name || '').toLowerCase()
+      valB = (b.team?.name || '').toLowerCase()
+    } else if (field === 'hireDate') {
+      valA = a.hireDate || ''
+      valB = b.hireDate || ''
+    } else if (field === 'exitDate') {
+      valA = a.exitDate || ''
+      valB = b.exitDate || ''
+    } else if (field === 'active') {
+      valA = a.active !== false ? '1' : '0'
+      valB = b.active !== false ? '1' : '0'
+    }
+    
+    if (valA < valB) return -1 * order
+    if (valA > valB) return 1 * order
+    return 0
+  })
+  
+  return result
+})
+
+const paginatedOperators = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return sortedOperators.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredOperators.value.length / pageSize.value) || 1
+})
+
+const paginatedGroupedByProject = computed(() => {
+  return groupedByProject.value.map(group => {
+    const key = group.projectId || '_none'
+    const page = getProjectPage(group.projectId)
+    const start = (page - 1) * pageSize.value
+    const end = start + pageSize.value
+    
+    const sortedGroupOps = [...group.operators]
+    const field = sortBy.value
+    const order = sortOrder.value === 'asc' ? 1 : -1
+    sortedGroupOps.sort((a, b) => {
+      let valA = '', valB = ''
+      if (field === 'lastName') {
+        valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase()
+        valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase()
+      } else if (field === 'employeeId') {
+        valA = (a.employeeId || '').toLowerCase()
+        valB = (b.employeeId || '').toLowerCase()
+      } else if (field === 'team') {
+        valA = (a.team?.name || '').toLowerCase()
+        valB = (b.team?.name || '').toLowerCase()
+      } else if (field === 'hireDate') {
+        valA = a.hireDate || ''
+        valB = b.hireDate || ''
+      } else if (field === 'exitDate') {
+        valA = a.exitDate || ''
+        valB = b.exitDate || ''
+      } else if (field === 'active') {
+        valA = a.active !== false ? '1' : '0'
+        valB = b.active !== false ? '1' : '0'
+      }
+      if (valA < valB) return -1 * order
+      if (valA > valB) return 1 * order
+      return 0
+    })
+
+    return {
+      ...group,
+      totalCount: group.operators.length,
+      totalPages: Math.ceil(group.operators.length / pageSize.value) || 1,
+      operators: sortedGroupOps.slice(start, end)
+    }
+  })
+})
+
 // Selected project name for the header bar
 const selectedProjectName = computed(() => {
   if (!selectedProjectFilter.value) return ''
@@ -548,7 +810,7 @@ const fetchTeams = async () => {
 }
 
 const openCreateModal = async () => {
-  form.value = { lastName: '', firstName: '', employeeId: '', role: '', shift: '', operatorType: 'NOUVEAU_RECRU', hireDate: '', exitDate: '', projectId: '', zoneId: '', workstationId: '' }
+  form.value = { lastName: '', firstName: '', employeeId: '', role: '', shift: '', operatorType: 'NOUVEAU_RECRU', hireDate: '', exitDate: '', projectId: '', zoneId: '', workstationId: '', teamId: '' }
   error.value = ''
   useChefProjects.value = false
   chefProjects.value = []
@@ -575,6 +837,14 @@ const createOperator = async () => {
       projectId: form.value.projectId || null, zoneId: form.value.zoneId || null,
       workstationId: form.value.workstationId || null,
     }
+    if (auth.isChefEquipe) {
+      const myTeam = teams.value.find(t => t.teamLeaderEmployeeId === auth.user?.employeeId)
+      if (myTeam) {
+        payload.teamId = myTeam.id
+      }
+    } else {
+      payload.teamId = form.value.teamId || null
+    }
     await operatorsApi.create(payload)
     showCreateModal.value = false
     fetchOperators()
@@ -596,17 +866,22 @@ const handleCancel = () => { confirmData.value.visible = false; pendingAction.va
 
 // Edit Operator
 const showEditModal = ref(false)
-const editForm = ref({ id: null, lastName: '', firstName: '', employeeId: '', role: '', shift: '', operatorType: '', hireDate: '', exitDate: '', projectId: '', zoneId: '' })
+const editForm = ref({ id: null, lastName: '', firstName: '', employeeId: '', role: '', shift: '', operatorType: '', hireDate: '', exitDate: '', projectId: '', zoneId: '', teamId: '' })
 const editProjectZones = computed(() => {
   if (!editForm.value.projectId) return []
   return projects.value.find(p => p.id === editForm.value.projectId)?.zones || []
 })
-const openEditModal = (op) => { editForm.value = { id: op.id, lastName: op.lastName, firstName: op.firstName, employeeId: op.employeeId, role: op.role || '', shift: op.shift || '', operatorType: op.operatorType || 'NOUVEAU_RECRU', hireDate: op.hireDate?.slice(0, 10) || '', exitDate: op.exitDate?.slice(0, 10) || '', projectId: op.project?.id || '', zoneId: op.zone?.id || '' }; showEditModal.value = true }
+const openEditModal = (op) => { editForm.value = { id: op.id, lastName: op.lastName, firstName: op.firstName, employeeId: op.employeeId, role: op.role || '', shift: op.shift || '', operatorType: op.operatorType || 'NOUVEAU_RECRU', hireDate: op.hireDate?.slice(0, 10) || '', exitDate: op.exitDate?.slice(0, 10) || '', projectId: op.project?.id || '', zoneId: op.zone?.id || '', teamId: op.team?.id || '' }; showEditModal.value = true }
 // FIX 4a: Update now sends exitDate and absenceReason to backend
 const updateOperator = async () => {
   creating.value = true; error.value = ''
   try {
-    await operatorsApi.update(editForm.value.id, { ...editForm.value, projectId: editForm.value.projectId || null, zoneId: editForm.value.zoneId || null })
+    await operatorsApi.update(editForm.value.id, { 
+      ...editForm.value, 
+      projectId: editForm.value.projectId || null, 
+      zoneId: editForm.value.zoneId || null,
+      teamId: editForm.value.teamId || null
+    })
     showEditModal.value = false
     fetchOperators()
   } catch (e) {

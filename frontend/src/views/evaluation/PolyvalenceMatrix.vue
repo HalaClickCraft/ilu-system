@@ -1,17 +1,31 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">MATRICE DE POLYVALENCE{{ selectedProjectName ? ' — ' + selectedProjectName : '' }}</h1>
-        <p class="text-sm text-gray-500 mt-1">Indicateur de polyvalence: Minimum 6 personnes formees par poste => 6 personnes en L</p>
+    <!-- Excel-style Yellow Title Banner -->
+    <div>
+      <p class="text-xs text-gray-500 italic mb-1">
+        Indicateur de polyvalence : Minimum 6 personnes formés par poste => 6 personnes en L
+      </p>
+      <div class="w-full bg-yellow-400 border-2 border-yellow-500 rounded px-5 py-3 flex items-center gap-3">
+        <h1 class="text-xl font-extrabold text-gray-900 tracking-wide uppercase flex flex-wrap items-center gap-3">
+          MATRICE DE POLYVALENCE
+          <span v-if="selectedProjectName" class="text-lg">— {{ selectedProjectName }}</span>
+        </h1>
       </div>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+    </div>
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 ml-auto">
         <div v-if="showProjectFilter" class="flex items-center gap-2">
           <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Projet:</label>
           <select v-model="selectedProject" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[180px]">
             <option value="">Tous les projets</option>
             <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
+        </div>
+        
+        <!-- Toggle to show operators in integration -->
+        <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          <input type="checkbox" id="show-in-training" v-model="showInTraining" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
+          <label for="show-in-training" class="text-xs font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none">En cours d'intégration</label>
         </div>
 
         <button v-if="matrixData.operators?.length" @click="exportMatrixToExcel" class="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition text-sm font-medium shadow-sm">
@@ -22,12 +36,6 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           Importer Certifications
         </button>
-        <div class="flex items-center gap-3 text-xs">
-          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-100 border inline-block"></span> Non forme</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-amber-400 inline-block text-white"></span> Niveau I</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-blue-500 inline-block text-white"></span> Niveau L</span>
-          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-600 inline-block text-white"></span> Niveau U</span>
-        </div>
       </div>
     </div>
 
@@ -49,6 +57,35 @@
         </button>
       </nav>
     </div>
+    <!-- Filters Row -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <input
+          v-model="matrixSearch"
+          type="text"
+          placeholder="Rechercher un opérateur (nom, matricule...)"
+          class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 w-64"
+        />
+        <select v-model="selectedTeamId" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 min-w-[150px]">
+          <option value="">Tous les shifts / équipes</option>
+          <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+        </select>
+        <select v-model="matrixPageSize" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500">
+          <option :value="10">10 par page</option>
+          <option :value="25">25 par page</option>
+          <option :value="50">50 par page</option>
+          <option :value="100">100 par page</option>
+        </select>
+      </div>
+      
+      <!-- Legends — exact Excel colors -->
+      <div class="flex items-center gap-4 text-[11px] font-medium text-gray-600">
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-gray-300 inline-block bg-white"></span> Non formé</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#FFC000"></span> Niveau I (en cours)</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#4472C4"></span> Niveau L (autonome)</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#00B050"></span> Niveau U (expert)</span>
+      </div>
+    </div>
 
     <div v-if="loading" class="text-center py-12 text-gray-400">Chargement de la matrice...</div>
     <div v-else-if="errorMsg" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
@@ -58,72 +95,124 @@
     </div>
 
     <template v-else>
-      <div class="bg-white rounded-xl border overflow-x-auto shadow-sm">
-        <table class="min-w-full border-collapse text-xs text-gray-700">
-          <thead>
-            <tr class="bg-gray-100 border-b border-gray-200">
-              <th rowspan="3" class="px-4 py-3 text-left font-bold text-gray-700 sticky left-0 bg-gray-100 z-20 border-r border-gray-200 min-w-[180px]">Operateur</th>
-              <th class="px-3 py-2 text-center font-bold text-gray-700 border-r border-gray-200 min-w-[140px] bg-gray-100">Zone</th>
-              <th v-for="z in zones" :key="z.name" :colspan="z.workstations.length" class="px-3 py-2 text-center font-bold text-gray-800 border-r border-gray-200 bg-gray-50">{{ z.name }}</th>
-              <th rowspan="3" class="px-4 py-3 text-center font-bold text-gray-700 border-l border-gray-200 bg-gray-50 max-w-[150px] whitespace-normal">Nombre des postes sur lesquels est forme un operateur</th>
-            </tr>
-            <tr class="bg-gray-100 border-b border-gray-200">
-              <th class="px-3 py-2 text-center font-bold text-gray-700 border-r border-gray-200 bg-gray-100">Poste</th>
-              <th v-for="col in allColumns" :key="col.id" class="px-3 py-2 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[90px]">{{ col.name }}</th>
-            </tr>
-            <tr class="bg-gray-50 border-b border-gray-300 text-gray-500">
-              <th class="px-3 py-1.5 text-center font-bold text-gray-600 border-r border-gray-200 bg-gray-100">Target per station</th>
-              <th v-for="col in allColumns" :key="col.id + '-target'" class="px-3 py-1.5 text-center font-bold border-r border-gray-200 text-gray-700 bg-gray-50">{{ formatNiveau(col.targetLevel || 'L') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <template v-for="op in displayOperators" :key="op.operatorId">
-              <!-- Case: Show Résultat Recyclage (Senior Operator, seniority > 6 months) -->
-              <template v-if="shouldShowRecyclage(op)">
-                <tr class="hover:bg-orange-50/20">
-                  <td rowspan="2" class="px-4 py-3 sticky left-0 bg-white z-10 font-bold text-gray-900 border-r border-gray-200">
-                    {{ op.operatorName }}
-                    <div class="text-[10px] text-gray-400 font-normal">{{ op.employeeId }} · {{ op.seniorityMonths }} mois</div>
-                  </td>
-                  <td class="px-3 py-2 font-medium text-orange-700 bg-orange-50 border-r border-gray-200 text-left">Date de recyclage</td>
-                  <td v-for="col in allColumns" :key="col.id + '-recy-date'" class="px-2 py-2 text-center border-r border-gray-200 text-[10px] text-gray-600">{{ getColumnRecyclageDate(op, col) }}</td>
-                  <td rowspan="2" class="px-4 py-3 text-center border-l border-gray-200 font-bold text-lg text-slate-800 bg-slate-50">{{ getTrainedCount(op) }}</td>
+      <div class="w-full">
+        <!-- Main Scrollable Matrix Grid (Full Width) -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col w-full">
+          <div class="overflow-auto max-h-[65vh] matrix-container relative">
+            <table class="min-w-full border-collapse text-xs text-gray-700">
+              <thead>
+                <tr class="row-1 bg-gray-100 border-b border-gray-200">
+                  <!-- Row 1: Zone group headers -->
+                  <th rowspan="3" class="px-4 py-3 text-left font-extrabold text-white sticky left-0 z-30 border-r border-gray-400 min-w-[180px]" style="background:#1F3864">Opérateur</th>
+                  <th rowspan="1" class="px-3 py-2 text-center font-bold text-white border-r border-gray-400 min-w-[130px]" style="background:#1F3864">Zone</th>
+                  <th
+                    v-for="z in zones"
+                    :key="z.name"
+                    :colspan="z.workstations.length"
+                    class="px-3 py-2 text-center font-extrabold border-r border-gray-400"
+                    :style="{ background: z.color.bg, color: z.color.text }"
+                  >{{ z.name }}</th>
+                  <th rowspan="3" class="px-4 py-3 text-center font-bold text-white border-l border-gray-400 max-w-[110px] whitespace-normal text-[11px]" style="background:#1F3864">
+                    Nombre des postes sur lesquels est formé un opérateur
+                  </th>
                 </tr>
-                <tr class="hover:bg-orange-50/30 border-b border-gray-300">
-                  <td class="px-3 py-2 font-medium text-orange-700 bg-orange-50/50 border-r border-gray-200 text-left">Résultat recyclage</td>
-                  <td v-for="col in allColumns" :key="col.id + '-recy-result'" class="px-2 py-2 text-center border-r border-gray-200 text-[10px]" :class="recyclageClass(getRecyclageStatus(op, col))">{{ getRecyclageDisplay(op, col) }}</td>
+                <!-- Row 2: Ref. Machine / workstation names -->
+                <tr class="border-b border-gray-400">
+                  <th class="px-3 py-2 text-center font-bold text-white border-r border-gray-400" style="background:#2d4a7a">Ref. Machine / Poste</th>
+                  <th
+                    v-for="col in allColumns"
+                    :key="col.id"
+                    :class="['px-2 py-2 text-center font-semibold border-r border-gray-300 min-w-[80px] text-[11px]', highlightedWorkstationId === col.id ? 'bg-amber-200 border-x border-amber-400 font-bold' : '']"
+                    style="background:#E8EFF8; color:#1F3864"
+                    :style="highlightedWorkstationId === col.id ? '' : 'background:#E8EFF8; color:#1F3864'"
+                  >{{ col.name }}</th>
                 </tr>
-              </template>
+                <!-- Row 3: Target per station -->
+                <tr class="border-b-2 border-gray-500">
+                  <th class="px-3 py-1.5 text-center font-bold text-white border-r border-gray-400 text-[11px]" style="background:#2d4a7a">Target per Station</th>
+                  <th
+                    v-for="col in allColumns"
+                    :key="col.id + '-target'"
+                    :class="['px-3 py-1.5 text-center font-bold border-r border-gray-200 text-[11px]', highlightedWorkstationId === col.id ? 'bg-amber-100' : 'bg-gray-100 text-gray-700']"
+                  >{{ formatNiveau(col.targetLevel || 'L') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <template v-for="op in displayOperators" :key="op.operatorId">
+                  <!-- Case: Show Résultat Recyclage (Senior Operator) -->
+                  <template v-if="shouldShowRecyclage(op)">
+                    <tr :class="['transition-colors border-t border-gray-200', highlightedOperatorId === op.operatorId ? 'bg-amber-50 font-bold' : '']">
+                      <td rowspan="2" class="px-3 py-2 sticky left-0 bg-white z-10 font-bold text-gray-900 border-r border-gray-300 border-b border-gray-300">
+                        <div class="font-extrabold text-gray-900 leading-tight">{{ op.operatorName }}</div>
+                        <div class="text-[10px] text-gray-400 font-normal mt-0.5">{{ op.employeeId }}</div>
+                        <div v-if="op.shift" class="text-[10px] text-blue-600 font-semibold mt-0.5">{{ op.shift }}</div>
+                      </td>
+                      <td class="px-3 py-1.5 font-semibold text-[11px] border-r border-gray-200 text-left whitespace-nowrap" style="background:#FFF3CD;color:#5a4000">Date de recyclage</td>
+                      <td v-for="col in allColumns" :key="col.id + '-recy-date'"
+                        :class="['px-1 py-1.5 text-center border-r border-gray-200 text-[10px] text-gray-600', highlightedWorkstationId === col.id ? 'bg-amber-100' : '']">
+                        {{ getColumnRecyclageDate(op, col) }}
+                      </td>
+                      <td rowspan="2" class="px-3 py-2 text-center border-l border-gray-300 font-extrabold text-xl text-gray-800 bg-gray-50">{{ getTrainedCount(op) }}</td>
+                    </tr>
+                    <tr :class="['border-b-2 border-gray-300 transition-colors', highlightedOperatorId === op.operatorId ? 'bg-amber-50 font-bold' : '']">
+                      <td class="px-3 py-1.5 font-semibold text-[11px] border-r border-gray-200 text-left whitespace-nowrap" style="background:#FFF3CD;color:#5a4000">Résultat recyclage</td>
+                      <td v-for="col in allColumns" :key="col.id + '-recy-result'"
+                        :class="['px-1 py-1.5 text-center border-r border-gray-200 text-[11px] font-bold', highlightedWorkstationId === col.id ? 'bg-amber-100' : '', niveauCellClass(formatNiveau(getRecyclageDisplay(op, col)))]"
+                        :style="NIVEAU_CELL_STYLE[formatNiveau(getRecyclageDisplay(op, col))] || ''">
+                        {{ formatNiveau(getRecyclageDisplay(op, col)) }}
+                      </td>
+                    </tr>
+                  </template>
 
-              <!-- Case: Show Date d'évaluation & Niveau compétence (New recruit, seniority <= 6 months) -->
-              <template v-else>
-                <tr class="hover:bg-gray-50">
-                  <td rowspan="2" class="px-4 py-3 sticky left-0 bg-white z-10 font-bold text-gray-900 border-r border-gray-200">
-                    {{ op.operatorName }}
-                    <div class="text-[10px] text-gray-400 font-normal">{{ op.employeeId }} · {{ op.seniorityMonths }} mois</div>
-                  </td>
-                  <td class="px-3 py-2 font-medium text-gray-500 bg-gray-50 border-r border-gray-200 text-left">Date d'évaluation</td>
-                  <td v-for="col in allColumns" :key="col.id + '-date'" class="px-2 py-2 text-center border-r border-gray-200 text-[10px] text-gray-600">{{ getColumnDate(op, col) }}</td>
-                  <td rowspan="2" class="px-4 py-3 text-center border-l border-gray-200 font-bold text-lg text-slate-800 bg-slate-50">{{ getTrainedCount(op) }}</td>
-                </tr>
-                <tr class="hover:bg-gray-50 border-b border-gray-300">
-                  <td class="px-3 py-2 font-medium text-gray-500 bg-gray-50 border-r border-gray-200 text-left">Niveau compétence</td>
-                  <td v-for="col in allColumns" :key="col.id + '-level'" class="px-2 py-2 text-center border-r border-gray-200">
-                    <span :class="niveauBgClass(formatNiveau(getColumnLevel(op, col)))" class="inline-block w-8 h-8 leading-8 rounded-lg text-white font-bold text-xs shadow-sm">{{ formatNiveau(getColumnLevel(op, col)) }}</span>
-                  </td>
-                </tr>
-              </template>
-            </template>
-            <tr v-if="!displayOperators?.length"><td colspan="99" class="px-4 py-8 text-center text-gray-400">Aucun operateur trouve</td></tr>
-          </tbody>
-          <tfoot v-if="displayOperators?.length" class="bg-gray-100 border-t-2 border-gray-300 font-medium">
-            <tr class="border-b"><td colspan="2" class="px-4 py-3 text-left font-semibold text-amber-700 bg-amber-50/50">Nombres de personnes au niveau I</td><td v-for="col in allColumns" :key="col.id + '-sumI'" class="px-2 py-3 text-center font-bold text-amber-700 bg-amber-50/30 border-r border-gray-200">{{ getCountPerNiveau(col, 'I') }}</td><td class="bg-gray-100"></td></tr>
-            <tr class="border-b"><td colspan="2" class="px-4 py-3 text-left font-semibold text-blue-700 bg-blue-50/50">Nombres de personnes au niveau L</td><td v-for="col in allColumns" :key="col.id + '-sumL'" class="px-2 py-3 text-center font-bold text-blue-700 bg-blue-50/30 border-r border-gray-200">{{ getCountPerNiveau(col, 'L') }}</td><td class="bg-gray-100"></td></tr>
-            <tr><td colspan="2" class="px-4 py-3 text-left font-semibold text-green-700 bg-green-50/50">Nombres de personnes au niveau U</td><td v-for="col in allColumns" :key="col.id + '-sumU'" class="px-2 py-3 text-center font-bold text-green-700 bg-green-50/30 border-r border-gray-200">{{ getCountPerNiveau(col, 'U') }}</td><td class="bg-gray-100"></td></tr>
-            <tr class="border-t-2 border-gray-300"><td colspan="2" class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50">Statut Conformité (Cible L/U >= 6)</td><td v-for="col in allColumns" :key="col.id + '-compliance'" class="px-2 py-3 text-center font-bold border-r border-gray-200" :class="col.isGeneric ? 'bg-gray-100' : isWorkstationCompliant(col) ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'"><span v-if="col.isGeneric" class="text-gray-400 font-normal">-</span><span v-else-if="isWorkstationCompliant(col)">✅ {{ getCompliantCount(col) }}/6</span><span v-else>⚠️ {{ getCompliantCount(col) }}/6</span></td><td class="bg-gray-100"></td></tr>
-          </tfoot>
-        </table>
+                  <!-- Case: Show Date d'évaluation & Niveau compétence (New recruit) -->
+                  <template v-else>
+                    <tr :class="['transition-colors border-t border-gray-200', highlightedOperatorId === op.operatorId ? 'bg-amber-50 font-bold' : '']">
+                      <td rowspan="2" class="px-3 py-2 sticky left-0 bg-white z-10 border-r border-gray-300 border-b border-gray-300">
+                        <div class="font-extrabold text-gray-900 leading-tight">{{ op.operatorName }}</div>
+                        <div class="text-[10px] text-gray-400 font-normal mt-0.5">{{ op.employeeId }}</div>
+                        <div v-if="op.shift" class="text-[10px] text-blue-600 font-semibold mt-0.5">{{ op.shift }}</div>
+                      </td>
+                      <td class="px-3 py-1.5 font-semibold text-[11px] border-r border-gray-200 text-left whitespace-nowrap bg-gray-50 text-gray-600">Date d'évaluation</td>
+                      <td v-for="col in allColumns" :key="col.id + '-date'"
+                        :class="['px-1 py-1.5 text-center border-r border-gray-200 text-[10px] text-gray-500', highlightedWorkstationId === col.id ? 'bg-amber-100' : 'bg-gray-50']">
+                        {{ getColumnDate(op, col) }}
+                      </td>
+                      <td rowspan="2" class="px-3 py-2 text-center border-l border-gray-300 font-extrabold text-xl text-gray-800 bg-gray-50">{{ getTrainedCount(op) }}</td>
+                    </tr>
+                    <tr :class="['border-b-2 border-gray-300 transition-colors', highlightedOperatorId === op.operatorId ? 'bg-amber-50 font-bold' : '']">
+                      <td class="px-3 py-1.5 font-semibold text-[11px] border-r border-gray-200 text-left whitespace-nowrap bg-gray-50 text-gray-600">Niveau de compétences</td>
+                      <td v-for="col in allColumns" :key="col.id + '-level'"
+                        :class="['px-1 py-2 text-center border-r border-gray-200 font-extrabold text-[13px]', highlightedWorkstationId === col.id ? 'ring-2 ring-amber-400 ring-inset' : '', niveauCellClass(formatNiveau(getColumnLevel(op, col)))]"
+                        :style="NIVEAU_CELL_STYLE[formatNiveau(getColumnLevel(op, col))] || ''">
+                        {{ formatNiveau(getColumnLevel(op, col)) }}
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+                <tr v-if="!displayOperators?.length"><td colspan="99" class="px-4 py-8 text-center text-gray-400">Aucun opérateur trouvé</td></tr>
+              </tbody>
+              <tfoot v-if="displayOperators?.length" class="bg-gray-100 border-t-2 border-gray-300 font-medium">
+                <tr class="border-b"><td colspan="2" class="px-4 py-3 text-left font-semibold text-amber-700 bg-amber-50/50">Nombres de personnes au niveau I</td><td v-for="col in allColumns" :key="col.id + '-sumI'" :class="['px-2 py-3 text-center font-bold text-amber-700 bg-amber-50/30 border-r border-gray-200', highlightedWorkstationId === col.id ? 'bg-amber-100/50 font-black' : '']">{{ getCountPerNiveau(col, 'I') }}</td><td class="bg-gray-100"></td></tr>
+                <tr class="border-b"><td colspan="2" class="px-4 py-3 text-left font-semibold text-blue-700 bg-blue-50/50">Nombres de personnes au niveau L</td><td v-for="col in allColumns" :key="col.id + '-sumL'" :class="['px-2 py-3 text-center font-bold text-blue-700 bg-blue-50/30 border-r border-gray-200', highlightedWorkstationId === col.id ? 'bg-amber-100/50 font-black' : '']">{{ getCountPerNiveau(col, 'L') }}</td><td class="bg-gray-100"></td></tr>
+                <tr><td colspan="2" class="px-4 py-3 text-left font-semibold text-green-700 bg-green-50/50">Nombres de personnes au niveau U</td><td v-for="col in allColumns" :key="col.id + '-sumU'" :class="['px-2 py-3 text-center font-bold text-green-700 bg-green-50/30 border-r border-gray-200', highlightedWorkstationId === col.id ? 'bg-amber-100/50 font-black' : '']">{{ getCountPerNiveau(col, 'U') }}</td><td class="bg-gray-100"></td></tr>
+                <tr class="border-t-2 border-gray-300"><td colspan="2" class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50">Statut Conformité (Cible L/U >= 6)</td><td v-for="col in allColumns" :key="col.id + '-compliance'" :class="['px-2 py-3 text-center font-bold border-r border-gray-200', highlightedWorkstationId === col.id ? 'bg-amber-200' : col.isGeneric ? 'bg-gray-100' : isWorkstationCompliant(col) ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50']"><span v-if="col.isGeneric" class="text-gray-400 font-normal">-</span><span v-else-if="isWorkstationCompliant(col)">✅ {{ getCompliantCount(col) }}/6</span><span v-else>⚠️ {{ getCompliantCount(col) }}/6</span></td><td class="bg-gray-100"></td></tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Matrix Pagination Footer -->
+          <div v-if="matrixTotalPages > 1" class="flex justify-between items-center text-xs text-gray-500 font-medium pt-4 bg-white border border-gray-200 border-t-0 rounded-b-xl px-4 py-3">
+            <span>Affichage de {{ (matrixCurrentPage - 1) * matrixPageSize + 1 }} à {{ Math.min(matrixCurrentPage * matrixPageSize, filteredOperators.length) }} sur {{ filteredOperators.length }} opérateur(s)</span>
+            <div class="flex gap-1">
+              <button :disabled="matrixCurrentPage === 1" @click="matrixCurrentPage--" class="px-2.5 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Précédent</button>
+              <span class="px-3.5 py-1 bg-gray-100 rounded flex items-center font-semibold text-gray-700">Page {{ matrixCurrentPage }} / {{ matrixTotalPages }}</span>
+              <button :disabled="matrixCurrentPage === matrixTotalPages" @click="matrixCurrentPage++" class="px-2.5 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Suivant</button>
+            </div>
+          </div>
+        </div>
       </div>
+
+
     </template>
 
     <!-- Import Certifications Modal -->
@@ -173,7 +262,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { evaluationApi, structureApi, operatorsApi } from '@/api/endpoints'
+import { evaluationApi, structureApi, operatorsApi, teamsApi } from '@/api/endpoints'
 import { recyclageApi } from '@/services/recyclageApi'
 import { useAuthStore } from '@/stores/auth'
 import * as XLSX from 'xlsx'
@@ -181,8 +270,11 @@ import ExcelJS from 'exceljs'
 import { useUserScope } from '@/composables/useUserScope'
 
 const authStore = useAuthStore()
-const { loadUserProjects, filterOperators } = useUserScope()
+const { loadUserProjects, filterOperatorsByProjectOnly } = useUserScope()
 const allOperatorsData = ref([])
+const showInTraining = ref(false)
+const teams = ref([])
+const selectedTeamId = ref('')
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -210,27 +302,67 @@ const myChefMember = computed(() => {
   return null
 })
 
-const displayOperators = computed(() => {
+const matrixSearch = ref('')
+const matrixCurrentPage = ref(1)
+const matrixPageSize = ref(25)
+
+const operatorTeamMap = computed(() => {
+  const map = {}
+  for (const op of allOperatorsData.value) {
+    map[op.id] = op.team
+  }
+  return map
+})
+
+const filteredOperators = computed(() => {
   const tab = activeTab.value
   if (!tab) return []
   
   const ops = matrixData.value.operators || []
-  const scopedOps = filterOperators(allOperatorsData.value)
+  const scopedOps = filterOperatorsByProjectOnly(allOperatorsData.value)
   const scopedOpIds = new Set(scopedOps.map(o => o.id))
   
-  return ops.filter(op => {
+  let list = ops.filter(op => {
     // 1. Project scope filter
     if (!scopedOpIds.has(op.operatorId)) return false
     
-    // 2. Hide operators still in training (no evaluations completed)
-    if (getTrainedCount(op) === 0) return false
+    // 2. Filter by manually selected team/shift dropdown
+    const opTeam = operatorTeamMap.value[op.operatorId]
+    if (selectedTeamId.value && opTeam?.id !== Number(selectedTeamId.value)) return false
+
+    // 3. Hide operators still in training (no evaluations completed) if toggle is not active
+    if (!showInTraining.value && getTrainedCount(op) === 0) return false
     
-    // 3. Campaign tab filter
+    // 4. Campaign tab filter
     const opTabs = getOperatorCampaignTabs(op, plannings.value)
     if (!opTabs.has(tab.key)) return false
     
     return true
   })
+
+  if (matrixSearch.value.trim()) {
+    const q = matrixSearch.value.toLowerCase().trim()
+    list = list.filter(op => 
+      (op.operatorName || '').toLowerCase().includes(q) || 
+      (op.employeeId || '').toLowerCase().includes(q)
+    )
+  }
+
+  return list
+})
+
+const displayOperators = computed(() => {
+  const start = (matrixCurrentPage.value - 1) * matrixPageSize.value
+  const end = start + matrixPageSize.value
+  return filteredOperators.value.slice(start, end)
+})
+
+const matrixTotalPages = computed(() => {
+  return Math.ceil(filteredOperators.value.length / matrixPageSize.value) || 1
+})
+
+watch([matrixSearch, matrixPageSize, selectedProject, selectedCampaignTab, showInTraining, selectedTeamId], () => {
+  matrixCurrentPage.value = 1
 })
 
 const isMultiProjectRole = computed(() =>
@@ -314,24 +446,51 @@ watch(campaignTabs, (newTabs) => {
   }
 }, { immediate: true })
 
-const workstations = computed(() => matrixData.value.workstations || [])
+const workstations = computed(() => (matrixData.value.workstations || []).filter(ws => ws.type !== 'TEST'))
+const defauthequeColumns = computed(() => (matrixData.value.workstations || []).filter(ws => ws.type === 'TEST'))
+
+const ZONE_COLOR_MAP = {
+  'Partie Generique':           { bg: '#1F3864', text: '#FFFFFF' },
+  'Partie Générique':           { bg: '#1F3864', text: '#FFFFFF' },
+  'Test défauthèque qualité':   { bg: '#FFC000', text: '#1a1a1a' },
+  'Test Défauthèque Qualité':   { bg: '#FFC000', text: '#1a1a1a' },
+  'Test defautheque qualite':   { bg: '#FFC000', text: '#1a1a1a' },
+  'Test Defautheque Qualite':   { bg: '#FFC000', text: '#1a1a1a' },
+}
+const DEFAULT_ZONE_COLOR = { bg: '#1F3864', text: '#FFFFFF' }
 
 const zones = computed(() => {
   const map = {}
-  map['Partie Generique'] = {
-    name: 'Partie Generique',
+  map['Partie Générique'] = {
+    name: 'Partie Générique',
+    color: ZONE_COLOR_MAP['Partie Générique'] || DEFAULT_ZONE_COLOR,
     workstations: [
-      { id: 'generic_security', name: 'Securite/5s', isGeneric: true, targetLevel: 'L' },
-      { id: 'generic_quality', name: 'Qualite', isGeneric: true, targetLevel: 'L' }
+      { id: 'generic_security', name: 'Sécurité / 5s', isGeneric: true, targetLevel: 'L' },
+      { id: 'generic_quality', name: 'Qualité', isGeneric: true, targetLevel: 'L' }
     ]
   }
   workstations.value.forEach(ws => {
     const zoneName = ws.zoneName || 'Autres'
     if (!map[zoneName]) {
-      map[zoneName] = { name: zoneName, workstations: [] }
+      map[zoneName] = {
+        name: zoneName,
+        color: ZONE_COLOR_MAP[zoneName] || DEFAULT_ZONE_COLOR,
+        workstations: []
+      }
     }
     map[zoneName].workstations.push({ ...ws, isGeneric: false })
   })
+
+  // Append test workstations as separate column groups at the right
+  defauthequeColumns.value.forEach(ws => {
+    const zoneName = ws.name || 'Test défauthèque qualité'
+    map[zoneName] = {
+      name: zoneName,
+      color: { bg: '#FFC000', text: '#1a1a1a' },
+      workstations: [{ ...ws, isGeneric: false, type: 'TEST' }]
+    }
+  })
+
   return Object.values(map)
 })
 
@@ -399,40 +558,39 @@ function getOperatorCampaignTabs(op, planningsList) {
 }
 
 function shouldShowRecyclage(op) {
-  return op.seniorityMonths > 6
+  if (!selectedCampaignTab.value || !campaignTabs.value.length) return false
+  const activeTab = campaignTabs.value.find(t => t.key === selectedCampaignTab.value)
+  return activeTab?.category === 'RECYCLAGE'
 }
 
 function getColumnRecyclageDate(op, col) {
   if (col.isGeneric) return '-'
-  return op.workstations?.[col.id]?.recyclageDate ? formatDate(op.workstations[col.id].recyclageDate) : '-'
-}
-
-function getRecyclageStatus(op, col) {
-  return col.isGeneric ? '' : (op.workstations?.[col.id]?.recyclageStatus || '')
+  const recy = op.workstations?.[col.id]
+  if (recy && recy.recyclageStatus === 'TERMINEE') {
+    return formatDate(recy.recyclageDate)
+  }
+  return '-'
 }
 
 function getRecyclageDisplay(op, col) {
   if (col.isGeneric) return '-'
-  const recyclage = op.workstations?.[col.id]
-  if (!recyclage?.recyclageStatus) return '-'
-  const labels = { PLANIFIEE: 'Planifie', EN_COURS: 'En cours', TERMINEE: 'Termine', ANNULEE: 'Annule' }
-  const result = recyclage.recyclageLevel ? ` · ${recyclage.recyclageLevel}` : ''
-  return `${labels[recyclage.recyclageStatus] || recyclage.recyclageStatus}${result}`
+  const recy = op.workstations?.[col.id]
+  if (recy && recy.recyclageStatus === 'TERMINEE') {
+    return recy.recyclageLevel || '-'
+  }
+  return '-'
 }
 
-function recyclageClass(status) {
-  return {
-    PLANIFIEE: 'text-orange-700',
-    EN_COURS: 'text-blue-700',
-    TERMINEE: 'text-green-700 font-semibold',
-    ANNULEE: 'text-gray-400',
-  }[status] || 'text-gray-400'
+function isDefauthequeCol(col) {
+  return col.type === 'TEST'
 }
 
 function getTrainedCount(op) {
   if (!op.workstations) return 0
   let count = 0
-  Object.values(op.workstations).forEach(ws => {
+  Object.entries(op.workstations).forEach(([wsId, ws]) => {
+    const matchedWs = (matrixData.value.workstations || []).find(w => String(w.id) === String(wsId))
+    if (matchedWs && matchedWs.type === 'TEST') return
     if (['I', 'L', 'U'].includes(ws.level)) count++
   })
   return count
@@ -447,8 +605,65 @@ function getCompliantCount(col) {
 }
 
 function isWorkstationCompliant(col) {
-  if (col.isGeneric) return true
+  if (col.isGeneric || isDefauthequeCol(col)) return true
   return getCompliantCount(col) >= 6
+}
+
+const understaffedWorkstations = computed(() => {
+  return allColumns.value.filter(col => !col.isGeneric && !isWorkstationCompliant(col))
+    .map(col => ({
+      id: col.id,
+      name: col.name,
+      count: getCompliantCount(col)
+    }))
+    .sort((a, b) => a.count - b.count)
+})
+
+const upcomingRecyclages = computed(() => {
+  const list = []
+  if (!matrixData.value.operators) return []
+  for (const op of matrixData.value.operators) {
+    if (!op.workstations) continue
+    for (const wsId in op.workstations) {
+      const ws = op.workstations[wsId]
+      if (ws.recyclageStatus === 'PLANIFIEE') {
+        const col = allColumns.value.find(c => String(c.id) === String(wsId))
+        if (col) {
+          list.push({
+            operatorId: op.operatorId,
+            operatorName: op.operatorName,
+            workstationId: col.id,
+            workstationName: col.name,
+            recyclageDate: ws.recyclageDate ? formatDate(ws.recyclageDate) : 'Planifié'
+          })
+        }
+      }
+    }
+  }
+  return list.slice(0, 10)
+})
+
+const highlightedWorkstationId = ref(null)
+const highlightedOperatorId = ref(null)
+
+const selectWorkstationAlert = (wsId) => {
+  highlightedWorkstationId.value = wsId
+  highlightedOperatorId.value = null
+  setTimeout(() => {
+    if (highlightedWorkstationId.value === wsId) {
+      highlightedWorkstationId.value = null
+    }
+  }, 5000)
+}
+
+const selectOperatorAlert = (opId) => {
+  highlightedOperatorId.value = opId
+  highlightedWorkstationId.value = null
+  setTimeout(() => {
+    if (highlightedOperatorId.value === opId) {
+      highlightedOperatorId.value = null
+    }
+  }, 5000)
 }
 
 const niveauBgClass = (n) => ({
@@ -456,6 +671,19 @@ const niveauBgClass = (n) => ({
   L: 'bg-blue-500 text-white',
   U: 'bg-green-600 text-white'
 }[n] || 'bg-gray-100 text-gray-400 border border-gray-200')
+
+// Full-cell background for Excel-style matrix cells
+const niveauCellClass = (n) => ({
+  I: 'text-gray-900',   // amber #FFC000
+  L: 'text-white',      // blue #4472C4
+  U: 'text-white',      // green #00B050
+}[n] || '')
+
+const NIVEAU_CELL_STYLE = {
+  I: 'background:#FFC000',
+  L: 'background:#4472C4',
+  U: 'background:#00B050',
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
@@ -617,7 +845,7 @@ async function exportMatrixToExcel() {
   })
 
   // Operator Data Rows
-  const ops = displayOperators.value
+  const ops = filteredOperators.value
   ops.forEach(op => {
     const startRowIdx = worksheet.rowCount + 1
 
@@ -1046,13 +1274,75 @@ watch(selectedCampaignTab, () => {
 onMounted(async () => {
   await loadUserProjects()
   try {
-    const opsRes = await operatorsApi.getAll()
+    const [opsRes, teamsRes] = await Promise.all([
+      operatorsApi.getAll(),
+      teamsApi.getAll()
+    ])
     allOperatorsData.value = opsRes.data || []
+    teams.value = teamsRes.data || []
   } catch (e) {
-    console.error('Error loading operators:', e)
+    console.error('Error loading operators or teams:', e)
   }
   await loadProjects()
   await loadPlanningsForProject()
   await loadMatrix()
-})
-</script>
+})</script>
+
+<style scoped>
+/* Scrollable table container styling */
+.matrix-container {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+/* Excel-style continuous grid borders */
+.matrix-container table {
+  border-collapse: collapse;
+}
+
+.matrix-container table th,
+.matrix-container table td {
+  border: 1px solid #cbd5e1 !important;
+  vertical-align: middle;
+}
+
+/* Sticky header setup */
+.matrix-container thead th {
+  position: sticky;
+  background-color: #f3f4f6; /* bg-gray-100 */
+  z-index: 20;
+}
+
+/* Row 1 sticky top position */
+.matrix-container thead tr.row-1 th {
+  top: 0;
+  z-index: 30;
+}
+
+/* Row 2 sticky top position (approx height of row 1 is 40px) */
+.matrix-container thead tr.row-2 th {
+  top: 38px;
+  z-index: 25;
+}
+
+/* Row 3 sticky top position (approx height of row 1 + row 2 is 74px) */
+.matrix-container thead tr.row-3 th {
+  top: 70px;
+  z-index: 25;
+}
+
+/* Sticky first column (Operator Name) */
+.matrix-container td.sticky,
+.matrix-container th.sticky {
+  position: sticky;
+  left: 0;
+  background-color: #ffffff;
+  z-index: 10;
+  border-right: 2px solid #e2e8f0;
+}
+
+.matrix-container th.sticky {
+  z-index: 40; /* Needs to stay on top of both sticky rows and columns */
+  background-color: #f3f4f6; /* bg-gray-100 */
+}
+</style>

@@ -91,24 +91,54 @@
 
     <!-- Absence Tracking -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">Suivi des Absences</h2>
-        <router-link to="/operators" class="text-sm text-emerald-600 hover:underline">Voir tous les operateurs</router-link>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900">Suivi des Départs & Absences</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Opérateurs inactifs ou avec date de départ déclarée</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            v-model="absentSearch"
+            type="text"
+            placeholder="Rechercher opérateur..."
+            class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500 w-36 sm:w-44"
+          />
+          <router-link to="/operators" class="text-xs text-emerald-600 hover:underline whitespace-nowrap">Tous les opérateurs</router-link>
+        </div>
       </div>
+      
       <div v-if="loading" class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-      <div v-else-if="absentOperators.length > 0" class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Opérateur</th><th class="text-left py-3 px-4 font-medium text-gray-500">Matricule</th><th class="text-left py-3 px-4 font-medium text-gray-500">Date Sortie</th></tr></thead>
-          <tbody>
-            <tr v-for="op in absentOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="py-3 px-4 font-medium">{{ op.firstName }} {{ op.lastName }}</td>
-              <td class="py-3 px-4 text-gray-500">{{ op.employeeId }}</td>
-              <td class="py-3 px-4 text-gray-500">{{ formatDate(op.exitDate) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else-if="filteredAbsentOperators.length > 0" class="space-y-4">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="text-left py-2.5 px-4 font-semibold text-gray-500 text-xs">Opérateur</th>
+                <th scope="col" class="text-left py-2.5 px-4 font-semibold text-gray-500 text-xs">Matricule</th>
+                <th scope="col" class="text-left py-2.5 px-4 font-semibold text-gray-500 text-xs">Date Sortie / Reprise</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="op in paginatedAbsentOperators" :key="op.id" class="border-b border-gray-50 hover:bg-gray-50">
+                <td class="py-2.5 px-4 font-medium text-sm">{{ op.lastName }} {{ op.firstName }}</td>
+                <td class="py-2.5 px-4 text-gray-500 font-mono text-xs">{{ op.employeeId }}</td>
+                <td class="py-2.5 px-4 text-gray-500 text-xs">{{ formatDate(op.exitDate) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div v-if="absentTotalPages > 1" class="flex justify-between items-center text-xs text-gray-500 font-medium pt-3 border-t">
+          <span>Affichage de {{ (absentCurrentPage - 1) * absentPageSize + 1 }} à {{ Math.min(absentCurrentPage * absentPageSize, filteredAbsentOperators.length) }} sur {{ filteredAbsentOperators.length }}</span>
+          <div class="flex gap-1">
+            <button :disabled="absentCurrentPage === 1" @click="absentCurrentPage--" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Précédent</button>
+            <span class="px-3 py-1 bg-gray-100 rounded flex items-center font-semibold">Page {{ absentCurrentPage }} / {{ absentTotalPages }}</span>
+            <button :disabled="absentCurrentPage === absentTotalPages" @click="absentCurrentPage++" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Suivant</button>
+          </div>
+        </div>
       </div>
-      <div v-else class="text-center py-8 text-gray-400">Aucune absence enregistree</div>
+      <div v-else class="text-center py-8 text-gray-400 text-sm">Aucun opérateur trouvé</div>
     </div>
 
     <!-- Quick Actions -->
@@ -130,11 +160,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { operatorsApi } from '@/api/endpoints'
 
 const loading = ref(true)
 const operators = ref([])
+
+const absentSearch = ref('')
+const absentCurrentPage = ref(1)
+const absentPageSize = ref(5)
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeCount = computed(() => operators.value.filter(o => o.active !== false).length)
@@ -144,7 +178,7 @@ const absenceCount = computed(() => operators.value.filter(o => o.absenceReason)
 const teamDistribution = computed(() => {
   const map = {}
   operators.value.filter(o => o.active !== false).forEach(op => {
-    const teamName = op.team?.name || 'Non assigne'
+    const teamName = op.team?.name || 'Non assigné'
     map[teamName] = (map[teamName] || 0) + 1
   })
   const max = Math.max(...Object.values(map), 1)
@@ -157,6 +191,29 @@ const recentHires = computed(() => {
 
 const absentOperators = computed(() => {
   return operators.value.filter(o => o.exitDate || o.active === false)
+})
+
+const filteredAbsentOperators = computed(() => {
+  let list = absentOperators.value
+  if (absentSearch.value.trim()) {
+    const q = absentSearch.value.toLowerCase().trim()
+    list = list.filter(op => `${op.lastName || ''} ${op.firstName || ''}`.toLowerCase().includes(q) || (op.employeeId || '').toLowerCase().includes(q))
+  }
+  return list
+})
+
+const paginatedAbsentOperators = computed(() => {
+  const start = (absentCurrentPage.value - 1) * absentPageSize.value
+  const end = start + absentPageSize.value
+  return filteredAbsentOperators.value.slice(start, end)
+})
+
+const absentTotalPages = computed(() => {
+  return Math.ceil(filteredAbsentOperators.value.length / absentPageSize.value) || 1
+})
+
+watch([absentSearch, absentPageSize], () => {
+  absentCurrentPage.value = 1
 })
 
 const formatDate = (d) => {

@@ -222,11 +222,14 @@ public class TrainingService {
                     return newTracking;
                 });
 
-        if (dto.getActualCadence() != null) {
+        boolean chef = roles.contains("CHEF_EQUIPE") || roles.contains("ADMIN") || roles.contains("RH");
+        boolean quality = roles.contains("AGENT_QUALITE") || roles.contains("ADMIN") || roles.contains("RH");
+
+        if (chef && (dto.getActualCadence() != null || roles.contains("CHEF_EQUIPE"))) {
             tracking.setActualCadence(dto.getActualCadence());
             tracking.setCadenceSubmittedBy(employeeId);
         }
-        if (dto.getDefects() != null) {
+        if (quality && (dto.getDefects() != null || roles.contains("AGENT_QUALITE"))) {
             tracking.setDefects(dto.getDefects());
             tracking.setDefectsSubmittedBy(employeeId);
         }
@@ -469,7 +472,7 @@ public class TrainingService {
     }
 
     private void validateWorkstationAccess(Workstation workstation, String employeeId, Set<String> roles) {
-        if (roles.contains("AGENT_QUALITE") || roles.contains("CHEF_EQUIPE")) {
+        if (roles.contains("AGENT_QUALITE")) {
             return;
         }
 
@@ -485,11 +488,8 @@ public class TrainingService {
         if (dto == null || dto.getDayNumber() == null || dto.getDayNumber() < 1 || dto.getDayNumber() > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le jour de suivi doit etre compris entre 1 et 12");
         }
-        boolean chef = roles.contains("CHEF_EQUIPE");
-        boolean quality = roles.contains("AGENT_QUALITE");
-        if (dto.getActualCadence() == null && dto.getDefects() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Une cadence ou un nombre de defauts est requis");
-        }
+        boolean chef = roles.contains("CHEF_EQUIPE") || roles.contains("ADMIN") || roles.contains("RH");
+        boolean quality = roles.contains("AGENT_QUALITE") || roles.contains("ADMIN") || roles.contains("RH");
         if (dto.getActualCadence() != null && !chef) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seul le chef d'equipe peut saisir la cadence");
         }
@@ -531,13 +531,13 @@ public class TrainingService {
     }
 
     private void requireStarter(Set<String> roles) {
-        if (!roles.contains("CHEF_EQUIPE") && !roles.contains("AGENT_QUALITE")) {
+        if (!roles.contains("CHEF_EQUIPE") && !roles.contains("AGENT_QUALITE") && !roles.contains("ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seuls le chef d'equipe et l'agent qualite peuvent demarrer une formation");
         }
     }
 
     private void requireTrackingContributor(Set<String> roles) {
-        if (!roles.contains("CHEF_EQUIPE") && !roles.contains("AGENT_QUALITE")) {
+        if (!roles.contains("CHEF_EQUIPE") && !roles.contains("AGENT_QUALITE") && !roles.contains("ADMIN") && !roles.contains("RH")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Role non autorise pour le suivi pratique");
         }
     }

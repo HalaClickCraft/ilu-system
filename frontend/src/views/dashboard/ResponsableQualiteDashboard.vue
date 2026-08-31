@@ -38,32 +38,56 @@
 
     <!-- Workstation Quality Overview -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h2 class="text-lg font-semibold text-gray-900">Qualité par Poste de Travail</h2>
-        <router-link to="/structure" class="text-sm text-emerald-600 hover:underline">Voir la structure</router-link>
+        <div class="flex flex-wrap items-center gap-2">
+          <input v-model="wsSearch" type="text" placeholder="Rechercher un poste..." class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500 w-44" />
+          <select v-model="wsProjectFilter" class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">Tous les projets</option>
+            <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+          <select v-model="wsPageSize" class="px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500">
+            <option :value="10">10 / page</option>
+            <option :value="20">20 / page</option>
+            <option :value="50">50 / page</option>
+          </select>
+          <router-link to="/structure" class="text-xs bg-gray-50 border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 font-medium">Voir la structure</router-link>
+        </div>
       </div>
       <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-      <div v-else-if="workstationQuality.length > 0" class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50"><tr><th class="text-left py-3 px-4 font-medium text-gray-500">Poste</th><th class="text-left py-3 px-4 font-medium text-gray-500">Zone</th><th class="text-left py-3 px-4 font-medium text-gray-500">Niveau Cible</th><th class="text-left py-3 px-4 font-medium text-gray-500">Certifies</th><th class="text-left py-3 px-4 font-medium text-gray-500">En Cours</th><th class="text-left py-3 px-4 font-medium text-gray-500">Conformite</th></tr></thead>
-          <tbody>
-            <tr v-for="ws in workstationQuality" :key="ws.name" class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="py-3 px-4 font-medium">{{ ws.name }}</td>
-              <td class="py-3 px-4 text-gray-500">{{ ws.zone || '-' }}</td>
-              <td class="py-3 px-4">{{ ws.targetLevel || '-' }}</td>
-              <td class="py-3 px-4"><span class="text-emerald-600 font-medium">{{ ws.certified }}</span></td>
-              <td class="py-3 px-4"><span class="text-amber-600 font-medium">{{ ws.inProgress }}</span></td>
-              <td class="py-3 px-4">
-                <div class="flex items-center gap-2">
-                  <div class="w-16 bg-gray-100 rounded-full h-2"><div class="h-2 rounded-full" :class="ws.rate >= 70 ? 'bg-emerald-500' : ws.rate >= 40 ? 'bg-amber-500' : 'bg-red-500'" :style="{ width: ws.rate + '%' }"></div></div>
-                  <span class="text-xs font-medium">{{ ws.rate }}%</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else-if="filteredWorkstationQuality.length > 0" class="space-y-4">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0 z-10"><tr><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">Poste</th><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">Zone</th><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">Niveau Cible</th><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">Certifiés</th><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">En Cours</th><th class="text-left py-2.5 px-4 font-medium text-gray-500 text-xs">Conformité</th></tr></thead>
+            <tbody>
+              <tr v-for="ws in paginatedWorkstationQuality" :key="ws.name" class="border-b border-gray-50 hover:bg-gray-50">
+                <td class="py-2.5 px-4 font-medium">{{ ws.name }}</td>
+                <td class="py-2.5 px-4 text-gray-500 text-xs">{{ ws.zone || '-' }}</td>
+                <td class="py-2.5 px-4 text-xs font-semibold">{{ ws.targetLevel || '-' }}</td>
+                <td class="py-2.5 px-4"><span class="text-emerald-600 font-semibold text-sm">{{ ws.certified }}</span></td>
+                <td class="py-2.5 px-4"><span class="text-amber-600 font-semibold text-sm">{{ ws.inProgress }}</span></td>
+                <td class="py-2.5 px-4">
+                  <div class="flex items-center gap-2">
+                    <div class="w-16 bg-gray-100 rounded-full h-2"><div class="h-2 rounded-full" :class="ws.rate >= 70 ? 'bg-emerald-500' : ws.rate >= 40 ? 'bg-amber-500' : 'bg-red-500'" :style="{ width: ws.rate + '%' }"></div></div>
+                    <span class="text-xs font-semibold">{{ ws.rate }}%</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div v-if="wsTotalPages > 1" class="flex justify-between items-center text-xs text-gray-500 font-medium pt-3 border-t">
+          <span>Affichage de {{ (wsCurrentPage - 1) * wsPageSize + 1 }} à {{ Math.min(wsCurrentPage * wsPageSize, filteredWorkstationQuality.length) }} sur {{ filteredWorkstationQuality.length }} poste(s)</span>
+          <div class="flex gap-1">
+            <button :disabled="wsCurrentPage === 1" @click="wsCurrentPage--" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Précédent</button>
+            <span class="px-3 py-1 bg-gray-100 rounded flex items-center font-semibold">Page {{ wsCurrentPage }} / {{ wsTotalPages }}</span>
+            <button :disabled="wsCurrentPage === wsTotalPages" @click="wsCurrentPage++" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Suivant</button>
+          </div>
+        </div>
       </div>
-      <div v-else class="text-center py-12 text-gray-400">Aucune donnee disponible</div>
+      <div v-else class="text-center py-12 text-gray-400">Aucune donnée disponible</div>
     </div>
 
     <!-- Formation Status Distribution & Critical Items -->
@@ -106,20 +130,39 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { trainingApi, structureApi, operatorsApi } from '@/api/endpoints.js'
 import { useUserScope } from '@/composables/useUserScope'
 
-const { loadUserProjects, filterFormations, filterWorkstations, filterOperators } = useUserScope()
+const { loadUserProjects, filterFormations, filterWorkstations, filterOperators, filterProjects } = useUserScope()
 
 const loading = ref(true)
 const rawFormations = ref([])
 const rawWorkstations = ref([])
 const allOperators = ref([])
+const rawProjects = ref([])
 const stats = ref({})
+
+const wsSearch = ref('')
+const wsProjectFilter = ref('')
+const wsCurrentPage = ref(1)
+const wsPageSize = ref(10)
 
 const formations = computed(() => filterFormations(rawFormations.value, allOperators.value))
 const workstations = computed(() => filterWorkstations(rawWorkstations.value))
+const projectList = computed(() => filterProjects(rawProjects.value))
+
+const workstationProjectMap = computed(() => {
+  const map = {}
+  for (const p of rawProjects.value) {
+    for (const z of (p.zones || [])) {
+      for (const w of (z.workstations || [])) {
+        map[w.id] = { projectId: p.id, projectName: p.name }
+      }
+    }
+  }
+  return map
+})
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
@@ -157,8 +200,31 @@ const workstationQuality = computed(() => {
     const inProgress = wsFormations.filter(f => f.status === 'IN_PROGRESS').length
     const total = wsFormations.length
     const rate = total > 0 ? Math.round((certified / total) * 100) : 0
-    return { name: ws.name, zone: ws.zoneName, targetLevel: ws.targetIluLevel, certified, inProgress, total, rate }
+    const projInfo = workstationProjectMap.value[ws.id] || {}
+    return { name: ws.name, zone: ws.zoneName, targetLevel: ws.targetIluLevel, certified, inProgress, total, rate, projectId: projInfo.projectId }
   })
+})
+
+const filteredWorkstationQuality = computed(() => {
+  return workstationQuality.value.filter(ws => {
+    const matchesSearch = ws.name.toLowerCase().includes(wsSearch.value.toLowerCase())
+    const matchesProject = !wsProjectFilter.value || ws.projectId === Number(wsProjectFilter.value)
+    return matchesSearch && matchesProject
+  })
+})
+
+const paginatedWorkstationQuality = computed(() => {
+  const start = (wsCurrentPage.value - 1) * wsPageSize.value
+  const end = start + wsPageSize.value
+  return filteredWorkstationQuality.value.slice(start, end)
+})
+
+const wsTotalPages = computed(() => {
+  return Math.ceil(filteredWorkstationQuality.value.length / wsPageSize.value) || 1
+})
+
+watch([wsSearch, wsProjectFilter, wsPageSize], () => {
+  wsCurrentPage.value = 1
 })
 
 const riskWorkstations = computed(() => workstationQuality.value.filter(ws => ws.rate < 50 && ws.total > 0).sort((a, b) => a.rate - b.rate))
@@ -167,16 +233,18 @@ onMounted(async () => {
   loading.value = true
   try {
     await loadUserProjects()
-    const [f, s, w, o] = await Promise.all([
+    const [f, s, w, o, p] = await Promise.all([
       trainingApi.getFormations(),
       trainingApi.getStatistics(),
       structureApi.getWorkstations(),
-      operatorsApi.getAll()
+      operatorsApi.getAll(),
+      structureApi.getAll()
     ])
     rawFormations.value = f.data
     stats.value = s.data
     rawWorkstations.value = w.data
     allOperators.value = o.data
+    rawProjects.value = p.data
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 </script>

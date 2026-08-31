@@ -48,7 +48,15 @@ public class ChatbotService {
     private final RecyclagePlanningRepository recyclageRepo;
     private final ProjectRepository projectRepo;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = buildRestTemplate();
+
+    private static RestTemplate buildRestTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);   // 10 s to connect
+        factory.setReadTimeout(240_000);     // 4 min to read (LLM can be slow)
+        return new RestTemplate(factory);
+    }
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Cache of chat history: SessionId -> List of messages (excluding the system message)
@@ -196,6 +204,22 @@ public class ChatbotService {
         for (Project p : projects) {
             long projOps = operators.stream().filter(o -> o.getProject() != null && o.getProject().getId().equals(p.getId())).count();
             sb.append("- Projet '").append(p.getName()).append("' : ").append(projOps).append(" opérateurs.\n");
+        }
+        sb.append("\n");
+
+        sb.append("### MEMBRES DES PROJETS & GROUPES SUPPORT (SUPPORT TEAMS)\n");
+        for (Project p : projects) {
+            sb.append("- Projet '").append(p.getName()).append("' :\n");
+            if (p.getMembers() == null || p.getMembers().isEmpty()) {
+                sb.append("  * Aucun membre/groupe support configuré.\n");
+            } else {
+                for (var m : p.getMembers()) {
+                    String grp = m.getShift() != null ? m.getShift() : "Aucun groupe (Tous)";
+                    sb.append("  * ").append(m.getEmployeeName()).append(" (Matricule: ").append(m.getEmployeeId())
+                            .append(") | Rôle: ").append(m.getProjectRole().name())
+                            .append(" | Groupe Support: ").append(grp).append("\n");
+                }
+            }
         }
         sb.append("\n");
 

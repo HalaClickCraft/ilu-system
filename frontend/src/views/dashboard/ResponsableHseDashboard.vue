@@ -57,7 +57,7 @@
         <div v-else-if="activeFormations.length > 0" class="space-y-2 max-h-80 overflow-y-auto">
           <div v-for="f in activeFormations.slice(0, 8)" :key="f.id" class="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-medium text-amber-600">{{ f.achievedLevel || 0 }}</div>
+              <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-medium text-amber-600">{{ formatNiveau(f.achievedLevel) }}</div>
               <div><p class="text-sm font-medium text-gray-900">{{ f.operatorName }}</p><p class="text-xs text-gray-500">{{ f.workstationName }}</p></div>
             </div>
             <router-link :to="'/training/' + f.id" class="text-sm text-emerald-600 hover:underline">Suivre</router-link>
@@ -69,19 +69,34 @@
 
     <!-- Safety Alerts -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">Alertes Securite</h2>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">Alertes Sécurité</h2>
+        <input v-model="alertSearch" type="text" placeholder="Filtrer par nom/matricule..." class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-500 w-48" />
+      </div>
       <div v-if="loading" class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-      <div v-else-if="nonCertifiedOperators.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div v-for="op in nonCertifiedOperators.slice(0, 9)" :key="op.id" class="p-4 rounded-lg border border-red-200 bg-red-50">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg></div>
-            <p class="text-sm font-medium text-gray-900">{{ op.lastName }} {{ op.firstName }}</p>
+      <div v-else-if="filteredNonCertifiedOperators.length > 0" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-1">
+          <div v-for="op in paginatedNonCertifiedOperators" :key="op.id" class="p-4 rounded-lg border border-red-200 bg-red-50">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg></div>
+              <p class="text-sm font-semibold text-gray-900">{{ op.lastName }} {{ op.firstName }}</p>
+            </div>
+            <p class="text-xs text-red-600 font-semibold">Non formé - Formation requise</p>
+            <p class="text-xs text-gray-500 mt-1 font-mono">Matricule: {{ op.employeeId }}</p>
           </div>
-          <p class="text-xs text-red-600 font-medium">Non forme - Formation requise</p>
-          <p class="text-xs text-gray-500 mt-1">Matricule: {{ op.employeeId }}</p>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div v-if="alertTotalPages > 1" class="flex justify-between items-center text-xs text-gray-500 font-medium pt-3 border-t">
+          <span>Affichage de {{ (alertCurrentPage - 1) * alertPageSize + 1 }} à {{ Math.min(alertCurrentPage * alertPageSize, filteredNonCertifiedOperators.length) }} sur {{ filteredNonCertifiedOperators.length }} alerte(s)</span>
+          <div class="flex gap-1">
+            <button :disabled="alertCurrentPage === 1" @click="alertCurrentPage--" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Précédent</button>
+            <span class="px-3 py-1 bg-gray-100 rounded flex items-center font-semibold">Page {{ alertCurrentPage }} / {{ alertTotalPages }}</span>
+            <button :disabled="alertCurrentPage === alertTotalPages" @click="alertCurrentPage++" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-semibold">Suivant</button>
+          </div>
         </div>
       </div>
-      <div v-else class="text-center py-8 text-emerald-600 font-medium">Tous les operateurs sont conformes</div>
+      <div v-else class="text-center py-8 text-emerald-600 font-semibold">Tous les opérateurs sont conformes</div>
     </div>
 
     <!-- Quick Actions -->
@@ -103,13 +118,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { trainingApi, operatorsApi } from '@/api/endpoints'
 
 const loading = ref(true)
 const formations = ref([])
 const operators = ref([])
-const stats = ref({})
+const stats = ref([])
+
+const alertSearch = ref('')
+const alertCurrentPage = ref(1)
+const alertPageSize = ref(6)
 
 const currentDate = computed(() => new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
 const activeFormations = computed(() => formations.value.filter(f => f.status === 'IN_PROGRESS'))
@@ -119,9 +138,41 @@ const hseCertified = computed(() => completedFormations.value.length)
 const totalOperators = computed(() => operators.value.length)
 const conformityRate = computed(() => { const t = totalOperators.value; return t > 0 ? Math.round((hseCertified.value / t) * 100) : 0 })
 
+function formatNiveau(level) {
+  if (!level) return '-'
+  const upper = String(level).toUpperCase().trim()
+  if (upper === 'I' || upper === 'NIVEAU_1' || upper === '1') return 'I'
+  if (upper === 'L' || upper === 'NIVEAU_2' || upper === '2') return 'L'
+  if (upper === 'U' || upper === 'NIVEAU_3' || upper === '3') return 'U'
+  return level
+}
+
 const nonCertifiedOperators = computed(() => {
   const certifiedIds = new Set(completedFormations.value.map(f => f.operatorId))
   return operators.value.filter(o => o.active !== false && !certifiedIds.has(o.id))
+})
+
+const filteredNonCertifiedOperators = computed(() => {
+  return nonCertifiedOperators.value.filter(op => {
+    const fullName = `${op.lastName || ''} ${op.firstName || ''}`.toLowerCase()
+    const idStr = (op.employeeId || '').toLowerCase()
+    const query = alertSearch.value.toLowerCase()
+    return fullName.includes(query) || idStr.includes(query)
+  })
+})
+
+const paginatedNonCertifiedOperators = computed(() => {
+  const start = (alertCurrentPage.value - 1) * alertPageSize.value
+  const end = start + alertPageSize.value
+  return filteredNonCertifiedOperators.value.slice(start, end)
+})
+
+const alertTotalPages = computed(() => {
+  return Math.ceil(filteredNonCertifiedOperators.value.length / alertPageSize.value) || 1
+})
+
+watch([alertSearch, alertPageSize], () => {
+  alertCurrentPage.value = 1
 })
 
 const teamCompliance = computed(() => {

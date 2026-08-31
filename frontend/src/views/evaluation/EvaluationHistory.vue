@@ -78,7 +78,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr v-for="h in filteredHistory" :key="h.sessionId" class="hover:bg-blue-50/40 cursor-pointer transition-colors" @click="$router.push({ name: 'evaluation-session', params: { id: h.sessionId } })">
+            <tr v-for="h in paginatedHistory" :key="h.sessionId" class="hover:bg-blue-50/40 cursor-pointer transition-colors" @click="$router.push({ name: 'evaluation-session', params: { id: h.sessionId } })">
               <td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{{ formatDate(h.completedAt || h.createdAt) }}</td>
               <td class="px-3 py-3"><p class="font-medium text-gray-900 text-sm">{{ h.operatorName }}</p><p class="text-xs text-gray-400">{{ h.employeeId }}</p></td>
               <td class="px-3 py-3">
@@ -108,6 +108,16 @@
             <tr v-if="!filteredHistory.length"><td colspan="9" class="px-4 py-8 text-center text-gray-400">Aucun historique trouve</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div v-if="totalPages > 1" class="px-6 py-3.5 bg-gray-50 border border-gray-200 border-t-0 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-500 font-medium">
+        <span>Affichage de {{ (currentPage - 1) * pageSize + 1 }} à {{ Math.min(currentPage * pageSize, filteredHistory.length) }} sur {{ filteredHistory.length }} évaluation(s)</span>
+        <div class="flex gap-1">
+          <button :disabled="currentPage === 1" @click="currentPage--" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Précédent</button>
+          <span class="px-3 py-1.5 bg-gray-100 rounded-lg flex items-center font-semibold text-gray-800">Page {{ currentPage }} sur {{ totalPages }}</span>
+          <button :disabled="currentPage === totalPages" @click="currentPage++" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Suivant</button>
+        </div>
       </div>
     </template>
   </div>
@@ -183,6 +193,24 @@ const filteredHistory = computed(() => {
   if (historyFilterStatus.value) list = list.filter(h => h.status === historyFilterStatus.value)
   if (historyFilterSecondChance.value) list = list.filter(h => h.isSecondChance)
   return list
+})
+
+const currentPage = ref(1)
+const pageSize = ref(15)
+
+const paginatedHistory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredHistory.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredHistory.value.length / pageSize.value) || 1
+})
+
+import { watch } from 'vue'
+watch([historySearch, historyFilterType, historyFilterStatus, historyFilterSecondChance, pageSize], () => {
+  currentPage.value = 1
 })
 
 async function loadHistory() {

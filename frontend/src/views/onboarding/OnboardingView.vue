@@ -93,7 +93,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               <tr
-                v-for="op in pendingOperators"
+                v-for="op in paginatedPendingOperators"
                 :key="op.operatorId"
                 class="hover:bg-blue-50/50 cursor-pointer transition-colors"
                 @click="goToDetail(op.operatorId)"
@@ -139,6 +139,16 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Matrix Pagination Footer -->
+        <div v-if="matrixTotalPages > 1" class="px-6 py-3 bg-gray-50 border-t flex justify-between items-center text-xs text-gray-500 font-medium">
+          <span>Affichage de {{ (matrixCurrentPage - 1) * matrixPageSize + 1 }} à {{ Math.min(matrixCurrentPage * matrixPageSize, pendingOperators.length) }} sur {{ pendingOperators.length }} opérateur(s)</span>
+          <div class="flex gap-1">
+            <button :disabled="matrixCurrentPage === 1" @click="matrixCurrentPage--" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-bold">Précédent</button>
+            <span class="px-3.5 py-1 bg-gray-100 rounded flex items-center font-bold">Page {{ matrixCurrentPage }} / {{ matrixTotalPages }}</span>
+            <button :disabled="matrixCurrentPage === matrixTotalPages" @click="matrixCurrentPage++" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-bold">Suivant</button>
+          </div>
         </div>
       </div>
 
@@ -210,32 +220,12 @@
           </div>
         </div>
 
-        <!-- Department progress bars -->
-        <div class="space-y-3">
-          <div v-for="dept in progress.departments" :key="dept.department" class="flex items-center gap-3">
-            <span class="w-44 text-sm font-medium text-gray-700 truncate">{{ dept.department }}</span>
-            <div class="flex-1 bg-gray-200 rounded-full h-5 relative">
-              <div
-                class="h-5 rounded-full transition-all duration-500"
-                :class="dept.percentage === 100 ? 'bg-green-500' : 'bg-blue-500'"
-                :style="{ width: dept.percentage + '%' }"
-              ></div>
-              <span class="absolute inset-0 flex items-center justify-center text-xs font-medium text-gray-700">
-                {{ dept.completed }}/{{ dept.total }} ({{ dept.percentage }}%)
-              </span>
-            </div>
-            <svg v-if="dept.departmentComplete" class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-            <span v-if="!dept.editable" class="text-xs text-gray-400 italic w-24 text-right flex-shrink-0">Lecture seule</span>
-          </div>
-        </div>
 
         <!-- Ready for formation link -->
         <div v-if="progress.onboardingComplete" class="mt-5 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p class="text-sm text-green-700">
             Cet opérateur a terminé tous les modules théoriques. Le chef d'équipe peut maintenant
-            <router-link :to="'/formations?operatorId=' + selectedOperatorId" class="underline font-semibold hover:text-green-900">
+            <router-link :to="'/training?operatorId=' + selectedOperatorId" class="underline font-semibold hover:text-green-900">
               lancer la formation pratique (suivi 12 jours)
             </router-link>.
           </p>
@@ -355,74 +345,98 @@
         </div>
       </div>
 
-      <!-- COMPLETED: DEJA EN POSTE -->
-      <div v-if="historyCompletedDeja.length > 0" class="mb-6">
-        <h2 class="text-lg font-semibold text-green-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-          Onboarding Terminé - Déjà en Poste ({{ historyCompletedDeja.length }})
-        </h2>
-        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table class="w-full text-sm"><thead><tr class="bg-green-50 border-b border-green-200"><th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-green-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hcd-'+dept" class="text-center px-3 py-3 font-semibold text-green-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-green-800 min-w-[70px]">Statut</th></tr></thead>
-          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyCompletedDeja" :key="op.operatorId" class="hover:bg-green-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hcd2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-green-600 font-medium">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">&#10003; Prêt</span></td></tr></tbody></table>
-        </div>
+      <!-- Sub-Tabs Selector inside History -->
+      <div class="flex border-b border-gray-250 mb-4 overflow-x-auto gap-2">
+        <button
+          @click="historySubTab = 'nouveaux_encours'"
+          class="px-4 py-2 border-b-2 font-semibold text-xs whitespace-nowrap transition-all"
+          :class="historySubTab === 'nouveaux_encours' ? 'border-orange-500 text-orange-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          Nouveaux Recrus (En Cours: {{ historyNouveauxRecrus.length }})
+        </button>
+        <button
+          @click="historySubTab = 'deja_encours'"
+          class="px-4 py-2 border-b-2 font-semibold text-xs whitespace-nowrap transition-all"
+          :class="historySubTab === 'deja_encours' ? 'border-orange-500 text-orange-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          Déjà en Poste (En Cours: {{ historyDejaEnPoste.length }})
+        </button>
+        <button
+          @click="historySubTab = 'nouveaux_prêt'"
+          class="px-4 py-2 border-b-2 font-semibold text-xs whitespace-nowrap transition-all"
+          :class="historySubTab === 'nouveaux_prêt' ? 'border-green-500 text-green-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          Nouveaux Recrus (Prêt: {{ historyCompletedNouveaux.length }})
+        </button>
+        <button
+          @click="historySubTab = 'deja_prêt'"
+          class="px-4 py-2 border-b-2 font-semibold text-xs whitespace-nowrap transition-all"
+          :class="historySubTab === 'deja_prêt' ? 'border-green-500 text-green-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          Déjà en Poste (Prêt: {{ historyCompletedDeja.length }})
+        </button>
       </div>
 
-      <!-- COMPLETED: NOUVEAUX RECRUS -->
-      <div v-if="historyCompletedNouveaux.length > 0" class="mb-6">
-        <h2 class="text-lg font-semibold text-blue-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-          Onboarding Terminé - Nouveaux Recrus ({{ historyCompletedNouveaux.length }})
-        </h2>
-        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table class="w-full text-sm"><thead><tr class="bg-blue-50 border-b border-blue-200"><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hcn-'+dept" class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[70px]">Statut</th></tr></thead>
-          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyCompletedNouveaux" :key="op.operatorId" class="hover:bg-blue-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hcn2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-green-600 font-medium">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">&#10003; Prêt formation</span></td></tr></tbody></table>
-        </div>
-      </div>
-
-      <!-- PENDING: DEJA EN POSTE -->
-      <div v-if="historyDejaEnPoste.length > 0" class="mb-6">
-        <h2 class="text-lg font-semibold text-orange-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
-          En Cours - Déjà en Poste ({{ historyDejaEnPoste.length }})
-        </h2>
-        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table class="w-full text-sm"><thead><tr class="bg-orange-50 border-b border-orange-200"><th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-orange-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hpd-'+dept" class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-orange-800 min-w-[100px]">Reste</th></tr></thead>
-          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyDejaEnPoste" :key="op.operatorId" class="hover:bg-orange-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hpd2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-xs font-medium" :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="text-orange-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span><span class="text-xs text-gray-400"> restants</span></td></tr></tbody></table>
-        </div>
-      </div>
-
-      <!-- PENDING: NOUVEAUX RECRUS -->
-      <div v-if="historyNouveauxRecrus.length > 0">
-        <h2 class="text-lg font-semibold text-blue-700 mb-3 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
-          En Cours - Nouveaux Recrus ({{ historyNouveauxRecrus.length }})
-        </h2>
-        <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table class="w-full text-sm"><thead><tr class="bg-blue-50 border-b border-blue-200"><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[200px]">Opérateur</th><th class="text-left px-4 py-3 font-semibold text-blue-800 min-w-[120px]">Matricule</th><th v-for="dept in departmentNames" :key="'hpn-'+dept" class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[110px]">{{ dept }}</th><th class="text-center px-3 py-3 font-semibold text-blue-800 min-w-[100px]">Reste</th></tr></thead>
-          <tbody class="divide-y divide-gray-100"><tr v-for="op in historyNouveauxRecrus" :key="op.operatorId" class="hover:bg-blue-50/50 cursor-pointer" @click="goToDetail(op.operatorId)"><td class="px-4 py-3 font-medium text-gray-800">{{ op.firstName }} {{ op.lastName }}</td><td class="px-4 py-3 text-gray-500">{{ op.matricule }}</td><td v-for="dept in departmentNames" :key="'hpn2-'+dept" class="text-center px-3 py-3"><span v-if="op.departmentProgress && op.departmentProgress[dept]" class="text-xs font-medium" :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'">{{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}</span></td><td class="text-center px-3 py-3"><span class="text-blue-600 font-bold">{{ (op.totalModules - op.completedModules) }}</span><span class="text-xs text-gray-400"> restants</span></td></tr></tbody></table>
-        </div>
-      </div>
-
-      <!-- Fallback empty table when no operators found in history for current scope -->
-      <div v-if="scopedPendingOperators.length + scopedCompletedOperators.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <!-- Single Unified Paginated Table -->
+      <div v-if="paginatedHistoryList.length > 0" class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-50">
-              <tr class="border-b border-gray-200">
-                <th class="text-left px-4 py-3 font-semibold text-gray-700">Opérateur</th>
-                <th class="text-left px-4 py-3 font-semibold text-gray-700">Matricule</th>
-                <th class="text-center px-4 py-3 font-semibold text-gray-700">Statut</th>
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-4 py-3 font-semibold text-gray-700 min-w-[200px]">Opérateur</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-700 min-w-[120px]">Matricule</th>
+                <th v-for="dept in departmentNames" :key="'hdept-'+dept" class="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">{{ dept }}</th>
+                <th class="text-center px-4 py-3 font-semibold text-gray-700 min-w-[100px]">
+                  {{ historySubTab.includes('prêt') ? 'Statut' : 'Reste' }}
+                </th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td colspan="3" class="text-center py-12 text-gray-400">
-                  Aucun opérateur trouvé dans l'historique d'onboarding
+            <tbody class="divide-y divide-gray-100">
+              <tr
+                v-for="op in paginatedHistoryList"
+                :key="op.operatorId"
+                class="hover:bg-blue-50/40 cursor-pointer transition-colors"
+                @click="goToDetail(op.operatorId)"
+              >
+                <td class="px-4 py-3 font-semibold text-gray-900">{{ op.firstName }} {{ op.lastName }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ op.matricule }}</td>
+                <td v-for="dept in departmentNames" :key="'hdept-val-'+dept" class="text-center px-3 py-3">
+                  <span
+                    v-if="op.departmentProgress && op.departmentProgress[dept]"
+                    class="text-xs font-semibold"
+                    :class="op.departmentProgress[dept].departmentComplete ? 'text-green-600' : op.departmentProgress[dept].completed > 0 ? 'text-yellow-600' : 'text-gray-400'"
+                  >
+                    {{ op.departmentProgress[dept].completed }}/{{ op.departmentProgress[dept].total }}
+                  </span>
+                  <span v-else class="text-gray-300">—</span>
+                </td>
+                <td class="text-center px-4 py-3">
+                  <span v-if="historySubTab.includes('prêt')" class="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                    &#10003; Prêt
+                  </span>
+                  <span v-else class="text-xs font-semibold text-orange-600">
+                    {{ (op.totalModules - op.completedModules) }} modules
+                  </span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- History Pagination Footer -->
+        <div v-if="historyTotalPages > 1" class="px-6 py-3 bg-gray-50 border-t flex justify-between items-center text-xs text-gray-500 font-medium">
+          <span>Affichage de {{ (historyCurrentPage - 1) * historyPageSize + 1 }} à {{ Math.min(historyCurrentPage * historyPageSize, selectedHistoryList.length) }} sur {{ selectedHistoryList.length }} opérateur(s)</span>
+          <div class="flex gap-1">
+            <button :disabled="historyCurrentPage === 1" @click="historyCurrentPage--" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-bold">Précédent</button>
+            <span class="px-3.5 py-1 bg-gray-100 rounded flex items-center font-bold">Page {{ historyCurrentPage }} / {{ historyTotalPages }}</span>
+            <button :disabled="historyCurrentPage === historyTotalPages" @click="historyCurrentPage++" class="px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 font-bold">Suivant</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Fallback empty table when no operators found in history for current scope -->
+      <div v-else class="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+        Aucun opérateur trouvé dans cette catégorie.
       </div>
     </div>
 
@@ -431,7 +445,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import onboardingApi from '@/api/onboarding';
 import { operatorsApi } from '@/api/endpoints';
@@ -444,6 +458,13 @@ const { loadUserProjects, filterOperators } = useUserScope();
 
 // Tab state
 const activeTab = ref('matrix');
+
+const matrixCurrentPage = ref(1)
+const matrixPageSize = ref(15)
+
+const historySubTab = ref('nouveaux_encours')
+const historyCurrentPage = ref(1)
+const historyPageSize = ref(15)
 
 // Data
 const allOperators = ref([]);
@@ -529,6 +550,41 @@ const filteredOperators = computed(() => {
 });
 
 const pendingOperators = computed(() => filteredOperators.value.filter(op => !op.onboardingComplete))
+
+const paginatedPendingOperators = computed(() => {
+  const start = (matrixCurrentPage.value - 1) * matrixPageSize.value
+  const end = start + matrixPageSize.value
+  return pendingOperators.value.slice(start, end)
+})
+
+const matrixTotalPages = computed(() => {
+  return Math.ceil(pendingOperators.value.length / matrixPageSize.value) || 1
+})
+
+const selectedHistoryList = computed(() => {
+  if (historySubTab.value === 'nouveaux_encours') return historyNouveauxRecrus.value
+  if (historySubTab.value === 'deja_encours') return historyDejaEnPoste.value
+  if (historySubTab.value === 'nouveaux_prêt') return historyCompletedNouveaux.value
+  return historyCompletedDeja.value
+})
+
+const paginatedHistoryList = computed(() => {
+  const start = (historyCurrentPage.value - 1) * historyPageSize.value
+  const end = start + historyPageSize.value
+  return selectedHistoryList.value.slice(start, end)
+})
+
+const historyTotalPages = computed(() => {
+  return Math.ceil(selectedHistoryList.value.length / historyPageSize.value) || 1
+})
+
+watch([searchQuery, matrixPageSize], () => {
+  matrixCurrentPage.value = 1
+})
+
+watch(historySubTab, () => {
+  historyCurrentPage.value = 1
+})
 
 // Active department data for detail view
 const activeDeptData = computed(() => {

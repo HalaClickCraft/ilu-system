@@ -119,6 +119,11 @@ public class EvaluationService {
         EvaluationTemplate template = templateRepo.findById(templateId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
 
+        if (sessionRepo.existsByTemplateId(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees sur ce poste");
+        }
+
         EvaluationSection section = new EvaluationSection();
         section.setTemplate(template);
         section.setTitle(title);
@@ -147,6 +152,11 @@ public class EvaluationService {
                                             String imageUrl, Long createdById) {
         EvaluationTemplate template = templateRepo.findById(templateId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        if (sessionRepo.existsByTemplateId(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees sur ce poste");
+        }
 
         EvaluationQuestion.ValidatorRole validatorRole = resolveValidatorRole(createdById, validatorRoleStr);
         boolean needsResponsibleValidation = validatorRole == EvaluationQuestion.ValidatorRole.AGENT_QUALITE;
@@ -369,6 +379,12 @@ public class EvaluationService {
         EvaluationQuestion question = questionRepo.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
 
+        Long tId = templateId != null ? templateId : (question.getTemplate() != null ? question.getTemplate().getId() : null);
+        if (tId != null && sessionRepo.existsByTemplateId(tId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees sur ce poste");
+        }
+
         if (questionText != null) {
             question.setQuestionText(questionText);
         }
@@ -436,6 +452,12 @@ public class EvaluationService {
     public Map<String, Object> deleteQuestion(Long questionId, Long templateId) {
         EvaluationQuestion question = questionRepo.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
+
+        Long tId = templateId != null ? templateId : (question.getTemplate() != null ? question.getTemplate().getId() : null);
+        if (tId != null && sessionRepo.existsByTemplateId(tId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees sur ce poste");
+        }
 
         answerRepo.deleteByQuestionId(questionId);
         questionRepo.delete(question);
@@ -795,6 +817,12 @@ public class EvaluationService {
         }
 
         String niveau = determineNiveau(session.getOperatorSeniorityMonths(), productionPct);
+        if ("U".equals(niveau) && session.getTemplate().getWorkstation() != null) {
+            boolean hasL = hasPassedLevel(session.getOperator().getId(), session.getTemplate().getWorkstation().getId(), "L");
+            if (!hasL) {
+                niveau = "L";
+            }
+        }
         session.setNiveau(niveau);
 
         if ("NON_VALIDE".equals(niveau)) {
@@ -1117,6 +1145,7 @@ public class EvaluationService {
                 item.put("operatorEmployeeId", op.getEmployeeId());
                 item.put("formationId", f.getId());
                 item.put("workstationName", f.getWorkstation().getName());
+                item.put("workstationId", f.getWorkstation().getId());
                 item.put("formationEndDate", f.getEndDate() != null ? f.getEndDate().toString() : null);
 
                 Optional<EvaluationSession> activeSession = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(op.getId()).stream()
@@ -1353,6 +1382,7 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
                     map.put("zoneName", ws.getZone() != null ? ws.getZone().getName() : "");
                     map.put("projectName", ws.getZone() != null && ws.getZone().getProject() != null ? ws.getZone().getProject().getName() : "");
                     map.put("targetLevel", ws.getTargetIluLevel() != null ? ws.getTargetIluLevel() : "L");
+                    map.put("type", ws.getType());
                     return map;
                 })
                 .collect(Collectors.toList());

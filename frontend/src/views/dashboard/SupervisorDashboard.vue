@@ -38,37 +38,56 @@
 
     <!-- My Team Overview -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">Mon Équipe</h2>
-          <router-link to="/operators" class="text-sm text-emerald-600 hover:underline">Voir tout</router-link>
-        </div>
-        <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-        <div v-else-if="activeOperators.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
-          <div v-for="op in activeOperators.slice(0, 12)" :key="op.id" class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-medium text-emerald-700">{{ op.firstName?.[0] || '' }}{{ op.lastName?.[0] || '' }}</div>
-              <div><p class="text-sm font-medium text-gray-900">{{ op.lastName }} {{ op.firstName }}</p><p class="text-xs text-gray-500">{{ op.employeeId }}</p></div>
+      <!-- Alerts requiring attention (Left Column) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+            Alertes de Supervision
+          </h2>
+          <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+          <div v-else class="space-y-4">
+            <!-- Alert 1: Missing daily trackings -->
+            <div class="p-3 rounded-lg border border-red-200 bg-red-50/20 flex justify-between items-center">
+              <div>
+                <p class="text-sm font-semibold text-red-850">Saisies quotidiennes manquantes</p>
+                <p class="text-xs text-red-600 mt-0.5">{{ missingTodayTrackings.length }} formation(s) n'ont pas reçu de saisie aujourd'hui.</p>
+              </div>
+              <router-link to="/training" class="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2.5 py-1.5 rounded-lg border border-red-300 font-bold transition">Saisir</router-link>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-400">{{ getOperatorLevel(op) }}</span>
-              <router-link :to="'/operators/' + op.id" class="text-emerald-600 hover:text-emerald-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></router-link>
+
+            <!-- Alert 2: Under-staffed workstations -->
+            <div class="p-3 rounded-lg border border-amber-200 bg-amber-50/20 flex justify-between items-center">
+              <div>
+                <p class="text-sm font-semibold text-amber-855">Postes sous-staffés (Conformité)</p>
+                <p class="text-xs text-amber-600 mt-0.5">{{ understaffedWorkstations.length }} postes ont moins de 6 opérateurs qualifiés L/U.</p>
+              </div>
+              <router-link to="/evaluation/matrix" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1.5 rounded-lg border border-amber-300 font-bold transition">Inspecter</router-link>
+            </div>
+
+            <!-- Alert 3: Pending final evaluations -->
+            <div class="p-3 rounded-lg border border-blue-200 bg-blue-50/20 flex justify-between items-center">
+              <div>
+                <p class="text-sm font-semibold text-blue-800">Évaluations à valider (J12+)</p>
+                <p class="text-xs text-blue-600 mt-0.5">{{ pendingEvaluations.length }} opérateur(s) prêts pour l'évaluation de validation.</p>
+              </div>
+              <router-link to="/training" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2.5 py-1.5 rounded-lg border border-blue-300 font-bold transition">Consulter</router-link>
             </div>
           </div>
         </div>
-        <div v-else class="text-center py-12 text-gray-400">Aucun operateur actif</div>
       </div>
 
+      <!-- Active Formations (Right Column) -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">Formations Actives</h2>
+          <h2 class="text-lg font-semibold text-gray-900">Suivi des Formations Actives</h2>
           <router-link to="/training" class="text-sm text-emerald-600 hover:underline">Voir toutes</router-link>
         </div>
         <div v-if="loading" class="flex items-center justify-center py-12"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-        <div v-else-if="activeFormations.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
+        <div v-else-if="activeFormations.length > 0" class="space-y-2 max-h-96 overflow-y-auto pr-1">
           <div v-for="f in activeFormations.slice(0, 8)" :key="f.id" class="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-sm font-bold text-amber-700">{{ f.achievedLevel || 0 }}/{{ f.targetLevel }}</div>
+              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-amber-700">{{ formatNiveau(f.achievedLevel) }}/{{ formatNiveau(f.targetLevel) }}</div>
               <div><p class="text-sm font-medium text-gray-900">{{ f.operatorName }}</p><p class="text-xs text-gray-500">{{ f.workstationName }}</p></div>
             </div>
             <router-link :to="'/training/' + f.id" class="inline-flex items-center gap-1 text-sm text-emerald-600 hover:underline">
@@ -103,7 +122,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { trainingApi, operatorsApi } from '@/api/endpoints'
+import { trainingApi, operatorsApi, evaluationApi } from '@/api/endpoints'
 import { useUserScope } from '@/composables/useUserScope'
 
 const { loadUserProjects, filterOperators, filterFormations } = useUserScope()
@@ -137,17 +156,81 @@ const pendingTrackings = computed(() => activeFormations.value.length)
 const getOperatorLevel = (op) => {
   const opFormations = formations.value.filter(f => f.operatorId === op.id && f.status === 'IN_PROGRESS')
  if (opFormations.length === 0) return '-'
- return 'Nv.' + (opFormations[0].achievedLevel || 0)
+ return 'Nv.' + formatNiveau(opFormations[0].achievedLevel)
 }
+
+function formatNiveau(level) {
+  if (!level) return '-'
+  const upper = String(level).toUpperCase().trim()
+  if (upper === 'I' || upper === 'NIVEAU_1' || upper === '1') return 'I'
+  if (upper === 'L' || upper === 'NIVEAU_2' || upper === '2') return 'L'
+  if (upper === 'U' || upper === 'NIVEAU_3' || upper === '3') return 'U'
+  return level
+}
+
+const matrixData = ref(null)
+const allTrackings = ref([])
+
+const missingTodayTrackings = computed(() => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  return activeFormations.value.filter(f => {
+    const hasToday = allTrackings.value.some(t => t.formationId === f.id && t.trackingDate === todayStr)
+    return !hasToday
+  })
+})
+
+const pendingEvaluations = computed(() => {
+  return activeFormations.value.filter(f => (f.daysWithData || 0) >= 12)
+})
+
+const understaffedWorkstations = computed(() => {
+  if (!matrixData.value?.operators) return []
+  const zones = matrixData.value.zones || []
+  const allWorkstations = zones.flatMap(z => z.workstations || [])
+  
+  const list = []
+  for (const ws of allWorkstations) {
+    if (ws.isGeneric) continue
+    let count = 0
+    for (const op of matrixData.value.operators) {
+      const lvl = op.workstations?.[ws.id]?.level
+      if (lvl === 'L' || lvl === 'U') {
+        count++
+      }
+    }
+    if (count < 6) {
+      list.push({
+        id: ws.id,
+        name: ws.name,
+        count
+      })
+    }
+  }
+  return list.sort((a, b) => a.count - b.count)
+})
 
 onMounted(async () => {
   loading.value = true
   try {
     await loadUserProjects()
-    const [o, f, s] = await Promise.all([operatorsApi.getAll(), trainingApi.getFormations(), trainingApi.getStatistics()])
+    const [o, f, s, m] = await Promise.all([
+      operatorsApi.getAll(),
+      trainingApi.getFormations(),
+      trainingApi.getStatistics(),
+      evaluationApi.getMatrix()
+    ])
     rawOperators.value = o.data
     rawFormations.value = f.data
     stats.value = s.data
-  } catch (e) { console.error(e) } finally { loading.value = false }
+    matrixData.value = m.data
+
+    const trackingPromises = activeFormations.value.map(fo => trainingApi.getTracking(fo.id))
+    const trackingResults = await Promise.all(trackingPromises)
+    allTrackings.value = trackingResults.flatMap(r => r.data)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
 })
 </script>

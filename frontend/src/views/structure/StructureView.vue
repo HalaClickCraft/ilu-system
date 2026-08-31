@@ -28,6 +28,7 @@
             <div class="flex flex-wrap gap-2">
               <span v-for="m in project.members" :key="m.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-sm text-slate-700">
                 {{ m.employeeName || m.employeeId }}
+                <span v-if="m.shift" class="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded font-bold font-mono">{{ m.shift }}</span>
                 <span class="text-xs font-medium px-1.5 py-0.5 rounded" :class="roleBadgeClass(m.projectRole)">{{ roleLabel(m.projectRole) }}</span>
                 <button @click.stop="removeMember(m.id)" class="text-slate-400 hover:text-red-500 ml-1" title="Retirer">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -104,6 +105,17 @@
             </select>
             <p v-if="memberForm.filterRole && filteredUsers.length === 0" class="text-xs text-gray-400 mt-1">Aucun utilisateur avec ce role</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Groupe Support / Support Team (Optionnel)</label>
+            <select v-model="memberForm.shift" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option value="">-- Aucun groupe / Tous --</option>
+              <option value="Support Team 1">Support Team 1</option>
+              <option value="Support Team 2">Support Team 2</option>
+              <option value="Support Team 3">Support Team 3</option>
+              <option value="Support Team 4">Support Team 4</option>
+              <option value="Support Team 5">Support Team 5</option>
+            </select>
+          </div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
           <div class="flex justify-end gap-3 pt-2">
             <button type="button" @click="showMemberModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button>
@@ -131,7 +143,13 @@
         <form @submit.prevent="createWorkstation" class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="wsForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><input v-model="wsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select v-model="wsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="POSTE">Poste Standard</option>
+                <option value="TEST">Test Défauthèque</option>
+              </select>
+            </div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Cadence cible</label><input v-model.number="wsForm.targetCadence" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Objectif Qualité (max défauts)</label><input v-model.number="wsForm.qualityObjective" type="number" placeholder="7 (< 7 défauts)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Versatilite</label><input v-model.number="wsForm.versatilityTarget" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
@@ -159,7 +177,13 @@
         <form @submit.prevent="updateWorkstation" class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom</label><input v-model="editWsForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><input v-model="editWsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select v-model="editWsForm.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="POSTE">Poste Standard</option>
+                <option value="TEST">Test Défauthèque</option>
+              </select>
+            </div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Cadence cible</label><input v-model.number="editWsForm.targetCadence" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Versatilité</label><input v-model.number="editWsForm.versatilityTarget" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">Niveau ILU cible</label><select v-model="editWsForm.targetIluLevel" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"><option value="I">I - Initiation</option><option value="L">L - Logique</option><option value="U">U - Unité</option></select></div>
@@ -191,7 +215,7 @@ const showMemberModal = ref(false)
 const availableUsers = ref([])
 const projectForm = ref({ name: '' })
 const zoneForm = ref({ name: '', projectId: null })
-const wsForm = ref({ name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId: null })
+const wsForm = ref({ name: '', type: 'POSTE', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId: null })
 const memberForm = ref({ projectId: null, filterRole: '', employeeId: '' })
 
 const roleLabel = (r) => ({ TEAM_LEADER: "Chef d'Eq", QUALITY_MANAGER: "Agent Q", PROJECT_MANAGER: "Resp Projet", MEMBER: "Membre" }[r] || r)
@@ -222,7 +246,7 @@ const showAddZone = (projectId) => { zoneForm.value = { name: '', projectId }; s
 const createZone = async () => { creating.value = true; try { await structureApi.createZone(zoneForm.value.projectId, { name: zoneForm.value.name }); showZoneModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 const deleteZone = async (id) => { confirmData.value = { visible: true, title: 'Supprimer la zone', message: 'Voulez-vous supprimer cette zone et tous ses postes ?', type: 'danger' }; pendingDeleteAction.value = () => deleteZoneConfirmed(id); return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
 
-const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
+const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '', shift: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
 const addMember = async () => {
   creating.value = true; error.value = ''
   try {
@@ -230,7 +254,8 @@ const addMember = async () => {
     await structureApi.addMember(memberForm.value.projectId, {
       employeeId: memberForm.value.employeeId,
       employeeName: user?.name || memberForm.value.employeeId,
-      role: systemToProjectRole(memberForm.value.filterRole)
+      role: systemToProjectRole(memberForm.value.filterRole),
+      shift: memberForm.value.shift || null
     })
     showMemberModal.value = false; fetchProjects()
   } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false }
@@ -238,7 +263,7 @@ const addMember = async () => {
 const removeMember = async (memberId) => {
   confirmData.value = { visible: true, title: 'Retirer le membre', message: 'Voulez-vous retirer ce membre du projet ?', type: 'danger' }; pendingDeleteAction.value = () => removeMemberConfirmed(memberId)
 }
-const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; showWorkstationModal.value = true }
+const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: 'POSTE', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; showWorkstationModal.value = true }
 const createWorkstation = async () => { creating.value = true; try { await structureApi.createWorkstation(wsForm.value); showWorkstationModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 const deleteWorkstation = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le poste', message: 'Voulez-vous supprimer ce poste de travail ?', type: 'danger' }; pendingDeleteAction.value = () => deleteWorkstationConfirmed(id) }
 
@@ -260,8 +285,8 @@ const updateProject = async () => { creating.value = true; try { await structure
 
 // Edit Workstation
 const showEditWsModal = ref(false)
-const editWsForm = ref({ id: null, name: '', type: '', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I' })
-const openEditWorkstation = (ws) => { editWsForm.value = { id: ws.id, name: ws.name, type: ws.type || '', targetCadence: ws.targetCadence, versatilityTarget: ws.versatilityTarget, targetIluLevel: ws.targetIluLevel || 'I' }; showEditWsModal.value = true }
+const editWsForm = ref({ id: null, name: '', type: 'POSTE', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I' })
+const openEditWorkstation = (ws) => { editWsForm.value = { id: ws.id, name: ws.name, type: ws.type || 'POSTE', targetCadence: ws.targetCadence, versatilityTarget: ws.versatilityTarget, targetIluLevel: ws.targetIluLevel || 'I' }; showEditWsModal.value = true }
 const updateWorkstation = async () => { creating.value = true; try { await structureApi.updateWorkstation(editWsForm.value.id, editWsForm.value); showEditWsModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 
 onMounted(fetchProjects)

@@ -1,8 +1,10 @@
 package com.ilu.system.operator.controller;
 
 import com.ilu.system.operator.entity.Operator;
+import com.ilu.system.operator.entity.Team;
 import com.ilu.system.operator.entity.ProjectTransferRequest;
 import com.ilu.system.operator.repository.OperatorRepository;
+import com.ilu.system.operator.repository.TeamRepository;
 import com.ilu.system.operator.repository.ProjectTransferRequestRepository;
 import com.ilu.system.structure.entity.Project;
 import com.ilu.system.structure.repository.ProjectRepository;
@@ -23,14 +25,17 @@ public class ProjectTransferRequestController {
     private final ProjectTransferRequestRepository requestRepository;
     private final OperatorRepository operatorRepository;
     private final ProjectRepository projectRepository;
+    private final TeamRepository teamRepository;
 
     public ProjectTransferRequestController(
             ProjectTransferRequestRepository requestRepository,
             OperatorRepository operatorRepository,
-            ProjectRepository projectRepository) {
+            ProjectRepository projectRepository,
+            TeamRepository teamRepository) {
         this.requestRepository = requestRepository;
         this.operatorRepository = operatorRepository;
         this.projectRepository = projectRepository;
+        this.teamRepository = teamRepository;
     }
 
     @PostMapping("/request")
@@ -38,6 +43,7 @@ public class ProjectTransferRequestController {
     public ResponseEntity<Map<String, Object>> createRequest(
             @RequestParam String employeeId,
             @RequestParam Long targetProjectId,
+            @RequestParam(required = false) Long targetTeamId,
             Authentication authentication) {
 
         Operator operator = operatorRepository.findByEmployeeId(employeeId)
@@ -45,6 +51,9 @@ public class ProjectTransferRequestController {
 
         Project targetProject = projectRepository.findById(targetProjectId)
                 .orElseThrow(() -> new RuntimeException("Projet cible introuvable"));
+
+        Team targetTeam = targetTeamId != null ? teamRepository.findById(targetTeamId)
+                .orElseThrow(() -> new RuntimeException("Équipe cible introuvable")) : null;
 
         boolean isSupervisorOrAdmin = authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -55,6 +64,9 @@ public class ProjectTransferRequestController {
         if (isSupervisorOrAdmin) {
             // Apply instantly
             operator.setProject(targetProject);
+            if (targetTeam != null) {
+                operator.setTeam(targetTeam);
+            }
             operatorRepository.save(operator);
 
             ProjectTransferRequest req = new ProjectTransferRequest();
@@ -66,6 +78,10 @@ public class ProjectTransferRequestController {
             }
             req.setTargetProjectId(targetProject.getId());
             req.setTargetProjectName(targetProject.getName());
+            if (targetTeam != null) {
+                req.setTargetTeamId(targetTeam.getId());
+                req.setTargetTeamName(targetTeam.getName());
+            }
             req.setRequestedBy(authentication != null ? authentication.getName() : "Superviseur");
             req.setStatus("APPROVED");
             req.setApprovedBy(authentication != null ? authentication.getName() : "Superviseur");
@@ -85,6 +101,10 @@ public class ProjectTransferRequestController {
             }
             req.setTargetProjectId(targetProject.getId());
             req.setTargetProjectName(targetProject.getName());
+            if (targetTeam != null) {
+                req.setTargetTeamId(targetTeam.getId());
+                req.setTargetTeamName(targetTeam.getName());
+            }
             req.setRequestedBy(authentication != null ? authentication.getName() : "Chef d'équipe");
             req.setStatus("PENDING");
             requestRepository.save(req);
@@ -102,6 +122,40 @@ public class ProjectTransferRequestController {
         return ResponseEntity.ok(requestRepository.findByStatusOrderByCreatedAtDesc("PENDING"));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<ProjectTransferRequest>> getAllRequests() {
+        List<ProjectTransferRequest> all = requestRepository.findAll().stream()
+                .sorted(Comparator.comparing(ProjectTransferRequest::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(all);
+    }
+
+    /**
+     * Instantly move an operator to another Support Team (same project).
+     * Only Superviseur / Admin can call this directly.
+     */
+    @PostMapping("/change-shift")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> changeShift(
+            @RequestParam String employeeId,
+            @RequestParam Long targetTeamId,
+            Authentication authentication) {
+
+        Operator operator = operatorRepository.findByEmployeeId(employeeId)
+                .orElseThrow(() -> new RuntimeException("Opérateur introuvable: " + employeeId));
+        Team targetTeam = teamRepository.findById(targetTeamId)
+                .orElseThrow(() -> new RuntimeException("Équipe cible introuvable"));
+
+        operator.setTeam(targetTeam);
+        operatorRepository.save(operator);
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("status", "OK");
+        res.put("message", "Support Team de l'opérateur mis à jour avec succès.");
+        return ResponseEntity.ok(res);
+    }
+
     @PostMapping("/requests/{requestId}/approve")
     @Transactional
     public ResponseEntity<Map<String, Object>> approveRequest(
@@ -117,8 +171,13 @@ public class ProjectTransferRequestController {
         Project targetProject = projectRepository.findById(req.getTargetProjectId())
                 .orElseThrow(() -> new RuntimeException("Projet cible introuvable"));
 
-        // Update operator's project
+        // Update operator's project and team
         operator.setProject(targetProject);
+        if (req.getTargetTeamId() != null) {
+            Team targetTeam = teamRepository.findById(req.getTargetTeamId())
+                    .orElseThrow(() -> new RuntimeException("Équipe cible introuvable"));
+            operator.setTeam(targetTeam);
+        }
         operatorRepository.save(operator);
 
         req.setStatus("APPROVED");

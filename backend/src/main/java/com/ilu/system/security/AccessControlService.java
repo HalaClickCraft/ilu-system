@@ -3,6 +3,7 @@ package com.ilu.system.security;
 import com.ilu.system.auth.entity.User;
 import com.ilu.system.auth.repository.UserRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
+import com.ilu.system.operator.entity.Operator;
 import com.ilu.system.structure.entity.ProjectMember;
 import com.ilu.system.structure.repository.ProjectMemberRepository;
 import org.springframework.http.HttpStatus;

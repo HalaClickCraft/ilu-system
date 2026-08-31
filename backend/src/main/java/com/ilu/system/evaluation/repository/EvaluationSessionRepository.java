@@ -21,6 +21,8 @@ public interface EvaluationSessionRepository extends JpaRepository<EvaluationSes
 
     boolean existsByOperatorIdAndFormationId(Long operatorId, Long formationId);
 
+    boolean existsByTemplateId(Long templateId);
+
     @Query("SELECT s FROM EvaluationSession s " +
            "LEFT JOIN FETCH s.template t " +
            "LEFT JOIN FETCH t.workstation " +

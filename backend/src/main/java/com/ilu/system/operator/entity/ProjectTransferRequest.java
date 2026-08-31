@@ -44,6 +44,12 @@ public class ProjectTransferRequest {
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
+    @Column(name = "target_team_id")
+    private Long targetTeamId;
+
+    @Column(name = "target_team_name")
+    private String targetTeamName;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -69,4 +75,8 @@ public class ProjectTransferRequest {
     public void setApprovedBy(String approvedBy) { this.approvedBy = approvedBy; }
     public LocalDateTime getApprovedAt() { return approvedAt; }
     public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+    public Long getTargetTeamId() { return targetTeamId; }
+    public void setTargetTeamId(Long targetTeamId) { this.targetTeamId = targetTeamId; }
+    public String getTargetTeamName() { return targetTeamName; }
+    public void setTargetTeamName(String targetTeamName) { this.targetTeamName = targetTeamName; }
 }

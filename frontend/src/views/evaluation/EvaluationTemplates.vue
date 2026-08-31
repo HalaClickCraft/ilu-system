@@ -200,228 +200,190 @@
           </div>
         </div>
 
-        <!-- Sections & Questions -->
-        <div v-for="section in templateDetail?.sections" :key="section.id" class="mb-6">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
-              <span
-                class="w-6 h-6 bg-sky-100 text-sky-700 rounded-full flex items-center justify-center text-xs font-bold"
-                >{{ section.displayOrder + 1 }}</span
-              >
-              {{ section.title }}
-              <span class="text-xs text-gray-400">({{ section.questions.length }} questions)</span>
-            </h3>
+        <!-- OPmobility Style Validation Sheet Preview -->
+        <div class="bg-white border-4 border-blue-900 rounded-xl p-6 shadow-sm max-w-5xl mx-auto my-4 font-sans text-gray-900 relative">
+          
+          <!-- Document Header -->
+          <div class="flex items-start justify-between pb-4 border-b border-gray-300">
+            <!-- Logo -->
+            <div class="flex flex-col">
+              <div class="flex items-center gap-1">
+                <span class="text-2xl font-black text-blue-950 italic tracking-tighter">OP</span>
+                <span class="text-lg font-bold text-gray-700">mobility</span>
+              </div>
+              <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">ILU System</span>
+            </div>
+
+            <!-- Document Title -->
+            <div class="text-center flex-1">
+              <h2 class="text-xl font-extrabold text-blue-950 tracking-wider">VALIDATION AU POSTE (PREVIEW)</h2>
+              <div class="text-xs text-gray-500 font-medium mt-0.5">{{ selectedTemplate.name }}</div>
+            </div>
+
+            <!-- Safety Symbol Placeholder -->
+            <div class="flex items-center gap-2 pr-2">
+              <div class="relative w-16 h-16 flex items-center justify-center border-2 border-red-600 rounded-full bg-red-50/20">
+                <span class="absolute top-1 left-2 text-[10px] font-bold text-red-600">S</span>
+                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <polygon points="12,3 3,20 21,20" />
+                </svg>
+                <span class="absolute bottom-1 right-2 text-[10px] font-bold text-red-600">R</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Questions in section -->
-          <div
-            v-for="q in section.questions"
-            :key="q.id"
-            class="ml-8 mb-2 p-3 rounded-lg border-l-4 transition"
-            :class="questionBorderClass(q)"
-          >
-            <!-- Normal view -->
-            <div v-if="editingQuestionId !== q.id">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 space-y-2">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-semibold text-gray-500"
-                      >Q{{ q.questionNumber || '' }}</span
-                    >
-                    <p class="text-sm font-medium text-gray-800">{{ q.questionText }}</p>
-                    <span
-                      v-if="q.status === 'PENDING'"
-                      class="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-medium"
-                      >EN ATTENTE</span
-                    >
-                    <span
-                      v-if="q.status === 'REJECTED'"
-                      class="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-medium"
-                      >REJETEE</span
-                    >
-                    <span
-                      v-if="q.status === 'VALIDATED'"
-                      class="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-medium"
-                      >VALIDEE</span
-                    >
-                  </div>
+          <!-- Meta Info Lines -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 text-xs border-b border-gray-300">
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-gray-700">Nom :</span>
+              <span class="border-b border-dashed border-gray-400 flex-1 h-5 bg-gray-50/30"></span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-gray-700">Date d'embauche / évaluation :</span>
+              <span class="border-b border-dashed border-gray-400 flex-1 h-5 bg-gray-50/30"></span>
+            </div>
+          </div>
 
-                  <div v-if="q.imageUrl" class="my-2">
-                    <img :src="q.imageUrl" class="max-h-32 rounded border object-contain bg-white" />
-                  </div>
+          <!-- Banner header -->
+          <div class="w-full bg-[#003F15] text-white text-center py-2 mt-4 font-bold text-xs uppercase tracking-widest rounded">
+            {{ selectedTemplate.type === 'GENERIC_COMMON' ? 'PARTIE COMMUNE / COMMENCER' : selectedTemplate.type === 'ANIMATION' ? 'PARTIE ANIMATION' : 'PARTIE PRODUCTION' }}
+          </div>
 
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                    <div class="rounded-md bg-gray-50 border border-gray-200 px-2 py-1.5">
-                      <div class="font-semibold text-gray-600 mb-0.5">Réponse attendue</div>
-                      <div class="text-gray-800">{{ q.expectedAnswer || '—' }}</div>
-                    </div>
-                    <div class="rounded-md bg-blue-50 border border-blue-200 px-2 py-1.5">
-                      <div class="font-semibold text-blue-700 mb-0.5">Créée par</div>
-                      <div class="text-blue-900">
-                        {{ formatRoleLabel(q.validatorRole) }} · {{ q.createdByName || 'Inconnu' }}
+          <div class="text-right text-[10px] font-semibold text-gray-500 my-1.5">
+            <span>1 : Bonne réponse</span> &nbsp;|&nbsp; <span>0 : Mauvaise réponse</span>
+          </div>
+
+          <!-- Table wrapper -->
+          <div class="overflow-x-auto mt-2">
+            <table class="w-full border-collapse border border-gray-400 text-xs">
+              <thead>
+                <tr class="bg-gray-100 text-gray-800 border-b border-gray-400 font-bold">
+                  <th class="border border-gray-400 px-3 py-2 text-left w-[40%]">Question</th>
+                  <th class="border border-gray-400 px-3 py-2 text-left w-[22%]">Réponse espérée</th>
+                  <th class="border border-gray-400 px-2 py-2 text-center w-[12%]">Validateur</th>
+                  <th class="border border-gray-400 px-2 py-2 text-center w-[5%]">0</th>
+                  <th class="border border-gray-400 px-2 py-2 text-center w-[5%]">1</th>
+                  <th class="border border-gray-400 px-3 py-2 text-left w-[16%]">Question Complémentaire</th>
+                  <th v-if="canManage && selectedTemplate.status === 'DRAFT'" class="border border-gray-400 px-2 py-2 text-center w-[8%]">Actions</th>
+                </tr>
+              </thead>
+              <tbody v-for="section in templateDetail?.sections" :key="section.id">
+                  <!-- Section Header Row -->
+                  <tr class="bg-slate-200/60 font-bold border-b border-gray-450">
+                    <td :colspan="canManage && selectedTemplate.status === 'DRAFT' ? 7 : 6" class="border border-gray-400 px-3 py-1.5 text-gray-800 uppercase tracking-wider text-[11px] bg-slate-200/50">
+                      {{ section.title }}
+                    </td>
+                  </tr>
+
+                  <!-- Questions Rows -->
+                  <tr v-for="q in section.questions" :key="q.id" class="hover:bg-gray-50/40">
+                    <!-- 1. Question details -->
+                    <td class="border border-gray-400 px-3 py-2">
+                      <!-- Editor View -->
+                      <div v-if="editingQuestionId === q.id" class="space-y-2 py-2">
+                        <input v-model="editForm.questionText" class="w-full border border-gray-300 rounded px-2 py-1 text-xs" placeholder="Question..." />
+                        <input v-model="editForm.expectedAnswer" class="w-full border border-gray-300 rounded px-2 py-1 text-xs" placeholder="Réponse attendue..." />
+                        <textarea v-model="editForm.complementaryQuestions" rows="2" class="w-full border border-gray-300 rounded px-2 py-1 text-xs" placeholder="Question complémentaire..."></textarea>
+                        <div class="space-y-1">
+                          <label class="block text-[10px] font-semibold text-gray-500">Image (optionnelle)</label>
+                          <div class="flex items-center gap-2">
+                            <input type="file" accept="image/*" @change="handleEditQuestionImageUpload($event)" class="text-[10px] text-gray-500" />
+                            <button v-if="editForm.imageUrl" type="button" @click="editForm.imageUrl = ''" class="text-[10px] text-red-600 hover:underline">Supprimer l'image</button>
+                          </div>
+                          <img v-if="editForm.imageUrl" :src="editForm.imageUrl" class="mt-1 h-12 w-auto object-contain rounded border" />
+                        </div>
+                        <div class="flex gap-2 pt-1">
+                          <button @click="saveEditQuestion" class="bg-blue-600 text-white px-2.5 py-1 rounded text-[11px] hover:bg-blue-700">Enregistrer</button>
+                          <button @click="cancelEdit" class="bg-gray-200 text-gray-700 px-2.5 py-1 rounded text-[11px] hover:bg-gray-300">Annuler</button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div
-                    v-if="q.complementaryQuestions"
-                    class="rounded-md border border-purple-200 bg-purple-50 px-2 py-1.5 text-xs text-purple-800"
-                  >
-                    <span class="font-semibold">Question complémentaire :</span>
-                    {{ q.complementaryQuestions }}
-                  </div>
-                </div>
+                      <!-- Preview View -->
+                      <div v-else class="space-y-1">
+                        <div class="flex items-start gap-1.5">
+                          <span class="font-bold text-gray-500 text-[11px]">{{ q.questionNumber }}.</span>
+                          <div class="space-y-1">
+                            <p class="text-gray-900 font-medium leading-relaxed">{{ q.questionText }}</p>
+                            <span v-if="q.status === 'PENDING'" class="text-[9px] bg-yellow-100 text-yellow-800 px-1 py-0.2 rounded font-semibold uppercase tracking-wider">En attente</span>
+                            <span v-if="q.status === 'REJECTED'" class="text-[9px] bg-red-100 text-red-800 px-1 py-0.2 rounded font-semibold uppercase tracking-wider">Rejetée</span>
+                            <span v-if="q.status === 'VALIDATED'" class="text-[9px] bg-green-100 text-green-800 px-1 py-0.2 rounded font-semibold uppercase tracking-wider">Validée</span>
+                          </div>
+                        </div>
+                        <!-- Image Container Design -->
+                        <div v-if="q.imageUrl" class="relative group mt-2 max-w-[180px] bg-slate-50 border border-slate-200 rounded p-1 shadow-sm hover:shadow-md transition">
+                          <img :src="q.imageUrl" class="w-full max-h-24 rounded object-contain bg-white cursor-zoom-in" @click="activeZoomImageUrl = q.imageUrl" />
+                          <div class="absolute bottom-1 right-1 bg-black/60 text-[9px] text-white px-1.5 py-0.2 rounded font-medium opacity-0 group-hover:opacity-100 transition">
+                            Zoom
+                          </div>
+                        </div>
+                      </div>
+                    </td>
 
-                <!-- Edit / Delete buttons -->
-                <div
-                  v-if="canManage && selectedTemplate.status === 'DRAFT' && isOwnQuestion(q)"
-                  class="flex gap-1 ml-2 shrink-0"
-                >
-                  <button
-                    @click.stop="startEditQuestion(q)"
-                    class="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                    title="Modifier"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      ></path>
-                    </svg>
-                  </button>
-                  <button
-                    @click.stop="deleteQuestion(q.id)"
-                    class="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                    title="Supprimer"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+                    <!-- 2. Expected Answer -->
+                    <td class="border border-gray-400 px-3 py-2 text-gray-600 bg-gray-50/20 italic text-[11px]">
+                      <div v-if="editingQuestionId !== q.id">
+                        {{ q.expectedAnswer || '—' }}
+                      </div>
+                    </td>
 
-            <!-- Edit mode -->
-            <div v-else class="space-y-2">
-              <input
-                v-model="editForm.questionText"
-                class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-                placeholder="Question..."
-              />
-              <input
-                v-model="editForm.expectedAnswer"
-                class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-                placeholder="Reponse attendue..."
-              />
-              <textarea
-                v-model="editForm.complementaryQuestions"
-                rows="2"
-                class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-                placeholder="Question complémentaire..."
-              ></textarea>
-              <div class="space-y-1">
-                <label class="block text-xs font-semibold text-gray-500">Image (optionnelle)</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    @change="handleEditQuestionImageUpload($event)"
-                    class="text-xs text-gray-500"
-                  />
-                  <button
-                    v-if="editForm.imageUrl"
-                    type="button"
-                    @click="editForm.imageUrl = ''"
-                    class="text-xs text-red-600 hover:underline"
-                  >
-                    Supprimer l'image
-                  </button>
-                </div>
-                <img
-                  v-if="editForm.imageUrl"
-                  :src="editForm.imageUrl"
-                  class="mt-1 h-12 w-auto object-contain rounded border"
-                />
-              </div>
-              <div class="flex gap-2">
-                <button
-                  @click="saveEditQuestion"
-                  class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs hover:bg-blue-700"
-                >
-                  Enregistrer
-                </button>
-                <button
-                  @click="cancelEdit"
-                  class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs hover:bg-gray-300"
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
+                    <!-- 3. Validator Role -->
+                    <td class="border border-gray-400 px-2 py-2 text-center text-[10px] font-semibold text-blue-800 bg-blue-50/10">
+                      à valider par<br/>{{ formatRoleLabel(q.validatorRole) }}
+                    </td>
 
-          <!-- Add question to section -->
-          <div
-            v-if="canManage && selectedTemplate.status === 'DRAFT'"
-            class="ml-8 mt-2 p-3 bg-gray-50 rounded-lg"
-          >
-            <h4 class="text-xs font-semibold text-gray-600 mb-2">+ Ajouter une question</h4>
-            <div class="space-y-2">
-              <input
-                v-model="newQuestion[section.id].text"
-                placeholder="Question..."
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              />
-              <input
-                v-model="newQuestion[section.id].expected"
-                placeholder="Reponse attendue..."
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              />
-              <textarea
-                v-model="newQuestion[section.id].complementary"
-                rows="2"
-                placeholder="Question complémentaire (optionnel)..."
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              ></textarea>
-              <div class="space-y-1">
-                <label class="block text-xs font-semibold text-gray-500">Image (optionnelle)</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    @change="handleQuestionImageUpload($event, section.id)"
-                    class="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                  />
-                  <button
-                    v-if="newQuestion[section.id]?.imageUrl"
-                    type="button"
-                    @click="newQuestion[section.id].imageUrl = ''"
-                    class="text-xs text-red-600 hover:underline"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-                <img
-                  v-if="newQuestion[section.id]?.imageUrl"
-                  :src="newQuestion[section.id].imageUrl"
-                  class="mt-1 h-12 w-auto object-contain rounded border"
-                />
-              </div>
-              <button
-                @click="addQuestionToSection(section.id)"
-                class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-sky-700"
-              >
-                Ajouter
-              </button>
-            </div>
+                    <!-- 4. Score 0 box -->
+                    <td class="border border-gray-400 p-1 text-center bg-gray-50/10">
+                      <div class="w-6 h-6 border border-gray-300 rounded mx-auto bg-white flex items-center justify-center text-gray-300">0</div>
+                    </td>
+
+                    <!-- 5. Score 1 box -->
+                    <td class="border border-gray-400 p-1 text-center bg-gray-50/10">
+                      <div class="w-6 h-6 border border-gray-300 rounded mx-auto bg-white flex items-center justify-center text-gray-300">1</div>
+                    </td>
+
+                    <!-- 6. Question Complémentaire -->
+                    <td class="border border-gray-400 px-3 py-2 text-gray-700 bg-purple-50/10 italic text-[11px]">
+                      <div v-if="editingQuestionId !== q.id">
+                        {{ q.complementaryQuestions || '—' }}
+                      </div>
+                    </td>
+
+                    <!-- 7. Actions (Management) -->
+                    <td v-if="canManage && selectedTemplate.status === 'DRAFT'" class="border border-gray-400 p-1.5 text-center">
+                      <div v-if="editingQuestionId !== q.id" class="flex items-center justify-center gap-1">
+                        <button @click.stop="startEditQuestion(q)" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Modifier">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                        <button @click.stop="deleteQuestion(q.id)" class="p-1 text-red-600 hover:bg-red-50 rounded" title="Supprimer">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- Inline row: Add question to this section -->
+                  <tr v-if="canManage && selectedTemplate.status === 'DRAFT'">
+                    <td :colspan="7" class="border border-gray-400 p-3 bg-gray-50/80">
+                      <div class="max-w-2xl mx-auto space-y-2">
+                        <h4 class="text-xs font-semibold text-gray-700">+ Ajouter une question à la section "{{ section.title }}"</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <input v-model="newQuestion[section.id].text" placeholder="Texte de la question..." class="border border-gray-300 rounded px-2 py-1 text-xs" />
+                          <input v-model="newQuestion[section.id].expected" placeholder="Réponse espérée..." class="border border-gray-300 rounded px-2 py-1 text-xs" />
+                        </div>
+                        <textarea v-model="newQuestion[section.id].complementary" rows="2" placeholder="Question complémentaire (optionnel)..." class="w-full border border-gray-300 rounded px-2 py-1 text-xs"></textarea>
+                        <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
+                          <div class="flex items-center gap-2">
+                            <label class="text-[10px] font-semibold text-gray-500">Image :</label>
+                            <input type="file" accept="image/*" @change="handleQuestionImageUpload($event, section.id)" class="text-[10px]" />
+                            <button v-if="newQuestion[section.id]?.imageUrl" type="button" @click="newQuestion[section.id].imageUrl = ''" class="text-[10px] text-red-600 hover:underline">Supprimer l'image</button>
+                          </div>
+                          <button @click="addQuestionToSection(section.id)" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1 rounded text-xs font-semibold">Ajouter la Question</button>
+                        </div>
+                        <img v-if="newQuestion[section.id]?.imageUrl" :src="newQuestion[section.id].imageUrl" class="mt-1 h-12 w-auto object-contain rounded border" />
+                      </div>
+                    </td>
+                  </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -559,6 +521,7 @@
           </div>
         </div>
       </div>
+    </div>
     <!-- Import Questions Modal -->
     <div v-if="showImportModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" @click.self="closeImportModal">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 p-6">
@@ -601,7 +564,13 @@
         </div>
       </div>
     </div>
-  </div>
+    <!-- Zoom Image Modal -->
+    <div v-if="activeZoomImageUrl" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-zoom-out" @click="activeZoomImageUrl = null">
+      <div class="relative bg-white rounded-lg p-2 max-w-4xl max-h-[85vh] overflow-auto shadow-2xl" @click.stop>
+        <button @click="activeZoomImageUrl = null" class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg">×</button>
+        <img :src="activeZoomImageUrl" class="max-w-full max-h-[80vh] object-contain rounded" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -650,6 +619,7 @@ function resetFilters() {
 const activeType = ref('ALL')
 const selectedTemplate = ref(null)
 const templateDetail = ref(null)
+const activeZoomImageUrl = ref(null)
 const showCreateModal = ref(false)
 const newSectionTitle = ref('')
 const newQuestion = reactive({})

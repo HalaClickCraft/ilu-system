@@ -22,21 +22,36 @@
         />
       </div>
 
-      <!-- Tabs/Filters -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-        <button
-          v-for="status in ['TOUS', 'EN_POSTE', 'ABSENT', 'SORTI', 'HISTORIQUE']"
-          :key="status"
-          @click="selectedStatusFilter = status"
-          :class="[
-            selectedStatusFilter === status
-              ? 'bg-slate-800 text-white font-semibold'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-            'px-4 py-2 rounded-lg text-xs transition whitespace-nowrap'
-          ]"
-        >
-          {{ statusLabel(status) }}
-        </button>
+      <!-- Tabs/Filters & Page Size -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          <button
+            v-for="status in ['TOUS', 'EN_POSTE', 'ABSENT', 'SORTI', 'HISTORIQUE']"
+            :key="status"
+            @click="selectedStatusFilter = status"
+            :class="[
+              selectedStatusFilter === status
+                ? 'bg-slate-800 text-white font-semibold'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+              'px-4 py-2 rounded-lg text-xs transition whitespace-nowrap'
+            ]"
+          >
+            {{ statusLabel(status) }}
+          </button>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-600">Taille:</label>
+          <select
+            v-model="pageSize"
+            class="px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option :value="10">10</option>
+            <option :value="15">15</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -46,14 +61,18 @@
         <table class="min-w-full divide-y divide-gray-200 text-sm">
           <thead class="bg-gray-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Opérateur</th>
+              <th scope="col" @click="handleSort('lastName')" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none">
+                Opérateur <span v-if="sortBy === 'lastName'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Affectation</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut Actuel</th>
+              <th scope="col" @click="handleSort('status')" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none">
+                Statut Actuel <span v-if="sortBy === 'status'">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
+              </th>
               <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="op in filteredOperators" :key="op.id" class="hover:bg-gray-50/50">
+            <tr v-for="op in paginatedOperators" :key="op.id" class="hover:bg-gray-50/50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="font-semibold text-gray-900">{{ op.lastName }} {{ op.firstName }}</div>
                 <div class="text-xs text-gray-400">Matricule: {{ op.employeeId }}</div>
@@ -121,6 +140,16 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination Footer -->
+      <div v-if="totalPages > 1" class="px-6 py-3.5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-500 font-medium">
+        <span>Affichage de {{ (currentPage - 1) * pageSize + 1 }} à {{ Math.min(currentPage * pageSize, filteredOperators.length) }} sur {{ filteredOperators.length }} opérateur(s)</span>
+        <div class="flex gap-1">
+          <button :disabled="currentPage === 1" @click="currentPage--" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Précédent</button>
+          <span class="px-3 py-1.5 bg-gray-100 rounded-lg flex items-center font-semibold text-gray-800">Page {{ currentPage }} sur {{ totalPages }}</span>
+          <button :disabled="currentPage === totalPages" @click="currentPage++" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Suivant</button>
+        </div>
+      </div>
     </div>
 
     <!-- Absence History Table -->
@@ -137,7 +166,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="item in filteredHistory" :key="item.id" class="hover:bg-gray-50/50">
+            <tr v-for="item in paginatedHistory" :key="item.id" class="hover:bg-gray-50/50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="font-semibold text-gray-900">{{ item.operatorName }}</div>
                 <div class="text-xs text-gray-400">Matricule: {{ item.employeeId }}</div>
@@ -163,6 +192,16 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- History Pagination Footer -->
+      <div v-if="historyTotalPages > 1" class="px-6 py-3.5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-500 font-medium">
+        <span>Affichage de {{ (currentPage - 1) * pageSize + 1 }} à {{ Math.min(currentPage * pageSize, filteredHistory.length) }} sur {{ filteredHistory.length }} historique(s)</span>
+        <div class="flex gap-1">
+          <button :disabled="currentPage === 1" @click="currentPage--" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Précédent</button>
+          <span class="px-3 py-1.5 bg-gray-100 rounded-lg flex items-center font-semibold text-gray-800">Page {{ currentPage }} sur {{ historyTotalPages }}</span>
+          <button :disabled="currentPage === historyTotalPages" @click="currentPage++" class="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-semibold text-gray-700">Suivant</button>
+        </div>
       </div>
     </div>
 
@@ -253,7 +292,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { operatorsApi } from '@/api/endpoints'
 import { absenceApi } from '@/services/absenceApi'
 import { useAuthStore } from '@/stores/auth'
@@ -270,6 +309,25 @@ const searchQuery = ref('')
 const selectedStatusFilter = ref('TOUS')
 const activeModal = ref(null)
 const selectedOperator = ref(null)
+
+// Pagination and Sorting state
+const currentPage = ref(1)
+const pageSize = ref(15)
+const sortBy = ref('lastName')
+const sortOrder = ref('asc')
+
+const handleSort = (field) => {
+  if (sortBy.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+watch([searchQuery, selectedStatusFilter, pageSize], () => {
+  currentPage.value = 1
+})
 
 // Forms State
 const absentForm = ref({ startDate: '', expectedReturnDate: '' })
@@ -378,6 +436,63 @@ const filteredOperators = computed(() => {
   return list
 })
 
+const sortedOperators = computed(() => {
+  const result = [...filteredOperators.value]
+  const field = sortBy.value
+  const order = sortOrder.value === 'asc' ? 1 : -1
+  
+  result.sort((a, b) => {
+    let valA = '', valB = ''
+    if (field === 'lastName') {
+      valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase()
+      valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase()
+    } else if (field === 'employeeId') {
+      valA = (a.employeeId || '').toLowerCase()
+      valB = (b.employeeId || '').toLowerCase()
+    } else if (field === 'status') {
+      valA = getOperatorStateLabel(a).toLowerCase()
+      valB = getOperatorStateLabel(b).toLowerCase()
+    }
+    
+    if (valA < valB) return -1 * order
+    if (valA > valB) return 1 * order
+    return 0
+  })
+  
+  return result
+})
+
+const paginatedOperators = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return sortedOperators.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredOperators.value.length / pageSize.value) || 1
+})
+
+const sortedHistory = computed(() => {
+  const result = [...filteredHistory.value]
+  // Sort by startDate desc by default
+  result.sort((a, b) => {
+    const valA = a.startDate || ''
+    const valB = b.startDate || ''
+    return valB.localeCompare(valA)
+  })
+  return result
+})
+
+const paginatedHistory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return sortedHistory.value.slice(start, end)
+})
+
+const historyTotalPages = computed(() => {
+  return Math.ceil(filteredHistory.value.length / pageSize.value) || 1
+})
+
 // Modals Triggers
 function promptAbsent(op) {
   selectedOperator.value = op
@@ -410,6 +525,10 @@ function closeModal() {
 // Submit actions
 async function submitAbsent() {
   if (!selectedOperator.value || !absentForm.value.startDate) return
+  if (absentForm.value.expectedReturnDate && absentForm.value.expectedReturnDate < absentForm.value.startDate) {
+    alert("La date de reprise prévue ne peut pas être antérieure à la date de début d'absence.");
+    return
+  }
   loading.value = true
   try {
     await absenceApi.markAbsent({
@@ -449,6 +568,13 @@ async function submitDeparture() {
 
 async function submitReturn() {
   if (!selectedOperator.value || !repriseForm.value.returnDate) return
+  const activeAbsence = absencesHistory.value.find(
+    a => a.operatorId === selectedOperator.value.id && a.status === 'EN_COURS'
+  )
+  if (activeAbsence && repriseForm.value.returnDate < activeAbsence.startDate) {
+    alert(`La date de reprise réelle ne peut pas être antérieure à la date de début d'absence (${activeAbsence.startDate}).`);
+    return
+  }
   loading.value = true
   try {
     await absenceApi.markReturn({
