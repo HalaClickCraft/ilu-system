@@ -35,4 +35,18 @@ public class OperatorController {
     public ResponseEntity<List<FormationDetailsDto>> getFormations(@PathVariable Long id) { return ResponseEntity.ok(operatorService.getOperatorFormations(id)); }
     @GetMapping("/{id}/assignments")
     public ResponseEntity<List<FormationAssignment>> getAssignments(@PathVariable Long id) { return ResponseEntity.ok(operatorService.getOperatorAssignments(id)); }
+    @GetMapping("/unassigned")
+    public ResponseEntity<List<Operator>> getUnassigned() {
+        List<Operator> active = operatorService.listActive();
+        List<Operator> unassigned = active.stream()
+            .filter(op -> op.getTeam() == null)
+            .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(unassigned);
+    }
+    @PutMapping("/{id}/team")
+    public ResponseEntity<Operator> assignTeam(@PathVariable Long id, @RequestParam Long teamId) {
+        CreateOperatorRequest req = new CreateOperatorRequest();
+        req.setTeamId(teamId);
+        return ResponseEntity.ok(operatorService.updateOperator(id, req));
+    }
 }

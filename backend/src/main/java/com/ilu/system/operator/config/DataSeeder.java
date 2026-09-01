@@ -169,9 +169,9 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedMockData() {
         // 1. Projects & Structures
-        Project project = projectRepository.findByName("CMP 2026").orElseGet(() -> {
+        Project project = projectRepository.findByName("KJ92 2026").orElseGet(() -> {
             Project p = new Project();
-            p.setName("CMP 2026");
+            p.setName("KJ92 2026");
             return projectRepository.save(p);
         });
 
@@ -185,79 +185,44 @@ public class DataSeeder implements CommandLineRunner {
             .forEach(projectMemberRepository::delete);
 
         // Seed Project Members for permissions
-        seedProjectMember(project, "CHEF-001", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "A");
-        seedProjectMember(project, "CHEF-002", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER, "B");
-        seedProjectMember(project, "AQ-001", "Agent Qualité", ProjectMember.ProjectRole.MEMBER, null);
-        seedProjectMember(project, "AQ-002", "Responsable Qualité", ProjectMember.ProjectRole.QUALITY_MANAGER, null);
-        seedProjectMember(project, "SUP-001", "Superviseur Usine", ProjectMember.ProjectRole.PROJECT_MANAGER, null);
-        seedProjectMember(project, "RHSE-001", "Responsable HSE", ProjectMember.ProjectRole.MEMBER, null);
+        seedProjectMember(project, "CHEF-001", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER);
+        seedProjectMember(project, "CHEF-002", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER);
+        seedProjectMember(project, "AQ-001", "Agent Qualité", ProjectMember.ProjectRole.MEMBER);
+        seedProjectMember(project, "AQ-002", "Responsable Qualité", ProjectMember.ProjectRole.QUALITY_MANAGER);
+        seedProjectMember(project, "SUP-001", "Superviseur Usine", ProjectMember.ProjectRole.PROJECT_MANAGER);
+        seedProjectMember(project, "RHSE-001", "Responsable HSE", ProjectMember.ProjectRole.MEMBER);
 
         if (operatorRepository.count() > 0) {
             return; // Already seeded, prevent duplicates
         }
 
-        // Seed Zones
-        Zone zoneGen = zoneRepository.findByProjectId(project.getId()).stream()
-            .filter(z -> z.getName().equalsIgnoreCase("Partie Générique"))
-            .findFirst()
-            .orElseGet(() -> {
-                Zone z = new Zone();
-                z.setName("Partie Générique");
-                z.setProject(project);
-                return zoneRepository.save(z);
-            });
+        // Seed Zones from OPmobility Formulaire
+        Zone zoneSC = seedZone(project, "Zone SC");
+        Zone zoneSQ52 = seedZone(project, "Zone SQ52");
+        Zone zoneX52 = seedZone(project, "Zone X52");
+        Zone zoneCMP = seedZone(project, "Zone CMP");
+        Zone zoneKJ = seedZone(project, "Zone KJ");
 
-        Zone zoneProd = zoneRepository.findByProjectId(project.getId()).stream()
-            .filter(z -> z.getName().equalsIgnoreCase("Production Tubulure"))
-            .findFirst()
-            .orElseGet(() -> {
-                Zone z = new Zone();
-                z.setName("Production Tubulure");
-                z.setProject(project);
-                return zoneRepository.save(z);
-            });
+        // Seed 15 Workstations from OPmobility Formulaire
+        Workstation wsRacSc = seedWorkstation("RAC SC", zoneSC, "L", 100, 0);
+        Workstation wsCecSc = seedWorkstation("CéC SC", zoneSC, "L", 100, 0);
 
-        // Seed Workstations
-        final Long genId = zoneGen.getId();
-        Workstation wsSec = workstationRepository.findByZoneId(genId).stream()
-            .filter(w -> w.getName().equalsIgnoreCase("Sécurité / 5S"))
-            .findFirst()
-            .orElseGet(() -> {
-                Workstation w = new Workstation();
-                w.setName("Sécurité / 5S");
-                w.setZone(zoneGen);
-                w.setTargetIluLevel("L");
-                w.setTargetCadence(100);
-                w.setQualityObjective(0);
-                return workstationRepository.save(w);
-            });
+        Workstation wsPdrSq52 = seedWorkstation("PDR SQ52", zoneSQ52, "L", 100, 0);
+        Workstation wsRacSq52 = seedWorkstation("RAC SQ52", zoneSQ52, "L", 100, 0);
+        Workstation wsCacSq52L1 = seedWorkstation("CAC SQ52 L1", zoneSQ52, "L", 100, 0);
+        Workstation wsCacSq52L2 = seedWorkstation("CAC SQ52 L2", zoneSQ52, "L", 100, 0);
 
-        final Long prodId = zoneProd.getId();
-        Workstation wsCooling = workstationRepository.findByZoneId(prodId).stream()
-            .filter(w -> w.getName().equalsIgnoreCase("POST COOLING 50962"))
-            .findFirst()
-            .orElseGet(() -> {
-                Workstation w = new Workstation();
-                w.setName("POST COOLING 50962");
-                w.setZone(zoneProd);
-                w.setTargetIluLevel("L");
-                w.setTargetCadence(100);
-                w.setQualityObjective(7);
-                return workstationRepository.save(w);
-            });
+        Workstation wsRecX52 = seedWorkstation("RÉC X52", zoneX52, "L", 100, 0);
+        Workstation wsCecX52 = seedWorkstation("CéC X52", zoneX52, "L", 100, 0);
 
-        Workstation wsCutting = workstationRepository.findByZoneId(prodId).stream()
-            .filter(w -> w.getName().equalsIgnoreCase("Découpe 20569"))
-            .findFirst()
-            .orElseGet(() -> {
-                Workstation w = new Workstation();
-                w.setName("Découpe 20569");
-                w.setZone(zoneProd);
-                w.setTargetIluLevel("U");
-                w.setTargetCadence(120);
-                w.setQualityObjective(5);
-                return workstationRepository.save(w);
-            });
+        Workstation wsPdrCmp = seedWorkstation("PDR CMP", zoneCMP, "L", 100, 0);
+        Workstation wsRacCmp = seedWorkstation("RAC CMP", zoneCMP, "L", 100, 0);
+        Workstation wsCacCmp = seedWorkstation("CAC CMP", zoneCMP, "L", 100, 0);
+
+        Workstation wsPdrKj = seedWorkstation("PDR KJ", zoneKJ, "L", 100, 0);
+        Workstation wsRecKjMono = seedWorkstation("RÉC KJ MONO", zoneKJ, "L", 100, 0);
+        Workstation wsRacKjEvap = seedWorkstation("RAC KJ EVAP", zoneKJ, "L", 100, 0);
+        Workstation wsCacKj = seedWorkstation("CAC KJ", zoneKJ, "L", 100, 0);
 
         // Seed Evaluation Templates
         EvaluationTemplate genericTpl = new EvaluationTemplate();
@@ -279,23 +244,23 @@ public class DataSeeder implements CommandLineRunner {
         coolingTpl.setName("Evaluation - POST COOLING 50962");
         coolingTpl.setType(EvaluationTemplate.TemplateType.POSTE_PRODUCTION);
         coolingTpl.setStatus(EvaluationTemplate.TemplateStatus.VALIDATED);
-        coolingTpl.setWorkstation(wsCooling);
+        coolingTpl.setWorkstation(wsRacSc);
         coolingTpl = templateRepository.save(coolingTpl);
 
         EvaluationSection coolingSec = new EvaluationSection();
         coolingSec.setTemplate(coolingTpl);
-        coolingSec.setTitle("Process & Qualité Post Cooling");
+        coolingSec.setTitle("Process & Qualité RAC SC");
         coolingSec = sectionRepository.save(coolingSec);
 
-        createQuestion(coolingTpl, coolingSec, 1, "L'opérateur maîtrise-t-il le temps de refroidissement des pièces ?", "Oui", EvaluationQuestion.ValidatorRole.CHEF_EQUIPE, EvaluationQuestion.QuestionStatus.VALIDATED);
-        createQuestion(coolingTpl, coolingSec, 2, "L'opérateur inspecte-t-il les aspects visuels après refroidissement ?", "Oui", EvaluationQuestion.ValidatorRole.AGENT_QUALITE, EvaluationQuestion.QuestionStatus.VALIDATED);
+        createQuestion(coolingTpl, coolingSec, 1, "L'opérateur maîtrise-t-il les standards d'assemblage RAC SC ?", "Oui", EvaluationQuestion.ValidatorRole.CHEF_EQUIPE, EvaluationQuestion.QuestionStatus.VALIDATED);
+        createQuestion(coolingTpl, coolingSec, 2, "L'opérateur inspecte-t-il les aspects visuels de la tubulure ?", "Oui", EvaluationQuestion.ValidatorRole.AGENT_QUALITE, EvaluationQuestion.QuestionStatus.VALIDATED);
 
-        // Seed a DRAFT template for Découpe 20569 to test question validation workflow
+        // Seed a DRAFT template for CéC SC to test question validation workflow
         EvaluationTemplate cuttingTpl = new EvaluationTemplate();
-        cuttingTpl.setName("Evaluation - Découpe 20569");
+        cuttingTpl.setName("Evaluation - CéC SC");
         cuttingTpl.setType(EvaluationTemplate.TemplateType.POSTE_PRODUCTION);
         cuttingTpl.setStatus(EvaluationTemplate.TemplateStatus.DRAFT);
-        cuttingTpl.setWorkstation(wsCutting);
+        cuttingTpl.setWorkstation(wsCecSc);
         cuttingTpl = templateRepository.save(cuttingTpl);
 
         EvaluationSection cuttingSec = new EvaluationSection();
@@ -309,12 +274,12 @@ public class DataSeeder implements CommandLineRunner {
         // ==================== 8 OPERATORS FOR TEST CASES ====================
 
         // Case 1: Operator in Onboarding (Phase 1 - Incomplete)
-        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", " A", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
+        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         seedOnboardingModule(op1.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op1.getId(), "EHS Induction", "HSE001");
 
         // Case 2: Operator Ready for Practical Training (Phase 1 - 100% Onboarded)
-        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", " A", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneGen);
+        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         seedOnboardingModule(op2.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op2.getId(), "Code de conduite", "RH001");
         seedOnboardingModule(op2.getId(), "Réglement interne", "RH001");
@@ -341,10 +306,10 @@ public class DataSeeder implements CommandLineRunner {
         seedOnboardingModule(op2.getId(), "PES", "DGT001");
 
         // Case 3: Operator in Active 12-Day Training (Phase 2 - In Progress)
-        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", " A", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         WorkstationFormation form3 = new WorkstationFormation();
         form3.setOperator(op3);
-        form3.setWorkstation(wsCooling);
+        form3.setWorkstation(wsRacSc);
         form3.setStatus("IN_PROGRESS");
         form3.setStartDate(LocalDate.now().minusDays(5));
         form3 = formationRepository.save(form3);
@@ -360,10 +325,10 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // Case 4: Operator Completed Training Successfully (Phase 2 - Passed, Level L Certified)
-        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", " A", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         WorkstationFormation form4 = new WorkstationFormation();
         form4.setOperator(op4);
-        form4.setWorkstation(wsCooling);
+        form4.setWorkstation(wsRacSc);
         form4.setStatus("COMPLETED");
         form4.setStartDate(LocalDate.now().minusDays(20));
         form4.setEndDate(LocalDate.now().minusDays(8));
@@ -383,42 +348,42 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op4, genericTpl);
 
         // Case 5: Operator Failed 1st Attempt (Phase 2 - Failed -> Seconde Chance Formation Active)
-        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", " A", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         WorkstationFormation form5Failed = new WorkstationFormation();
         form5Failed.setOperator(op5);
-        form5Failed.setWorkstation(wsCooling);
+        form5Failed.setWorkstation(wsRacSc);
         form5Failed.setStatus("FAILED");
         form5Failed.setStartDate(LocalDate.now().minusDays(35));
         form5Failed.setEndDate(LocalDate.now().minusDays(20));
         formationRepository.save(form5Failed);
         WorkstationFormation form5Retry = new WorkstationFormation();
         form5Retry.setOperator(op5);
-        form5Retry.setWorkstation(wsCooling);
+        form5Retry.setWorkstation(wsRacSc);
         form5Retry.setStatus("IN_PROGRESS");
         form5Retry.setStartDate(LocalDate.now().minusDays(10));
         formationRepository.save(form5Retry);
 
         // Case 6: Operator in Double Failure (Phase 3 - Locked / Blocked)
-        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", " A", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneProd);
+        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
         WorkstationFormation form6Failed1 = new WorkstationFormation();
         form6Failed1.setOperator(op6);
-        form6Failed1.setWorkstation(wsCutting);
+        form6Failed1.setWorkstation(wsCecSc);
         form6Failed1.setStatus("FAILED");
         form6Failed1.setStartDate(LocalDate.now().minusDays(50));
         form6Failed1.setEndDate(LocalDate.now().minusDays(35));
         formationRepository.save(form6Failed1);
         WorkstationFormation form6Blocked = new WorkstationFormation();
         form6Blocked.setOperator(op6);
-        form6Blocked.setWorkstation(wsCutting);
+        form6Blocked.setWorkstation(wsCecSc);
         form6Blocked.setStatus("BLOCKED");
         form6Blocked.setStartDate(LocalDate.now().minusDays(30));
         formationRepository.save(form6Blocked);
 
         // Case 7: Operator Ready for Recyclage (Planned Refresher)
-        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", " A", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
+        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneSC);
         RecyclagePlanning planning = new RecyclagePlanning();
         planning.setOperator(op7);
-        planning.setWorkstation(wsCooling);
+        planning.setWorkstation(wsRacSc);
         planning.setType(RecyclagePlanning.PlanningType.RECYCLAGE);
         planning.setScheduledDate(LocalDate.now().plusDays(10));
         planning.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
@@ -428,7 +393,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op7, genericTpl);
 
         // Case 8: Level L Operator targeting Level U (Seniority Gate: 13 months seniority)
-        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", " A", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneProd);
+        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneSC);
         EvaluationSession session8 = new EvaluationSession();
         session8.setOperator(op8);
         session8.setTemplate(coolingTpl);
@@ -444,31 +409,56 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op8, genericTpl);
     }
 
-    private void seedProjectMember(Project project, String empId, String name, ProjectMember.ProjectRole role, String shift) {
+    private void seedProjectMember(Project project, String empId, String name, ProjectMember.ProjectRole role) {
         if (!projectMemberRepository.existsByProjectIdAndEmployeeId(project.getId(), empId)) {
             ProjectMember pm = new ProjectMember();
             pm.setProject(project);
             pm.setEmployeeId(empId);
             pm.setEmployeeName(name);
             pm.setProjectRole(role);
-            pm.setShift(shift);
             projectMemberRepository.save(pm);
         }
     }
 
-    private Operator createOperator(String empId, String lastName, String firstName, String role, String shift, LocalDate hireDate, Operator.OperatorType type, Project project, Zone zone) {
+    private Operator createOperator(String empId, String lastName, String firstName, String role, LocalDate hireDate, Operator.OperatorType type, Project project, Zone zone) {
         Operator op = new Operator();
         op.setEmployeeId(empId);
         op.setLastName(lastName);
         op.setFirstName(firstName);
         op.setRole(role);
-        op.setShift(shift);
         op.setHireDate(hireDate);
         op.setOperatorType(type);
         op.setProject(project);
         op.setZone(zone);
         op.setActive(true);
         return operatorRepository.save(op);
+    }
+
+    private Zone seedZone(Project project, String name) {
+        return zoneRepository.findByProjectId(project.getId()).stream()
+            .filter(z -> z.getName().equalsIgnoreCase(name))
+            .findFirst()
+            .orElseGet(() -> {
+                Zone z = new Zone();
+                z.setName(name);
+                z.setProject(project);
+                return zoneRepository.save(z);
+            });
+    }
+
+    private Workstation seedWorkstation(String name, Zone zone, String targetLevel, int cadence, int defects) {
+        return workstationRepository.findByZoneId(zone.getId()).stream()
+            .filter(w -> w.getName().equalsIgnoreCase(name))
+            .findFirst()
+            .orElseGet(() -> {
+                Workstation w = new Workstation();
+                w.setName(name);
+                w.setZone(zone);
+                w.setTargetIluLevel(targetLevel);
+                w.setTargetCadence(cadence);
+                w.setQualityObjective(defects);
+                return workstationRepository.save(w);
+            });
     }
 
     private void seedOnboardingModule(Long operatorId, String moduleName, String validatedBy) {

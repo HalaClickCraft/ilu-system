@@ -59,9 +59,6 @@ public class OperatorService {
             throw new RuntimeException("Type operateur invalide: " + typeValue);
         }
         op.setActive(true);
-        if (request.getShift() != null && !request.getShift().isBlank()) {
-            op.setShift(request.getShift().trim());
-        }
         if (request.getTeamId() != null)
             op.setTeam(teamRepository.findById(request.getTeamId()).orElseThrow(() -> new RuntimeException("Equipe non trouvee")));
         if (request.getProjectId() != null)
@@ -87,7 +84,6 @@ public class OperatorService {
         if (request.getLastName() != null) op.setLastName(request.getLastName());
         if (request.getFirstName() != null) op.setFirstName(request.getFirstName());
         if (request.getRole() != null) op.setRole(request.getRole());
-        if (request.getShift() != null) op.setShift(request.getShift().isBlank() ? null : request.getShift().trim());
         if (request.getHireDate() != null && !request.getHireDate().isBlank())
             op.setHireDate(LocalDate.parse(request.getHireDate()));
         // FIX 4a: Handle exitDate save

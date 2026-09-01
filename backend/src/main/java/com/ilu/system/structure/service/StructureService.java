@@ -76,18 +76,16 @@ public class StructureService {
     @Transactional public void deleteWorkstation(Long id) { wsRepo.deleteById(id); }
 
     @Transactional
-    public ProjectMemberDto addMember(Long projectId, String employeeId, String employeeName, String role, String shift) {
+    public ProjectMemberDto addMember(Long projectId, String employeeId, String employeeName, String role) {
         Project p = projectRepo.findById(projectId).orElseThrow(() -> new RuntimeException("Project not found"));
         ProjectMember m = new ProjectMember(); m.setProject(p); m.setEmployeeId(employeeId); m.setEmployeeName(employeeName);
         if (role != null) m.setProjectRole(ProjectMember.ProjectRole.valueOf(role));
-        if (shift != null && !shift.isBlank()) m.setShift(shift.trim());
         return toMemberDto(memberRepo.save(m));
     }
     @Transactional
-    public ProjectMemberDto updateMember(Long memberId, String role, String shift) {
+    public ProjectMemberDto updateMember(Long memberId, String role) {
         ProjectMember m = memberRepo.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
         if (role != null) m.setProjectRole(ProjectMember.ProjectRole.valueOf(role));
-        if (shift != null) m.setShift(shift.isBlank() ? null : shift.trim());
         return toMemberDto(memberRepo.save(m));
     }
     @Transactional public void removeMember(Long memberId) { memberRepo.deleteById(memberId); }
@@ -123,6 +121,6 @@ public class StructureService {
         return d;
     }
     private ProjectMemberDto toMemberDto(ProjectMember m) {
-        return new ProjectMemberDto(m.getId(), m.getEmployeeId(), m.getEmployeeName(), m.getProjectRole() != null ? m.getProjectRole().name() : null, m.getProject() != null ? m.getProject().getId() : null, m.getShift());
+        return new ProjectMemberDto(m.getId(), m.getEmployeeId(), m.getEmployeeName(), m.getProjectRole() != null ? m.getProjectRole().name() : null, m.getProject() != null ? m.getProject().getId() : null);
     }
 }

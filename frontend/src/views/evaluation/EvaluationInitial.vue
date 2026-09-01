@@ -79,7 +79,7 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="op in filteredOperators" :key="op.operatorId + '-' + op.formationId" class="hover:bg-gray-50">
+          <tr v-for="op in paginatedOperators" :key="op.operatorId + '-' + op.formationId" class="hover:bg-gray-50">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="text-sm font-medium text-gray-900">{{ op.operatorName }}</div>
             </td>
@@ -120,6 +120,30 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination Controls -->
+      <div v-if="filteredOperators.length > 0" class="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div class="text-xs text-gray-500">
+          Affichage {{ (currentPage - 1) * pageSize + 1 }} à {{ Math.min(currentPage * pageSize, filteredOperators.length) }} sur {{ filteredOperators.length }} opérateurs
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            @click="currentPage--"
+            :disabled="currentPage === 1"
+            class="px-2.5 py-1 text-xs font-medium border border-gray-300 rounded bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+          >
+            Précédent
+          </button>
+          <span class="text-xs font-medium text-gray-600">Page {{ currentPage }} / {{ totalPages }}</span>
+          <button
+            @click="currentPage++"
+            :disabled="currentPage >= totalPages"
+            class="px-2.5 py-1 text-xs font-medium border border-gray-300 rounded bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
+          >
+            Suivant
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Error Toast -->
@@ -251,6 +275,16 @@ const filteredOperators = computed(() => {
     )
   }
   return result
+})
+
+const currentPage = ref(1)
+const pageSize = ref(15)
+
+const totalPages = computed(() => Math.ceil(filteredOperators.value.length / pageSize.value) || 1)
+
+const paginatedOperators = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredOperators.value.slice(start, start + pageSize.value)
 })
 
 // Get project names for an operator using the allOperators data

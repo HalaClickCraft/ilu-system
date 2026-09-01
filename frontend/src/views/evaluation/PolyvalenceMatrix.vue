@@ -67,7 +67,7 @@
           class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 w-64"
         />
         <select v-model="selectedTeamId" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 min-w-[150px]">
-          <option value="">Tous les shifts / équipes</option>
+          <option value="">Toutes les équipes (Chefs d'équipe)</option>
           <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
         </select>
         <select v-model="matrixPageSize" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500">

@@ -145,6 +145,8 @@ export const teamsApi = {
   getPendingRequests: () => api.get('/teams/pending-requests'),
   approveRequest: (requestId) => api.post(`/teams/requests/${requestId}/approve`),
   rejectRequest: (requestId) => api.post(`/teams/requests/${requestId}/reject`),
+  getUnassigned: () => api.get('/operators/unassigned'),
+  assignChef: (operatorId, teamId) => api.put(`/operators/${operatorId}/team`, null, { params: { teamId } }),
 }
 
 export const projectTransferApi = {

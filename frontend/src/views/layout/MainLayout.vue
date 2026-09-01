@@ -33,7 +33,7 @@
 
         <router-link v-if="!isDeptOnly" to="/operators" class="nav-item" :class="{ active: $route.path.startsWith('/operators') }">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-          <span v-if="sidebarOpen">Annuaire Opérateurs</span>
+          <span v-if="sidebarOpen">Opérateurs</span>
         </router-link>
 
         <!-- ===== SECTION: SUIVI & INTÉGRATION ===== -->
@@ -87,7 +87,7 @@
             </span>
           </div>
           <span v-if="sidebarOpen" class="flex-1 flex justify-between items-center">
-            <span>Suivi Recyclage</span>
+            <span>Évaluations &amp; Recyclage</span>
             <span v-if="recyclagePendingCount > 0" class="px-2 py-0.5 text-[10px] font-bold bg-sky-500 text-white rounded-full">
               {{ recyclagePendingCount }}
             </span>
@@ -256,7 +256,7 @@ const canManageAbsences = computed(() =>
 const canAccessStructure = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_HSE'])
 )
-const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE']))
+const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'RESP_HSE', 'SUPERVISEUR']))
 const canAccessTemplates = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR']))
 const showProjectAssignments = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'])
@@ -272,7 +272,7 @@ const currentRouteName = computed(() => {
   if (path.startsWith('/training')) return 'Formation'
   if (path.startsWith('/onboarding')) return 'Onboarding'
   if (path.startsWith('/recyclage/calendar')) return 'Calendrier des Évaluations'
-  if (path.startsWith('/recyclage')) return 'Recyclage'
+  if (path.startsWith('/recyclage')) return 'Évaluations & Recyclage'
   if (path.startsWith('/absences')) return 'Absences et Départs'
   if (path.startsWith('/evaluation/initial')) return 'Évaluation Initiale'
   if (path.startsWith('/evaluation/matrix')) return 'Matrice de Polyvalence'

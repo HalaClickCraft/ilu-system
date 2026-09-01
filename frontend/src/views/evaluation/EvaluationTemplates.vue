@@ -130,6 +130,10 @@
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold">{{ selectedTemplate.name }}</h2>
           <div class="flex items-center gap-3">
+            <button @click="exportQuestionsToExcel" class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Exporter Questions (Excel)
+            </button>
             <button v-if="canManage" @click="openImportQuestionsModal" class="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
               Importer Questions (Excel)
@@ -965,6 +969,27 @@ function formatRoleLabel(role) {
   return labels[role] || role
 }
 
+function detectValidatorRole(questionText, explicitRoleStr) {
+  if (explicitRoleStr) {
+    const rStr = String(explicitRoleStr).toUpperCase().trim()
+    if (rStr.includes('QUALITE') || rStr.includes('QUALITÉ')) {
+      return rStr.includes('RESP') ? 'RESP_QUALITE' : 'AGENT_QUALITE'
+    } else if (rStr.includes('HSE') || rStr.includes('EHS') || rStr.includes('SÉCURITÉ') || rStr.includes('SECURITE')) {
+      return 'RESP_HSE'
+    } else if (rStr.includes('CHEF') || rStr.includes('EQUIPE') || rStr.includes('ÉQUIPE')) {
+      return 'CHEF_EQUIPE'
+    }
+  }
+  const qUpper = String(questionText).toUpperCase().trim()
+  if (qUpper.includes('EPI') || qUpper.includes('SÉCURITÉ') || qUpper.includes('SECURITE') || qUpper.includes('EHS') || qUpper.includes('ENVIRONNEMENT') || qUpper.includes('URGENCE') || qUpper.includes('DANGER') || qUpper.includes('ACCIDENT')) {
+    return 'RESP_HSE'
+  }
+  if (qUpper.includes('QUALITÉ') || qUpper.includes('QUALITE') || qUpper.includes('DÉFAUT') || qUpper.includes('DEFAUT') || qUpper.includes('NON CONFORME') || qUpper.includes('ESCALADE') || qUpper.includes('TRAÇABILITÉ') || qUpper.includes('TRACABILITE') || qUpper.includes('ETIQUETTE')) {
+    return 'AGENT_QUALITE'
+  }
+  return 'CHEF_EQUIPE'
+}
+
 async function deleteQuestion(questionId) {
   if (!confirm('Supprimer cette question ?')) return
   try {
@@ -1032,46 +1057,71 @@ function handleFileChange(event) {
         return
       }
       
+      // Multi-sheet / Header detection for OPmobility form
+      let rowsToProcess = []
+      let qTextIdx = -1, expectedIdx = -1, roleIdx = -1, compIdx = -1
+      
+      // Check if header row exists in first sheet
       const headers = jsonData[0].map(h => String(h).trim().toLowerCase())
-      
-      const qTextIdx = headers.findIndex(h => h.includes('question') || h.includes('texte'))
-      const expectedIdx = headers.findIndex(h => h.includes('réponse') || h.includes('reponse') || h.includes('attendu'))
-      const roleIdx = headers.findIndex(h => h.includes('rôle') || h.includes('role') || h.includes('validateur'))
-      const compIdx = headers.findIndex(h => h.includes('complémentaire') || h.includes('complementaire'))
-      
-      if (qTextIdx === -1) {
-        importError.value = "Colonne requise manquante. Assurez-vous d'avoir une colonne nommée 'Texte de la Question' ou 'Question'."
-        return
-      }
-      
+      qTextIdx = headers.findIndex(h => h.includes('question') || h.includes('texte'))
+      expectedIdx = headers.findIndex(h => h.includes('réponse') || h.includes('reponse') || h.includes('attendu'))
+      roleIdx = headers.findIndex(h => h.includes('rôle') || h.includes('role') || h.includes('validateur'))
+      compIdx = headers.findIndex(h => h.includes('complémentaire') || h.includes('complementaire'))
+
       const list = []
-      for (let i = 1; i < jsonData.length; i++) {
-        const row = jsonData[i]
-        if (!row || row.length === 0 || !row[qTextIdx]) continue
-        
-        let roleVal = 'CHEF_EQUIPE'
-        if (roleIdx !== -1 && row[roleIdx]) {
-          const rStr = String(row[roleIdx]).toUpperCase().trim()
-          if (rStr.includes('QUALITE') || rStr.includes('QUALITÉ')) {
-            roleVal = rStr.includes('RESP') ? 'RESP_QUALITE' : 'AGENT_QUALITE'
-          } else if (rStr.includes('HSE')) {
-            roleVal = 'RESP_HSE'
-          } else if (rStr.includes('CHEF')) {
-            roleVal = 'CHEF_EQUIPE'
+      
+      if (qTextIdx !== -1) {
+        // Standard Tabular Format (Header row present)
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          if (!row || row.length === 0 || !row[qTextIdx]) continue
+          const qText = String(row[qTextIdx]).trim()
+          if (!qText) continue
+          
+          let roleVal = detectValidatorRole(qText, roleIdx !== -1 && row[roleIdx] ? String(row[roleIdx]) : '')
+          list.push({
+            questionText: qText,
+            expectedAnswer: expectedIdx !== -1 && row[expectedIdx] ? String(row[expectedIdx]).trim() : '',
+            validatorRole: roleVal,
+            complementaryQuestions: compIdx !== -1 && row[compIdx] ? String(row[compIdx]).trim() : '',
+            questionNumber: list.length + 1
+          })
+        }
+      } else {
+        // Freeform / OPmobility Form Format (Iterate all non-empty rows across sheet)
+        let currentCategory = 'Général'
+        for (let i = 0; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          if (!row || row.length === 0) continue
+          
+          // Find first non-empty cell in row
+          const cellStr = row.map(c => String(c || '').trim()).filter(Boolean).join(' ')
+          if (!cellStr || cellStr.length < 3) continue
+          
+          // Check if it's a section header or question
+          if (/^\d+[\s.-]/i.test(cellStr) || cellStr.includes('?')) {
+            // It's a question
+            let expectedAns = ''
+            if (row.length > 5 && row[5]) expectedAns = String(row[5]).trim()
+            else if (row.length > 9 && row[9]) expectedAns = String(row[9]).trim()
+            
+            let roleVal = detectValidatorRole(cellStr + ' ' + currentCategory, '')
+            list.push({
+              questionText: cellStr,
+              expectedAnswer: expectedAns,
+              validatorRole: roleVal,
+              complementaryQuestions: '',
+              questionNumber: list.length + 1
+            })
+          } else if (cellStr.length < 40 && !cellStr.includes(':')) {
+            // Likely a section category name (e.g. Sécurité, 5S, Traçabilité)
+            currentCategory = cellStr
           }
         }
-        
-        list.push({
-          questionText: String(row[qTextIdx]).trim(),
-          expectedAnswer: expectedIdx !== -1 && row[expectedIdx] ? String(row[expectedIdx]).trim() : '',
-          validatorRole: roleVal,
-          complementaryQuestions: compIdx !== -1 && row[compIdx] ? String(row[compIdx]).trim() : '',
-          questionNumber: i
-        })
       }
       
       if (list.length === 0) {
-        importError.value = "Aucune question valide détectée dans le fichier."
+        importError.value = "Aucune question détectée dans le fichier. Assurez-vous d'avoir une colonne 'Question' ou d'utiliser le formulaire officiel."
       } else {
         parsedQuestions.value = list
       }
@@ -1100,6 +1150,56 @@ async function submitImport() {
   } finally {
     importing.value = false
   }
+}
+
+function exportQuestionsToExcel() {
+  if (!selectedTemplate.value) return
+  const tpl = selectedTemplate.value
+  
+  const data = [
+    ["TEMPLATE D'ÉVALUATION", tpl.name || ""],
+    ["POSTE DE TRAVAIL", tpl.workstationName || "Tous postes"],
+    ["TYPE", typeLabel(tpl.type) || ""],
+    ["STATUT", statusLabel(tpl.status) || ""],
+    [""],
+    ["N°", "Section", "Texte de la Question", "Réponse Attendue", "Rôle Validateur", "Questions Complémentaires", "Statut"]
+  ]
+
+  let qNum = 1
+  const sections = tpl.sections || []
+  sections.forEach(sec => {
+    const qList = sec.questions || []
+    qList.forEach(q => {
+      data.push([
+        qNum++,
+        sec.title || sec.name || "Général",
+        q.questionText || "",
+        q.expectedAnswer || "",
+        formatRoleLabel(q.validatorRole),
+        q.complementaryQuestions || "",
+        q.status === 'VALIDATED' ? "Validée" : (q.status === 'REJECTED' ? "Rejetée" : "En attente")
+      ])
+    })
+  })
+
+  const worksheet = XLSX.utils.aoa_to_sheet(data)
+  
+  // Set custom column widths for beautiful layout readability
+  worksheet['!cols'] = [
+    { wch: 6 },  // N°
+    { wch: 25 }, // Section
+    { wch: 50 }, // Texte de la Question
+    { wch: 40 }, // Réponse Attendue
+    { wch: 22 }, // Rôle Validateur
+    { wch: 35 }, // Questions Complémentaires
+    { wch: 15 }  // Statut
+  ]
+
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Questions")
+
+  const safeName = (tpl.name || "Template").replace(/[^a-z0-9]/gi, '_')
+  XLSX.writeFile(workbook, `Template_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 onMounted(load)

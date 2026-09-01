@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div><h1 class="text-2xl font-bold text-gray-900">Structure</h1><p class="text-gray-500 mt-1">Organisation des projets, zones et postes de travail</p></div>
-      <button @click="showCreateProject = true" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+      <button v-if="canEditStructure" @click="showCreateProject = true" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>Nouveau Projet
       </button>
     </div>
@@ -16,7 +16,7 @@
             <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedProjects.has(project.id) }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
             <div><h2 class="font-semibold text-gray-900">{{ project.name }}</h2><p class="text-xs text-gray-500">{{ project.zones?.length || 0 }} zones, {{ project.members?.length || 0 }} membres</p></div>
           </div>
-          <div class="flex items-center gap-2">
+          <div v-if="canEditStructure" class="flex items-center gap-2">
             <button @click.stop="showAddZone(project.id)" class="text-sm text-emerald-600 hover:underline">+ Zone</button>
             <button @click.stop="showAddMember(project.id)" class="text-sm text-blue-600 hover:underline">+ Affecter</button>
             <button @click.stop="openEditProject(project)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button @click.stop="deleteProject(project.id)" class="text-gray-400 hover:text-red-600 transition" title="Supprimer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
@@ -28,7 +28,6 @@
             <div class="flex flex-wrap gap-2">
               <span v-for="m in project.members" :key="m.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-sm text-slate-700">
                 {{ m.employeeName || m.employeeId }}
-                <span v-if="m.shift" class="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded font-bold font-mono">{{ m.shift }}</span>
                 <span class="text-xs font-medium px-1.5 py-0.5 rounded" :class="roleBadgeClass(m.projectRole)">{{ roleLabel(m.projectRole) }}</span>
                 <button @click.stop="removeMember(m.id)" class="text-slate-400 hover:text-red-500 ml-1" title="Retirer">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -104,17 +103,6 @@
               <option v-for="u in filteredUsers" :key="u.employeeId" :value="u.employeeId">{{ u.name }} ({{ u.employeeId }})</option>
             </select>
             <p v-if="memberForm.filterRole && filteredUsers.length === 0" class="text-xs text-gray-400 mt-1">Aucun utilisateur avec ce role</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Groupe Support / Support Team (Optionnel)</label>
-            <select v-model="memberForm.shift" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-              <option value="">-- Aucun groupe / Tous --</option>
-              <option value="Support Team 1">Support Team 1</option>
-              <option value="Support Team 2">Support Team 2</option>
-              <option value="Support Team 3">Support Team 3</option>
-              <option value="Support Team 4">Support Team 4</option>
-              <option value="Support Team 5">Support Team 5</option>
-            </select>
           </div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
           <div class="flex justify-end gap-3 pt-2">
@@ -200,7 +188,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { structureApi } from '@/api/endpoints'
+import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+
+const authStore = useAuthStore()
+const canEditStructure = computed(() => authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE']))
 
 const projects = ref([])
 const loading = ref(true)
@@ -246,7 +238,7 @@ const showAddZone = (projectId) => { zoneForm.value = { name: '', projectId }; s
 const createZone = async () => { creating.value = true; try { await structureApi.createZone(zoneForm.value.projectId, { name: zoneForm.value.name }); showZoneModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
 const deleteZone = async (id) => { confirmData.value = { visible: true, title: 'Supprimer la zone', message: 'Voulez-vous supprimer cette zone et tous ses postes ?', type: 'danger' }; pendingDeleteAction.value = () => deleteZoneConfirmed(id); return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
 
-const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '', shift: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
+const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
 const addMember = async () => {
   creating.value = true; error.value = ''
   try {
@@ -254,8 +246,7 @@ const addMember = async () => {
     await structureApi.addMember(memberForm.value.projectId, {
       employeeId: memberForm.value.employeeId,
       employeeName: user?.name || memberForm.value.employeeId,
-      role: systemToProjectRole(memberForm.value.filterRole),
-      shift: memberForm.value.shift || null
+      role: systemToProjectRole(memberForm.value.filterRole)
     })
     showMemberModal.value = false; fetchProjects()
   } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false }

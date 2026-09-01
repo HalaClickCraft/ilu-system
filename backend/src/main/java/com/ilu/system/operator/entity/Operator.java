@@ -40,9 +40,6 @@ public class Operator {
     @Column(nullable = false)
     private Boolean active = true;
 
-    @Column
-    private String shift; // Shift A, Shift B, Shift C
-
     @ManyToOne
     @JoinColumn(name = "team_id")
     private Team team;
@@ -79,8 +76,6 @@ public class Operator {
     public void setExitDate(LocalDate exitDate) { this.exitDate = exitDate; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
-    public String getShift() { return shift; }
-    public void setShift(String shift) { this.shift = shift; }
     public Team getTeam() { return team; }
     public void setTeam(Team team) { this.team = team; }
     public Project getProject() { return project; }

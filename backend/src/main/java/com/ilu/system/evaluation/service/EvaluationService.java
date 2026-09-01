@@ -1318,8 +1318,8 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         for (Operator op : operators) {
-            // Departed and currently absent operators must not occupy a position in the matrix.
-            if (!Boolean.TRUE.equals(op.getActive())) {
+            // Departed and currently absent operators (or exitDate passed) must not occupy a position in the matrix.
+            if (!Boolean.TRUE.equals(op.getActive()) || (op.getExitDate() != null && !op.getExitDate().isAfter(LocalDate.now()))) {
                 continue;
             }
             Optional<EvaluationSession> latestGen = getLatestPassedGenericSession(op.getId());

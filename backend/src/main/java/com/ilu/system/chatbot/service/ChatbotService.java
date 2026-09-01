@@ -214,10 +214,8 @@ public class ChatbotService {
                 sb.append("  * Aucun membre/groupe support configuré.\n");
             } else {
                 for (var m : p.getMembers()) {
-                    String grp = m.getShift() != null ? m.getShift() : "Aucun groupe (Tous)";
                     sb.append("  * ").append(m.getEmployeeName()).append(" (Matricule: ").append(m.getEmployeeId())
-                            .append(") | Rôle: ").append(m.getProjectRole().name())
-                            .append(" | Groupe Support: ").append(grp).append("\n");
+                            .append(") | Rôle: ").append(m.getProjectRole().name()).append("\n");
                 }
             }
         }

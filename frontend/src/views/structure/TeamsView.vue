@@ -85,15 +85,33 @@
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
       </div>
-      <div v-else-if="groups.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
+
+      <!-- Unassigned operators panel (visible to Chef d'Équipe) -->
+      <div v-if="!loading && unassignedOperators.length > 0 && canManageOrRequest" class="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-amber-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Opérateurs non assignés ({{ unassignedOperators.length }})
+          </h2>
+          <span class="text-xs text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full font-semibold">À affecter à un Chef d'Équipe</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div v-for="op in unassignedOperators" :key="op.id" class="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-200 text-sm">
+            <span class="font-medium text-gray-900">{{ op.lastName }} {{ op.firstName }} <span class="text-xs text-gray-400 font-mono">({{ op.employeeId }})</span></span>
+            <button @click="claimOperator(op)" class="ml-2 px-2 py-1 text-xs font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700">+ Mon équipe</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="!loading && groups.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
         Aucun opérateur affecté pour le moment.
       </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div v-for="group in groups" :key="group.projectId || '_none'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+      <div v-if="!loading && groups.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-for="group in groups" :key="group.teamId || '_none'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold text-gray-900 flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-              {{ group.projectName }}
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              {{ group.teamName }}
             </h3>
             <span class="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border">{{ group.operators.length }} opérateur(s)</span>
           </div>
@@ -110,6 +128,7 @@
           </ul>
         </div>
       </div>
+
     </div>
 
     <!-- ======================== TAB 2: Transferts ======================== -->
@@ -430,19 +449,25 @@ const bannerSuccess = ref(true)
 const isSupervisor = computed(() => auth.hasAnyRole(['SUPERVISEUR', 'ADMIN', 'RH']))
 const canManageOrRequest = computed(() => auth.hasAnyRole(['CHEF_EQUIPE', 'SUPERVISEUR', 'ADMIN']))
 
-// Group operators by project for tab 1
+const unassignedOperators = ref([])
+
+// Group operators by Chef d'Équipe (Team)
 const groups = computed(() => {
   const map = {}
   operators.value.forEach(op => {
-    const proj = op.project
-    const projId = proj ? proj.id : '_none'
-    const projName = proj ? proj.name : 'Sans Projet'
-    if (!map[projId]) {
-      map[projId] = { projectId: projId === '_none' ? null : projId, projectName: projName, operators: [] }
+    const team = op.team
+    const teamId = team ? team.id : '_none'
+    const teamName = team ? (team.teamLeader || team.name) : 'Non assigné'
+    if (!map[teamId]) {
+      map[teamId] = { teamId: teamId === '_none' ? null : teamId, teamName, teamLeader: team?.teamLeader || '', operators: [] }
     }
-    map[projId].operators.push(op)
+    map[teamId].operators.push(op)
   })
-  return Object.values(map)
+  return Object.values(map).sort((a, b) => {
+    if (!a.teamId) return 1
+    if (!b.teamId) return -1
+    return a.teamName.localeCompare(b.teamName)
+  })
 })
 
 // Team update modal helpers
@@ -559,13 +584,14 @@ const fetchData = async () => {
   loading.value = true
   try {
     await loadUserProjects()
-    const [opsRes, projRes, teamsRes, reqsRes, pendingRes, allRes] = await Promise.all([
+    const [opsRes, projRes, teamsRes, reqsRes, pendingRes, allRes, unassignedRes] = await Promise.all([
       operatorsApi.getAll(),
       structureApi.getAll(),
       teamsApi.getAll(),
       teamsApi.getPendingRequests(),
       projectTransferApi.getPendingRequests(),
-      projectTransferApi.getAllRequests()
+      projectTransferApi.getAllRequests(),
+      teamsApi.getUnassigned ? teamsApi.getUnassigned() : Promise.resolve({ data: [] })
     ])
     operators.value = filterOperators(opsRes.data || [])
     allOperators.value = filterOperators(opsRes.data || [])
@@ -574,10 +600,27 @@ const fetchData = async () => {
     pendingRequests.value = reqsRes.data || []
     pendingTransfers.value = pendingRes.data || []
     allTransfersList.value = allRes.data || []
+    unassignedOperators.value = filterOperators(unassignedRes.data || [])
   } catch (e) {
     console.error('Error fetching TeamsView data:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const claimOperator = async (op) => {
+  // Find current user's team or the first available team
+  const userTeam = teamsList.value.find(t => t.teamLeader === auth.user?.name) || teamsList.value[0]
+  if (!userTeam) {
+    showBanner("Aucune équipe disponible. Veuillez contacter l'administrateur.", false)
+    return
+  }
+  try {
+    await teamsApi.assignChef(op.id, userTeam.id)
+    showBanner(`L'opérateur ${op.lastName} ${op.firstName} a été ajouté à l'équipe ${userTeam.teamLeader || userTeam.name}.`)
+    await fetchData()
+  } catch (e) {
+    showBanner("Erreur lors de l'affectation de l'opérateur.", false)
   }
 }
 

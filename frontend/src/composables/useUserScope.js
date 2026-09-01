@@ -93,7 +93,17 @@ export function useUserScope() {
   const filterOperators = (operatorList) => {
     // 1. Chef d'Équipe -> restricted to their own team
     if (authStore.primaryRole === 'CHEF_EQUIPE') {
-      return (operatorList || []).filter(op => op.team && op.team.teamLeaderEmployeeId === empId.value)
+      const chefName = authStore.user?.name
+      return (operatorList || []).filter(op => {
+        if (!op.team) {
+          return op.project?.id && myProjectIds.value.has(op.project.id)
+        }
+        return (
+          op.team.teamLeaderEmployeeId === empId.value ||
+          (chefName && op.team.teamLeader && op.team.teamLeader.trim() === chefName.trim()) ||
+          (op.project?.id && myProjectIds.value.has(op.project.id))
+        )
+      })
     }
 
     // 2. Check dynamic shift configuration from database project member mappings

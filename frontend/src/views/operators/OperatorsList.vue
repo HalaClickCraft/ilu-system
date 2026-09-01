@@ -286,7 +286,7 @@
             </select>
           </div>
           <div v-if="!auth.isChefEquipe">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe / Shift</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe (Chef d'Équipe)</label>
             <select v-model="form.teamId" :disabled="!form.projectId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none disabled:bg-gray-100">
               <option value="">-- Choisir une équipe --</option>
               <option v-for="t in filteredTeams" :key="t.id" :value="t.id">{{ t.name }} (Chef: {{ t.teamLeader || 'Aucun' }})</option>
@@ -352,7 +352,7 @@
             </select>
           </div>
           <div v-if="!auth.isChefEquipe">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe / Shift</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Équipe (Chef d'Équipe)</label>
             <select v-model="editForm.teamId" :disabled="!editForm.projectId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none disabled:bg-gray-100">
               <option value="">-- Choisir une équipe --</option>
               <option v-for="t in filteredEditTeams" :key="t.id" :value="t.id">{{ t.name }} (Chef: {{ t.teamLeader || 'Aucun' }})</option>
@@ -385,11 +385,19 @@
         </p>
 
         <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Si le Type d'opérateur n'est pas spécifié dans l'Excel :</label>
+            <select v-model="defaultImportType" @change="reparseImportFile" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500">
+              <option value="DEJA_EN_POSTE">Importer comme Déjà en poste (par défaut)</option>
+              <option value="NOUVEAU_RECRU">Importer comme Nouvelle recrue</option>
+            </select>
+          </div>
+
           <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
             <input type="file" ref="fileInput" accept=".xlsx, .xls" @change="handleFileChange" class="hidden" id="excel-file-upload" />
             <label for="excel-file-upload" class="cursor-pointer inline-flex flex-col items-center gap-2">
               <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V4a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-              <span class="text-sm font-medium text-sky-600 hover:text-sky-700">Choisir un fichier</span>
+              <span class="text-sm font-medium text-sky-600 hover:text-sky-700">Choisir un fichier Excel</span>
               <span class="text-xs text-gray-400 block mt-1" v-if="importFile">{{ importFile.name }}</span>
             </label>
           </div>
@@ -892,11 +900,15 @@ const updateOperator = async () => {
   }
 }
 
+const defaultImportType = ref('DEJA_EN_POSTE')
+const lastLoadedBuffer = ref(null)
+
 function openImportModal() {
   importFile.value = null
   parsedOperators.value = []
   importError.value = ''
   importSuccess.value = ''
+  lastLoadedBuffer.value = null
   showImportModal.value = true
 }
 
@@ -906,10 +918,11 @@ function closeImportModal() {
   parsedOperators.value = []
   importError.value = ''
   importSuccess.value = ''
+  lastLoadedBuffer.value = null
 }
 
 function handleFileChange(event) {
-  const file = event.target.files[0]
+  const file = event.target.files ? event.target.files[0] : null
   if (!file) return
   importFile.value = file
   importError.value = ''
@@ -917,84 +930,97 @@ function handleFileChange(event) {
   
   const reader = new FileReader()
   reader.onload = (e) => {
-    try {
-      const data = new Uint8Array(e.target.result)
-      const workbook = XLSX.read(data, { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[firstSheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
-      
-      if (jsonData.length < 2) {
-        importError.value = "Le fichier Excel est vide ou ne contient pas assez de données."
-        return
-      }
-      
-      const headers = jsonData[0].map(h => String(h).trim().toLowerCase())
-      
-      const nomIdx = headers.findIndex(h => h.includes('nom'))
-      const prenomIdx = headers.findIndex(h => h.includes('prénom') || h.includes('prenom'))
-      const matriculeIdx = headers.findIndex(h => h.includes('matricule') || h.includes('code') || h.includes('id'))
-      const roleIdx = headers.findIndex(h => h.includes('rôle') || h.includes('role') || h.includes('fonction'))
-      const typeIdx = headers.findIndex(h => h.includes('type'))
-      const embaucheIdx = headers.findIndex(h => h.includes('embauche') || h.includes('recrutement'))
-      
-      if (nomIdx === -1 || prenomIdx === -1 || matriculeIdx === -1) {
-        importError.value = "Colonnes requises manquantes. Assurez-vous d'avoir des colonnes nommées 'Nom', 'Prénom', et 'Matricule'."
-        return
-      }
-      
-      const list = []
-      for (let i = 1; i < jsonData.length; i++) {
-        const row = jsonData[i]
-        if (!row || row.length === 0 || !row[matriculeIdx]) continue
-        
-        let opType = 'NOUVEAU_RECRU'
-        if (typeIdx !== -1 && row[typeIdx]) {
-          const tVal = String(row[typeIdx]).toLowerCase().trim()
-          if (tVal.includes('poste') || tVal.includes('déjà') || tVal.includes('deja') || tVal.includes('ancien')) {
-            opType = 'DEJA_EN_POSTE'
-          }
-        }
-        
-        let hireDateVal = null
-        if (embaucheIdx !== -1 && row[embaucheIdx]) {
-          if (typeof row[embaucheIdx] === 'number') {
-            const dateObj = XLSX.SSF.parse_date_code(row[embaucheIdx])
-            const d = new Date(dateObj.y, dateObj.m - 1, dateObj.d)
-            hireDateVal = d.toISOString().slice(0, 10)
-          } else {
-            const rawStr = String(row[embaucheIdx]).trim()
-            if (/^\d{4}-\d{2}-\d{2}$/.test(rawStr)) {
-              hireDateVal = rawStr
-            } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawStr)) {
-              const [day, m, y] = rawStr.split('/')
-              hireDateVal = `${y}-${m}-${day}`
-            }
-          }
-        }
-        
-        list.push({
-          lastName: String(row[nomIdx]).trim().toUpperCase(),
-          firstName: String(row[prenomIdx]).trim(),
-          employeeId: String(row[matriculeIdx]).trim(),
-          role: roleIdx !== -1 && row[roleIdx] ? String(row[roleIdx]).trim() : 'Opérateur',
-          operatorType: opType,
-          hireDate: hireDateVal,
-          active: true
-        })
-      }
-      
-      if (list.length === 0) {
-        importError.value = "Aucun opérateur valide détecté dans le fichier."
-      } else {
-        parsedOperators.value = list
-      }
-    } catch (err) {
-      console.error(err)
-      importError.value = "Erreur lors de la lecture du fichier Excel."
-    }
+    lastLoadedBuffer.value = e.target.result
+    parseBufferData(e.target.result)
   }
   reader.readAsArrayBuffer(file)
+}
+
+function reparseImportFile() {
+  if (lastLoadedBuffer.value) {
+    parseBufferData(lastLoadedBuffer.value)
+  }
+}
+
+function parseBufferData(buffer) {
+  try {
+    const data = new Uint8Array(buffer)
+    const workbook = XLSX.read(data, { type: 'array' })
+    const firstSheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[firstSheetName]
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+    
+    if (jsonData.length < 2) {
+      importError.value = "Le fichier Excel est vide ou ne contient pas assez de données."
+      return
+    }
+    
+    const headers = jsonData[0].map(h => String(h).trim().toLowerCase())
+    
+    const nomIdx = headers.findIndex(h => h.includes('nom'))
+    const prenomIdx = headers.findIndex(h => h.includes('prénom') || h.includes('prenom'))
+    const matriculeIdx = headers.findIndex(h => h.includes('matricule') || h.includes('code') || h.includes('id'))
+    const roleIdx = headers.findIndex(h => h.includes('rôle') || h.includes('role') || h.includes('fonction'))
+    const typeIdx = headers.findIndex(h => h.includes('type'))
+    const embaucheIdx = headers.findIndex(h => h.includes('embauche') || h.includes('recrutement'))
+    
+    if (nomIdx === -1 || prenomIdx === -1 || matriculeIdx === -1) {
+      importError.value = "Colonnes requises manquantes. Assurez-vous d'avoir des colonnes nommées 'Nom', 'Prénom', et 'Matricule'."
+      return
+    }
+    
+    const list = []
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i]
+      if (!row || row.length === 0 || !row[matriculeIdx]) continue
+      
+      let opType = defaultImportType.value
+      if (typeIdx !== -1 && row[typeIdx]) {
+        const tVal = String(row[typeIdx]).toLowerCase().trim()
+        if (tVal.includes('poste') || tVal.includes('déjà') || tVal.includes('deja') || tVal.includes('ancien')) {
+          opType = 'DEJA_EN_POSTE'
+        } else if (tVal.includes('recru') || tVal.includes('nouveau') || tVal.includes('nouvelle')) {
+          opType = 'NOUVEAU_RECRU'
+        }
+      }
+      
+      let hireDateVal = null
+      if (embaucheIdx !== -1 && row[embaucheIdx]) {
+        if (typeof row[embaucheIdx] === 'number') {
+          const dateObj = XLSX.SSF.parse_date_code(row[embaucheIdx])
+          const d = new Date(dateObj.y, dateObj.m - 1, dateObj.d)
+          hireDateVal = d.toISOString().slice(0, 10)
+        } else {
+          const rawStr = String(row[embaucheIdx]).trim()
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawStr)) {
+            hireDateVal = rawStr
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawStr)) {
+            const [day, m, y] = rawStr.split('/')
+            hireDateVal = `${y}-${m}-${day}`
+          }
+        }
+      }
+      
+      list.push({
+        lastName: String(row[nomIdx]).trim().toUpperCase(),
+        firstName: String(row[prenomIdx]).trim(),
+        employeeId: String(row[matriculeIdx]).trim(),
+        role: roleIdx !== -1 && row[roleIdx] ? String(row[roleIdx]).trim() : 'Opérateur',
+        operatorType: opType,
+        hireDate: hireDateVal,
+        active: true
+      })
+    }
+    
+    if (list.length === 0) {
+      importError.value = "Aucun opérateur valide détecté dans le fichier."
+    } else {
+      parsedOperators.value = list
+    }
+  } catch (err) {
+    console.error(err)
+    importError.value = "Erreur lors de la lecture du fichier Excel."
+  }
 }
 
 async function submitImport() {
