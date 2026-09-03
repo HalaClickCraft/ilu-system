@@ -55,7 +55,8 @@ const employeeId = ref('')
 const password = ref('')
 
 const handleLogin = async () => {
-  const result = await authStore.login(employeeId.value, password.value)
+  if (!employeeId.value || !password.value) return
+  const result = await authStore.login(employeeId.value.trim(), password.value)
   if (result.success) {
     if (result.mustChangePassword) {
       router.push('/change-password')

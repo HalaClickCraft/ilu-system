@@ -16,10 +16,14 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final AccessControlService accessControlService;
+    private final com.ilu.system.notification.service.EmailService emailService;
 
-    public NotificationController(NotificationService notificationService, AccessControlService accessControlService) {
+    public NotificationController(NotificationService notificationService,
+                                AccessControlService accessControlService,
+                                com.ilu.system.notification.service.EmailService emailService) {
         this.notificationService = notificationService;
         this.accessControlService = accessControlService;
+        this.emailService = emailService;
     }
 
     @GetMapping
@@ -53,6 +57,40 @@ public class NotificationController {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("message", "All notifications marked as read");
         result.put("userId", userId);
+        return result;
+    }
+
+    @DeleteMapping("/{id}")
+    public Map<String, Object> deleteNotification(@PathVariable Long id, Authentication authentication) {
+        Long userId = accessControlService.currentUser(authentication).getId();
+        notificationService.deleteNotification(id, userId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("message", "Notification deleted");
+        result.put("notificationId", id);
+        return result;
+    }
+
+    @DeleteMapping("/clear-all")
+    public Map<String, Object> clearAllNotifications(Authentication authentication) {
+        Long userId = accessControlService.currentUser(authentication).getId();
+        notificationService.deleteAllNotifications(userId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("message", "All notifications cleared");
+        result.put("userId", userId);
+        return result;
+    }
+
+    @PostMapping("/test-email")
+    public Map<String, Object> sendTestEmail(@RequestParam(required = false) String email, Authentication authentication) {
+        var user = accessControlService.currentUser(authentication);
+        String targetEmail = (email != null && !email.isBlank()) ? email : (user != null ? user.getEmail() : null);
+        boolean success = emailService.sendEmail(targetEmail, "[Système ILU] Test Email Notification RH",
+                "Bonjour,\n\nCeci est un e-mail de test envoyé par le Système ILU OPmobility pour vérifier la bonne réception des notifications par e-mail.");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", success);
+        result.put("recipient", targetEmail != null ? targetEmail : "None configured");
+        result.put("message", success ? "E-mail de test envoyé avec succès à " + targetEmail
+                : "Avertissement: Impossible d'envoyer l'e-mail. Assurez-vous d'avoir configuré le serveur SMTP (ex: Gmail / Outlook) dans application.properties ou spécifié un e-mail de destinataire.");
         return result;
     }
 }

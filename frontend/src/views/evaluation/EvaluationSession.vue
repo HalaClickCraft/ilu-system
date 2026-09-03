@@ -37,41 +37,29 @@
         </span>
       </div>
 
-      <!-- Wizard Stepper Indicator -->
-      <div v-if="session.status === 'IN_PROGRESS' && wizardSteps.length > 1" class="mt-6 bg-white border border-gray-250 rounded-xl p-4 shadow-sm">
-        <div class="flex items-center justify-between max-w-xl mx-auto">
-          <div v-for="(step, idx) in wizardSteps" :key="step.key" class="flex items-center flex-1 last:flex-none">
-            <button
-              @click="goToStep(step.key)"
-              :disabled="saving"
-              class="flex items-center gap-2 text-sm font-semibold transition hover:opacity-80 disabled:opacity-50"
-              :class="
-                activeStep === step.key
-                  ? 'text-sky-600'
-                  : isStepCompleted(step.key)
-                  ? 'text-green-600'
-                  : 'text-gray-400'
-              "
-            >
-              <span
-                class="w-8 h-8 rounded-full flex items-center justify-center border-2 text-xs font-bold"
-                :class="
-                  activeStep === step.key
-                    ? 'border-sky-600 bg-sky-50'
-                    : isStepCompleted(step.key)
-                    ? 'border-green-600 bg-green-50'
-                    : 'border-gray-200'
-                "
-              >
-                <svg v-if="isStepCompleted(step.key)" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span v-else>{{ idx + 1 }}</span>
-              </span>
-              <span class="hidden sm:inline">{{ step.label }}</span>
-            </button>
-            <div v-if="idx < wizardSteps.length - 1" class="h-0.5 bg-gray-200 flex-1 mx-4"></div>
-          </div>
+      <!-- Wizard Stepper Tabs -->
+      <div v-if="session.status === 'IN_PROGRESS' && wizardSteps.length > 1" class="mt-6 bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+        <div class="flex items-center justify-center gap-3 flex-wrap max-w-2xl mx-auto">
+          <button
+            v-for="(step, idx) in wizardSteps"
+            :key="step.key"
+            @click="goToStep(step.key)"
+            type="button"
+            :disabled="saving"
+            class="flex items-center gap-2.5 px-6 py-2.5 rounded-lg text-sm font-bold transition cursor-pointer"
+            :class="
+              activeStep === step.key
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            "
+          >
+            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border"
+                  :class="activeStep === step.key ? 'border-white bg-sky-700 text-white' : 'border-gray-400 bg-white text-gray-700'">
+              {{ idx + 1 }}
+            </span>
+            <span>{{ step.label }}</span>
+            <span v-if="isStepCompleted(step.key)" class="ml-1 text-green-300">✓</span>
+          </button>
         </div>
       </div>
 
@@ -162,8 +150,11 @@
           {{ activeStep === 'GENERIC' ? 'PARTIE COMMUNE / COMMENCER' : activeStep === 'ANIMATION' ? 'PARTIE ANIMATION' : 'PARTIE PRODUCTION' }}
         </div>
 
-        <div class="text-right text-xs font-semibold text-gray-500 my-2">
-          <span>1 : Bonne réponse</span> &nbsp;|&nbsp; <span>0 : Mauvaise réponse</span>
+        <div class="flex items-center justify-between text-xs font-semibold text-gray-600 my-2 px-1 flex-wrap gap-2">
+          <span class="text-xs text-slate-500 italic">Veuillez évaluer chaque critère conformément au référentiel.</span>
+          <span class="bg-slate-100 px-3 py-1 rounded border border-slate-300 text-slate-700 font-bold shadow-xs">
+            <span class="text-emerald-700 font-extrabold">1 : Bonne réponse</span> &nbsp;|&nbsp; <span class="text-rose-700 font-extrabold">0 : Mauvaise réponse</span>
+          </span>
         </div>
 
         <!-- Section / Questions Table -->
@@ -219,17 +210,21 @@
 
                   <!-- Action / Score 0 Box -->
                   <td class="border border-gray-400 p-1 text-center bg-red-50/10">
-                    <!-- If session is IN_PROGRESS and user can answer -->
+                    <!-- If session is IN_PROGRESS and user CAN answer -->
                     <template v-if="session.status === 'IN_PROGRESS' && canAnswerQuestion(q.validatorRole)">
                       <button @click="setAnswer(q.id, 0)" 
+                        type="button"
                         class="w-8 h-8 rounded border-2 transition font-extrabold text-sm"
                         :class="answers[q.id] === 0 ? 'bg-red-600 border-red-700 text-white shadow-sm' : 'border-gray-300 hover:border-red-400 text-gray-400 bg-white'">
                         0
                       </button>
                     </template>
-                    <!-- If other validator role is pending -->
+                    <!-- If user CANNOT answer, but question was already answered -->
                     <template v-else-if="session.status === 'IN_PROGRESS' && !canAnswerQuestion(q.validatorRole)">
-                      <span class="text-gray-300">—</span>
+                      <span v-if="answers[q.id] === 0" class="inline-flex items-center justify-center w-7 h-7 rounded bg-red-100 text-red-700 font-bold border border-red-300 text-xs" :title="'Validé (0) par ' + roleLabel(q.validatorRole)">
+                        0
+                      </span>
+                      <span v-else class="text-gray-300 text-xs italic" :title="'Réservé à ' + roleLabel(q.validatorRole)">—</span>
                     </template>
                     <!-- Read-only results -->
                     <template v-else>
@@ -241,13 +236,17 @@
                   <td class="border border-gray-400 p-1 text-center bg-green-50/10">
                     <template v-if="session.status === 'IN_PROGRESS' && canAnswerQuestion(q.validatorRole)">
                       <button @click="setAnswer(q.id, 1)" 
+                        type="button"
                         class="w-8 h-8 rounded border-2 transition font-extrabold text-sm"
                         :class="answers[q.id] === 1 ? 'bg-green-600 border-green-700 text-white shadow-sm' : 'border-gray-300 hover:border-green-400 text-gray-400 bg-white'">
                         1
                       </button>
                     </template>
                     <template v-else-if="session.status === 'IN_PROGRESS' && !canAnswerQuestion(q.validatorRole)">
-                      <span class="text-gray-300">—</span>
+                      <span v-if="answers[q.id] === 1" class="inline-flex items-center justify-center w-7 h-7 rounded bg-green-100 text-green-700 font-bold border border-green-300 text-xs" :title="'Validé (1) par ' + roleLabel(q.validatorRole)">
+                        1
+                      </span>
+                      <span v-else class="text-gray-300 text-xs italic" :title="'Réservé à ' + roleLabel(q.validatorRole)">—</span>
                     </template>
                     <template v-else>
                       <span v-if="getAnswerForQuestion(q.id) === 1" class="text-green-600 font-extrabold text-base">✓</span>
@@ -502,6 +501,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { evaluationApi, operatorsApi } from '@/api/endpoints'
 import { recyclageApi } from '@/services/recyclageApi'
 import { useAuthStore } from '@/stores/auth'
+import { formatDate } from '@/shared/utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -555,10 +555,29 @@ const roleLabel = (role) => ({
 }[role] || role)
 
 const canAnswerQuestion = (validatorRole) => {
-  if (authStore.hasAnyRole(['CHEF_EQUIPE', 'SUPERVISEUR', 'ADMIN', 'AGENT_QUALITE', 'RESP_HSE', 'RESP_QUALITE'])) {
+  if (authStore.isAdmin || authStore.isSuperviseur) {
     return true
   }
-  return authStore.hasAnyRole([validatorRole])
+  if (!validatorRole) {
+    return true
+  }
+  const role = validatorRole.trim().toUpperCase()
+  if (role === 'CHEF_EQUIPE') {
+    return authStore.isChefEquipe || authStore.primaryRole === 'CHEF_EQUIPE' || authStore.hasRole('CHEF_EQUIPE')
+  }
+  if (role === 'AGENT_QUALITE') {
+    return authStore.isAgentQualite || authStore.isRespQualite || authStore.hasAnyRole(['AGENT_QUALITE', 'RESP_QUALITE'])
+  }
+  if (role === 'RESP_QUALITE') {
+    return authStore.isRespQualite || authStore.hasRole('RESP_QUALITE')
+  }
+  if (role === 'RESP_HSE') {
+    return authStore.isRespHse || authStore.hasRole('RESP_HSE')
+  }
+  if (role === 'RH') {
+    return authStore.isRh || authStore.hasRole('RH')
+  }
+  return authStore.hasRole(role)
 }
 
 // Wizard active step state
@@ -568,15 +587,15 @@ const wizardSteps = computed(() => {
   const steps = []
   const hasGeneric = templateSections.value.some(s => s.stepType === 'GENERIC')
   if (hasGeneric) {
-    steps.push({ key: 'GENERIC', label: 'Générique' })
+    steps.push({ key: 'GENERIC', label: 'Partie Commune' })
   }
   const hasProd = templateSections.value.some(s => s.stepType === 'PRODUCTION')
   if (hasProd) {
-    steps.push({ key: 'PRODUCTION', label: 'Production' })
+    steps.push({ key: 'PRODUCTION', label: 'Partie Production' })
   }
   const hasAnim = templateSections.value.some(s => s.stepType === 'ANIMATION')
   if (hasAnim) {
-    steps.push({ key: 'ANIMATION', label: 'Animation' })
+    steps.push({ key: 'ANIMATION', label: 'Partie Animation' })
   }
   return steps
 })
@@ -647,19 +666,18 @@ const allQuestions = computed(() => {
 const roleCompletionStatus = computed(() => {
   const roleMap = {}
   for (const q of activeStepQuestions.value) {
-    const role = q.validatorRole
-    if (!role) continue
-    if (!roleMap[role]) {
-      roleMap[role] = { role, total: 0, answered: 0 }
+    const r = q.validatorRole || 'CHEF_EQUIPE'
+    if (!roleMap[r]) {
+      roleMap[r] = { role: r, total: 0, answered: 0, completed: false }
     }
-    roleMap[role].total++
+    roleMap[r].total++
     if (answers[q.id] !== undefined) {
-      roleMap[role].answered++
+      roleMap[r].answered++
     }
   }
-  return Object.values(roleMap).map(r => ({
-    ...r,
-    completed: r.answered === r.total && r.total > 0,
+  return Object.values(roleMap).map(rm => ({
+    ...rm,
+    completed: rm.total > 0 && rm.answered === rm.total
   }))
 })
 
@@ -673,8 +691,18 @@ const answeredCount = computed(() =>
   allQuestions.value.filter(q => q.stepType === activeStep.value && answers[q.id] !== undefined).length
 )
 
-function setAnswer(questionId, value) { answers[questionId] = value }
-function getAnswerForQuestion(questionId) { return answers[questionId] }
+function setAnswer(questionId, score) {
+  answers[questionId] = score
+}
+
+function getAnswerForQuestion(questionId) {
+  if (answers[questionId] !== undefined) return answers[questionId]
+  if (session.value?.answers) {
+    const a = session.value.answers.find(ans => ans.questionId === questionId)
+    if (a) return a.answer
+  }
+  return undefined
+}
 
 async function loadPendingEvaluations() {
   loading.value = true
@@ -765,13 +793,29 @@ async function loadSessionDetail() {
       }
     }
 
-    // Resolve additional templates (Production + Animation) for unified evaluation sheet
+    // Resolve additional templates (Production + Animation + Generic) for unified multi-part evaluation sheet
     if (session.value.status === 'IN_PROGRESS') {
       const allTemplatesRes = await evaluationApi.getTemplates()
       const allTemplates = allTemplatesRes.data || []
       
       let nextTemplateId = session.value.nextTemplateId
       let activeWstationId = currentTemplate?.workstation?.id
+
+      // Auto-resolve production template if missing
+      if (!nextTemplateId && currentStepType === 'GENERIC') {
+        try {
+          const resolveRes = await evaluationApi.resolveTemplates(
+            session.value.operatorId,
+            session.value.workstationFormationId || session.value.formationId
+          )
+          if (resolveRes.data?.productionTemplateId) {
+            nextTemplateId = resolveRes.data.productionTemplateId
+            session.value.nextTemplateId = nextTemplateId
+          }
+        } catch (e) {
+          console.warn('Auto-resolve nextTemplateId', e)
+        }
+      }
 
       // If active session is generic, load production template
       if (currentTemplate?.type === 'GENERIC_COMMON' && nextTemplateId) {
@@ -794,13 +838,35 @@ async function loadSessionDetail() {
         }
       }
 
+      // If active session is production, also load generic template so user can switch between both!
+      if (currentTemplate?.type === 'POSTE_PRODUCTION') {
+        const genericTplMeta = allTemplates.find(t => t.type === 'GENERIC_COMMON' && t.status === 'VALIDATED')
+        if (genericTplMeta) {
+          try {
+            const genTplRes = await evaluationApi.getTemplateDetail(genericTplMeta.id)
+            const genTemplate = genTplRes.data
+            if (genTemplate?.sections) {
+              const genSections = genTemplate.sections.map(sec => ({
+                ...sec,
+                templateId: genTemplate.id,
+                stepType: 'GENERIC',
+                questions: (sec.questions || []).map(q => ({ ...q, templateId: genTemplate.id, stepType: 'GENERIC' }))
+              }))
+              templateSections.value = [...genSections, ...templateSections.value]
+            }
+          } catch (e) {
+            console.error('Error loading generic template for production session', e)
+          }
+        }
+      }
+
       // If workstation is known, find if there is an animation template for it
       if (activeWstationId) {
         const animTemplateMeta = allTemplates.find(t => 
-          t.workstationId === activeWstationId && 
           t.type === 'ANIMATION' && 
-          t.status === 'VALIDATED'
-        )
+          t.status === 'VALIDATED' &&
+          (t.workstationId === activeWstationId || !t.workstationId)
+        ) || allTemplates.find(t => t.type === 'ANIMATION' && t.status === 'VALIDATED')
         if (animTemplateMeta) {
           try {
             const animTplRes = await evaluationApi.getTemplateDetail(animTemplateMeta.id)
@@ -832,15 +898,14 @@ async function saveAnswers() {
   saving.value = true
   saveSuccess.value = false
   try {
-    const activeTemplateId = session.value.templateId
-    const activeAnswers = allQuestions.value
-      .filter(q => q.templateId === activeTemplateId && answers[q.id] !== undefined)
+    const allAnswerList = allQuestions.value
+      .filter(q => answers[q.id] !== undefined)
       .map(q => ({
         questionId: q.id,
         answer: answers[q.id]
       }))
-    if (activeAnswers.length > 0) {
-      await evaluationApi.submitAnswers(session.value.id, activeAnswers)
+    if (allAnswerList.length > 0) {
+      await evaluationApi.submitAnswers(session.value.id, allAnswerList)
     }
 
     // Show inline confirmation near the button

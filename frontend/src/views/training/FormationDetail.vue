@@ -92,12 +92,14 @@
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-400">{{ completeDays }} / 12 jours complets</span>
             <button
-              v-if="canContribute && hasDirty"
+              v-if="canContribute"
               @click="saveAll"
               :disabled="saving"
-              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+              class="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white transition shadow-sm disabled:opacity-50 flex items-center gap-1.5"
             >
-              Enregistrer
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>{{ saving ? 'Enregistrement...' : 'Enregistrer' }}</span>
+              <span v-if="hasDirty" class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
             </button>
             <button
               v-if="canContribute"
@@ -154,7 +156,7 @@
                     min="0"
                     type="number"
                     class="w-14 rounded border border-emerald-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 py-1 text-center text-xs bg-emerald-50/20"
-                    @input="dirtyDays.add(day)"
+                    @input="markDirty(day)"
                   />
                   <input
                     v-else-if="canEdit"
@@ -196,7 +198,7 @@
                     min="0"
                     type="number"
                     class="w-14 rounded border border-purple-300 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 py-1 text-center text-xs bg-purple-50/20"
-                    @input="dirtyDays.add(day)"
+                    @input="markDirty(day)"
                   />
                   <input
                     v-else-if="canEdit"
@@ -331,7 +333,10 @@ const editingQO = ref(false)
 const editQOValue = ref(7)
 const evalResult = ref(null)
 const error = ref('')
-const dirtyDays = reactive(new Set())
+const dirtyDays = ref(new Set())
+const markDirty = (day) => {
+  dirtyDays.value = new Set(dirtyDays.value).add(day)
+}
 const dayData = reactive({})
 const chartCanvas = ref(null)
 const pendingEvalForThisOperator = ref([])
@@ -345,16 +350,16 @@ for (let day = 1; day <= 12; day++)
     defectsSubmittedBy: null,
   }
 
-const canEditCadence = computed(() => authStore.isChefEquipe)
-const canEditDefects = computed(() => authStore.isAgentQualite)
-const canEditQuality = computed(() => authStore.isAgentQualite)
+const canEditCadence = computed(() => authStore.isChefEquipe || authStore.isAdmin || authStore.isRh || authStore.isSuperviseur)
+const canEditDefects = computed(() => authStore.isAgentQualite || authStore.isRespQualite || authStore.isAdmin || authStore.isRh || authStore.isSuperviseur)
+const canEditQuality = computed(() => authStore.isAgentQualite || authStore.isRespQualite || authStore.isAdmin || authStore.isRh || authStore.isSuperviseur)
 const openEditQuality = () => {
   editingQO.value = true
   editQOValue.value = formation.value?.qualityObjective ?? 7
 }
 const canContribute = computed(() => canEditCadence.value || canEditDefects.value)
 const canEdit = computed(() => formation.value?.status === 'IN_PROGRESS' || formation.value?.status === 'NOT_STARTED' || formation.value?.status === 'COMPLETED')
-const hasDirty = computed(() => dirtyDays.size > 0)
+const hasDirty = computed(() => dirtyDays.value.size > 0)
 const completeDays = computed(
   () => Object.values(dayData).filter((day) => day.cadence !== null && day.defects !== null).length,
 )
@@ -585,38 +590,54 @@ const saveAll = async () => {
   error.value = ''
   try {
     const toIntOrNull = (v) =>
-      v === '' || v === null || v === undefined || Number.isNaN(v) ? null : v
+      v === '' || v === null || v === undefined || Number.isNaN(v) ? null : Number(v)
     
-    // Frontend validation
-    for (const dayNumber of dirtyDays) {
-      const cad = toIntOrNull(dayData[dayNumber].cadence)
-      const def = toIntOrNull(dayData[dayNumber].defects)
-      if (cad !== null && (cad < 0 || !Number.isInteger(Number(cad)))) {
+    const targetDays = dirtyDays.value.size > 0 ? [...dirtyDays.value] : Array.from({ length: 12 }, (_, i) => i + 1)
+    const daysToSave = []
+
+    for (const dayNumber of targetDays) {
+      const cad = toIntOrNull(dayData[dayNumber]?.cadence)
+      const def = toIntOrNull(dayData[dayNumber]?.defects)
+      if (canEditCadence.value && cad !== null && (cad < 0 || !Number.isInteger(Number(cad)))) {
         error.value = `La cadence au Jour ${dayNumber} doit être un nombre entier positif.`
         saving.value = false
         return
       }
-      if (def !== null && (def < 0 || !Number.isInteger(Number(def)))) {
+      if (canEditDefects.value && def !== null && (def < 0 || !Number.isInteger(Number(def)))) {
         error.value = `Le nombre de défauts au Jour ${dayNumber} doit être un nombre entier positif.`
         saving.value = false
         return
       }
+      const item = {
+        dayNumber,
+        trackingDate: new Date().toISOString().slice(0, 10),
+      }
+      if (canEditCadence.value && cad !== null) {
+        item.actualCadence = cad
+        item.cadence = cad
+      }
+      if (canEditDefects.value && def !== null) {
+        item.defects = def
+        item.defauts = def
+      }
+      if (item.actualCadence !== undefined || item.defects !== undefined) {
+        daysToSave.push(item)
+      }
     }
 
-    const days = [...dirtyDays].map((dayNumber) => ({
-      dayNumber,
-      trackingDate: new Date().toISOString().slice(0, 10),
-      actualCadence: toIntOrNull(dayData[dayNumber].cadence),
-      defects: toIntOrNull(dayData[dayNumber].defects),
-    }))
-    await trainingApi.batchSave(route.params.id, days)
-    for (const dayNumber of dirtyDays) {
-      if (canEditCadence.value)
-        dayData[dayNumber].cadenceSubmittedBy = authStore.user?.username || null
-      if (canEditDefects.value)
-        dayData[dayNumber].defectsSubmittedBy = authStore.user?.username || null
+    if (!daysToSave.length) {
+      saving.value = false
+      return
     }
-    dirtyDays.clear()
+
+    await trainingApi.batchSave(route.params.id, daysToSave)
+    for (const d of daysToSave) {
+      if (canEditCadence.value && d.actualCadence !== undefined)
+        dayData[d.dayNumber].cadenceSubmittedBy = authStore.user?.username || null
+      if (canEditDefects.value && d.defects !== undefined)
+        dayData[d.dayNumber].defectsSubmittedBy = authStore.user?.username || null
+    }
+    dirtyDays.value = new Set()
     await refreshFormation()
     renderChart()
   } catch (requestError) {
@@ -657,7 +678,7 @@ watch(() => route.params.id, async (newId) => {
   if (newId) {
     loading.value = true
     error.value = ''
-    dirtyDays.clear()
+    dirtyDays.value.clear()
     hasCheckedPending.value = false
     pendingEvalForThisOperator.value = []
     try {

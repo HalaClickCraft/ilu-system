@@ -32,8 +32,10 @@ public class Workstation {
 
     @ManyToOne
     @JoinColumn(name = "zone_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"workstations", "project", "createdBy"})
     private Zone zone;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToMany(mappedBy = "workstation", cascade = CascadeType.ALL)
     private List<WorkstationFormation> formations;
 

@@ -24,13 +24,17 @@
       <div v-for="q in filteredQuestions" :key="q.id" class="bg-white rounded-xl border border-gray-200 p-5">
         <div class="flex items-start justify-between">
           <div class="flex-1">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span class="text-xs font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Projet: {{ q.projectName || 'Tous' }}</span>
+              <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Zone: {{ q.zoneName || 'Toutes' }}</span>
+              <span class="text-xs font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">Poste: {{ q.workstationName || 'Tous' }}</span>
               <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{{ q.validatorRole }}</span>
               <span class="text-xs text-gray-400">Template: {{ q.templateName }}</span>
             </div>
-            <p class="text-gray-900 font-medium">{{ q.questionText }}</p>
-            <p v-if="q.expectedAnswer" class="text-sm text-gray-500 mt-1">Reponse attendue: {{ q.expectedAnswer }}</p>
-            <p class="text-xs text-gray-400 mt-2">Soumise par: {{ q.createdByName || 'Inconnu' }} le {{ formatDate(q.createdAt) }}</p>
+            <p class="text-gray-900 font-medium text-base">{{ q.questionText }}</p>
+            <p v-if="q.expectedAnswer" class="text-sm text-gray-600 mt-1"><strong>Réponse attendue:</strong> {{ q.expectedAnswer }}</p>
+            <p v-if="q.complementaryQuestions" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-md mt-2"><strong>Question complémentaire:</strong> {{ q.complementaryQuestions }}</p>
+            <p class="text-xs text-gray-500 mt-2">Soumise par: <strong class="text-gray-700">{{ q.createdByName || 'Inconnu' }}</strong> le {{ formatDate(q.createdAt) }}</p>
           </div>
           <div class="flex gap-2 ml-4">
             <button @click="validateQuestion(q.id)" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 flex items-center gap-1">

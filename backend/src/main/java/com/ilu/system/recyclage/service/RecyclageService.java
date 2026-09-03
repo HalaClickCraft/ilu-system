@@ -124,6 +124,60 @@ public class RecyclageService {
     }
 
     @Transactional
+    public Map<String, Object> generateCurrentSemesterEvaluations() {
+        int created = 0;
+        int skipped = 0;
+
+        LocalDate today = LocalDate.now();
+        int currentYear = today.getYear();
+        boolean isS1 = today.getMonthValue() < 7;
+
+        List<Operator> operators = operatorRepository.findByActiveTrue();
+        LocalDate targetDate = isS1 ? LocalDate.of(currentYear, 1, 26) : LocalDate.of(currentYear, 7, 26);
+        PlanningType targetType = isS1 ? PlanningType.EVALUATION_ANNUELLE_MOIS_1 : PlanningType.RECYCLAGE;
+
+        for (Operator operator : operators) {
+            final Long operatorId = operator.getId();
+            List<WorkstationFormation> formations = workstationFormationRepository.findByOperator_IdAndStatus(operatorId, "COMPLETED");
+
+            for (WorkstationFormation formation : formations) {
+                final Workstation ws = formation.getWorkstation();
+                if (ws == null || ws.getZone() == null || ws.getZone().getProject() == null) {
+                    skipped++;
+                    continue;
+                }
+
+                final Long wsId = ws.getId();
+                final Long projectId = ws.getZone().getProject().getId();
+
+                boolean exists = recyclagePlanningRepository.existsByOperator_IdAndWorkstation_IdAndScheduledDateAndType(
+                        operatorId, wsId, targetDate, targetType);
+                if (!exists) {
+                    RecyclagePlanning planning = new RecyclagePlanning();
+                    planning.setOperator(operator);
+                    planning.setWorkstation(ws);
+                    planning.setType(targetType);
+                    planning.setScheduledDate(targetDate);
+                    planning.setStatus(PlanningStatus.PLANIFIEE);
+                    planning.setSource(PlanningSource.ANNUELLE);
+                    planning.setProjectId(projectId);
+                    recyclagePlanningRepository.save(planning);
+                    created++;
+                } else {
+                    skipped++;
+                }
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("created", created);
+        result.put("skipped", skipped);
+        result.put("year", currentYear);
+        result.put("semester", isS1 ? "S1" : "S2");
+        return result;
+    }
+
+    @Transactional
     public Map<String, Object> generateAnnualEvaluations(int year) {
         int created = 0;
         int skipped = 0;
@@ -191,22 +245,35 @@ public class RecyclageService {
         return result;
     }
 
-    /** Ensures the year's annual cycle exists automatically for current and next year. */
+    @Transactional
+    public void cleanupFutureUnstartedAnnualPlannings() {
+        LocalDate currentYearEnd = LocalDate.of(LocalDate.now().getYear(), 12, 31);
+        List<RecyclagePlanning> futurePlannings = recyclagePlanningRepository.findAll().stream()
+                .filter(p -> p.getStatus() == PlanningStatus.PLANIFIEE 
+                          && p.getEvaluationSessionId() == null
+                          && p.getSource() == PlanningSource.ANNUELLE
+                          && p.getScheduledDate() != null
+                          && p.getScheduledDate().isAfter(currentYearEnd))
+                .toList();
+        if (!futurePlannings.isEmpty()) {
+            recyclagePlanningRepository.deleteAll(futurePlannings);
+        }
+    }
+
+    /** Ensures only current semester evaluations exist automatically without prematurely creating future years. */
     @Scheduled(cron = "0 5 0 * * *")
     public void generateCurrentYearAnnualEvaluations() {
-        int currentYear = LocalDate.now().getYear();
-        generateAnnualEvaluations(currentYear);
-        generateAnnualEvaluations(currentYear + 1);
+        cleanupFutureUnstartedAnnualPlannings();
+        generateCurrentSemesterEvaluations();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void generateCurrentYearAnnualEvaluationsOnStartup() {
         try {
-            int currentYear = LocalDate.now().getYear();
-            generateAnnualEvaluations(currentYear);
-            generateAnnualEvaluations(currentYear + 1);
+            cleanupFutureUnstartedAnnualPlannings();
+            generateCurrentSemesterEvaluations();
         } catch (Exception e) {
-            System.err.println("Failed to generate annual evaluations on startup (dangling database records): " + e.getMessage());
+            System.err.println("Failed to generate annual evaluations on startup: " + e.getMessage());
         }
     }
 

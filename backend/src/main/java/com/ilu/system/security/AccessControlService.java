@@ -4,8 +4,7 @@ import com.ilu.system.auth.entity.User;
 import com.ilu.system.auth.repository.UserRepository;
 import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.entity.Operator;
-import com.ilu.system.structure.entity.ProjectMember;
-import com.ilu.system.structure.repository.ProjectMemberRepository;
+import com.ilu.system.operator.repository.TeamRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -15,13 +14,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccessControlService {
     private final UserRepository userRepository;
     private final OperatorRepository operatorRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    private final TeamRepository teamRepository;
 
     public AccessControlService(UserRepository userRepository, OperatorRepository operatorRepository,
-                                ProjectMemberRepository projectMemberRepository) {
+                                TeamRepository teamRepository) {
         this.userRepository = userRepository;
         this.operatorRepository = operatorRepository;
-        this.projectMemberRepository = projectMemberRepository;
+        this.teamRepository = teamRepository;
     }
 
     public User currentUser(Authentication authentication) {
@@ -31,15 +30,8 @@ public class AccessControlService {
 
     public void requireAbsenceManagement(Authentication authentication, Long operatorId) {
         User user = currentUser(authentication);
-        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR")) return;
-        if (!hasRole(user, "CHEF_EQUIPE")) deny();
-        
-        Operator operator = operatorRepository.findById(operatorId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operateur introuvable"));
-        
-        boolean isMyOperator = operator.getTeam() != null 
-                && user.getEmployeeId().equals(operator.getTeam().getTeamLeaderEmployeeId());
-        if (!isMyOperator) deny();
+        if (hasAnyRole(user, "ADMIN", "RH", "SUPERVISEUR", "CHEF_EQUIPE", "RESP_QUALITE", "RESP_HSE")) return;
+        deny();
     }
 
     public void requireRecyclageManagement(Authentication authentication, Long projectId) {
@@ -58,9 +50,8 @@ public class AccessControlService {
     }
 
     private void requireChefProject(User user, Long projectId) {
-        boolean leadsProject = projectId != null && projectMemberRepository.findByEmployeeId(user.getEmployeeId()).stream()
-                .anyMatch(member -> projectId.equals(member.getProject().getId())
-                        && member.getProjectRole() == ProjectMember.ProjectRole.TEAM_LEADER);
+        boolean leadsProject = projectId != null && teamRepository.findByProjectId(projectId).stream()
+                .anyMatch(team -> user.getEmployeeId().equals(team.getTeamLeaderEmployeeId()));
         if (!leadsProject) deny();
     }
 

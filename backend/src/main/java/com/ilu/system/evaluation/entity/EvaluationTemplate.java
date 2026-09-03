@@ -27,6 +27,14 @@ public class EvaluationTemplate {
     @JoinColumn(name = "workstation_id")
     private Workstation workstation;
 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "evaluation_template_workstations",
+        joinColumns = @JoinColumn(name = "template_id"),
+        inverseJoinColumns = @JoinColumn(name = "workstation_id")
+    )
+    private java.util.Set<Workstation> workstations = new java.util.HashSet<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TemplateStatus status = TemplateStatus.DRAFT;
@@ -66,7 +74,19 @@ public class EvaluationTemplate {
     public TemplateType getType() { return type; }
     public void setType(TemplateType type) { this.type = type; }
     public Workstation getWorkstation() { return workstation; }
-    public void setWorkstation(Workstation workstation) { this.workstation = workstation; }
+    public void setWorkstation(Workstation workstation) {
+        this.workstation = workstation;
+        if (workstation != null) {
+            this.workstations.add(workstation);
+        }
+    }
+    public java.util.Set<Workstation> getWorkstations() { return workstations; }
+    public void setWorkstations(java.util.Set<Workstation> workstations) {
+        this.workstations = workstations != null ? workstations : new java.util.HashSet<>();
+        if (!this.workstations.isEmpty() && this.workstation == null) {
+            this.workstation = this.workstations.iterator().next();
+        }
+    }
     public TemplateStatus getStatus() { return status; }
     public void setStatus(TemplateStatus status) { this.status = status; }
     public String getTargetNiveau() { return targetNiveau; }

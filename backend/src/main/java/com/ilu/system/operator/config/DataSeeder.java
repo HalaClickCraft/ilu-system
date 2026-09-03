@@ -31,12 +31,13 @@ import com.ilu.system.structure.repository.ZoneRepository;
 import com.ilu.system.recyclage.entity.RecyclagePlanning;
 import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 
-import com.ilu.system.structure.entity.ProjectMember;
-import com.ilu.system.structure.repository.ProjectMemberRepository;
 import com.ilu.system.operator.entity.OnboardingModule;
 import com.ilu.system.operator.entity.OperatorOnboarding;
 import com.ilu.system.operator.repository.OnboardingModuleRepository;
 import com.ilu.system.operator.repository.OperatorOnboardingRepository;
+
+import com.ilu.system.operator.entity.Team;
+import com.ilu.system.operator.repository.TeamRepository;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -56,10 +57,10 @@ public class DataSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final ProjectRepository projectRepository;
-    private final ProjectMemberRepository projectMemberRepository;
     private final ZoneRepository zoneRepository;
     private final WorkstationRepository workstationRepository;
     private final OperatorRepository operatorRepository;
+    private final TeamRepository teamRepository;
     private final WorkstationFormationRepository formationRepository;
     private final DailyFormationTrackingRepository dailyTrackingRepository;
     private final EvaluationTemplateRepository templateRepository;
@@ -77,10 +78,10 @@ public class DataSeeder implements CommandLineRunner {
                       RoleRepository roleRepository,
                       PasswordEncoder passwordEncoder,
                       ProjectRepository projectRepository,
-                      ProjectMemberRepository projectMemberRepository,
                       ZoneRepository zoneRepository,
                       WorkstationRepository workstationRepository,
                       OperatorRepository operatorRepository,
+                      TeamRepository teamRepository,
                       WorkstationFormationRepository formationRepository,
                       DailyFormationTrackingRepository dailyTrackingRepository,
                       EvaluationTemplateRepository templateRepository,
@@ -97,10 +98,10 @@ public class DataSeeder implements CommandLineRunner {
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.projectRepository = projectRepository;
-        this.projectMemberRepository = projectMemberRepository;
         this.zoneRepository = zoneRepository;
         this.workstationRepository = workstationRepository;
         this.operatorRepository = operatorRepository;
+        this.teamRepository = teamRepository;
         this.formationRepository = formationRepository;
         this.dailyTrackingRepository = dailyTrackingRepository;
         this.templateRepository = templateRepository;
@@ -123,26 +124,27 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedUsers() {
-        createUserIfNotFound("ADM002", "Administrateur OPmobility", "admin123", "ADMIN", "Direction");
-        createUserIfNotFound("admin", "Administrateur Système", "admin123", "ADMIN", "Direction");
-        createUserIfNotFound("RH-001", "Responsable RH", "admin123", "RH", "Ressources Humaines");
-        createUserIfNotFound("CHEF-001", "Chef d'Équipe ", "admin123", "CHEF_EQUIPE", "Production");
-        createUserIfNotFound("CHEF-002", "Chef d'Équipe ", "admin123", "CHEF_EQUIPE", "Production");
-        createUserIfNotFound("AQ-001", "Agent Qualité", "admin123", "AGENT_QUALITE", "Qualité");
-        createUserIfNotFound("AQ-002", "Responsable Qualité", "admin123", "RESP_QUALITE", "Qualité");
-        createUserIfNotFound("RHSE-001", "Responsable HSE", "admin123", "RESP_HSE", "HSE");
-        createUserIfNotFound("SUP-001", "Superviseur Usine", "admin123", "SUPERVISEUR", "Production");
-        createUserIfNotFound("PRO-001", "Chef Dept Process", "admin123", "DEPT_PROCESS", "Process");
-        createUserIfNotFound("MAI-001", "Chef Dept Maintenance", "admin123", "DEPT_MAINTENANCE", "Maintenance");
-        createUserIfNotFound("DG-001", "Chef Dept DGT Mfg", "admin123", "DEPT_DGT_MANUFACTURING", "DGT Manufacturing");
+        createUserIfNotFound("ADM002", "Administrateur OPmobility", "admin123", "ADMIN", "Direction", "admin@opmobility.com");
+        createUserIfNotFound("admin", "Administrateur Système", "admin123", "ADMIN", "Direction", "admin.systeme@opmobility.com");
+        createUserIfNotFound("RH-001", "Responsable RH", "admin123", "RH", "Ressources Humaines", "rtjhl4884@gmail.com");
+        createUserIfNotFound("CHEF-001", "Chef d'Équipe 1", "admin123", "CHEF_EQUIPE", "Production", "chef.equipe1@opmobility.com");
+        createUserIfNotFound("CHEF-002", "Chef d'Équipe 2", "admin123", "CHEF_EQUIPE", "Production", "chef.equipe2@opmobility.com");
+        createUserIfNotFound("AQ-001", "Agent Qualité", "admin123", "AGENT_QUALITE", "Qualité", "agent.qualite@opmobility.com");
+        createUserIfNotFound("AQ-002", "Responsable Qualité", "admin123", "RESP_QUALITE", "Qualité", "resp.qualite@opmobility.com");
+        createUserIfNotFound("RHSE-001", "Responsable HSE", "admin123", "RESP_HSE", "HSE", "resp.hse@opmobility.com");
+        createUserIfNotFound("SUP-001", "Superviseur Usine", "admin123", "SUPERVISEUR", "Production", "superviseur@opmobility.com");
+        createUserIfNotFound("PRO-001", "Chef Dept Process", "admin123", "DEPT_PROCESS", "Process", "process@opmobility.com");
+        createUserIfNotFound("MAI-001", "Chef Dept Maintenance", "admin123", "DEPT_MAINTENANCE", "Maintenance", "maintenance@opmobility.com");
+        createUserIfNotFound("DG-001", "Chef Dept DGT Mfg", "admin123", "DEPT_DGT_MANUFACTURING", "DGT Manufacturing", "dgt@opmobility.com");
     }
 
-    private void createUserIfNotFound(String employeeId, String name, String rawPassword, String roleLabel, String department) {
+    private void createUserIfNotFound(String employeeId, String name, String rawPassword, String roleLabel, String department, String email) {
         Optional<User> existing = userRepository.findByEmployeeId(employeeId);
         if (existing.isEmpty()) {
             User user = new User();
             user.setEmployeeId(employeeId);
             user.setName(name);
+            user.setEmail(email);
             user.setNationalId("CIN_" + employeeId);
             user.setPassword(passwordEncoder.encode(rawPassword));
             user.setMustChangePassword(false);
@@ -162,35 +164,20 @@ public class DataSeeder implements CommandLineRunner {
             userRepository.save(user);
         } else {
             User user = existing.get();
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            user.setEmail(email);
             user.setActive(true);
             userRepository.save(user);
         }
     }
 
-    private void seedMockData() {
+    public void seedMockData() {
         // 1. Projects & Structures
         Project project = projectRepository.findByName("KJ92 2026").orElseGet(() -> {
             Project p = new Project();
             p.setName("KJ92 2026");
             return projectRepository.save(p);
         });
-
-        // Clean up old incorrect project member IDs to prevent duplicates/confusion
-        projectMemberRepository.findByProjectId(project.getId()).stream()
-            .filter(pm -> pm.getEmployeeId().equals("CHEF001") ||
-                          pm.getEmployeeId().equals("CHEF002") ||
-                          pm.getEmployeeId().equals("QUAL001") ||
-                          pm.getEmployeeId().equals("QUAL002") ||
-                          pm.getEmployeeId().equals("SUP001"))
-            .forEach(projectMemberRepository::delete);
-
-        // Seed Project Members for permissions
-        seedProjectMember(project, "CHEF-001", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER);
-        seedProjectMember(project, "CHEF-002", "Chef d'Équipe ", ProjectMember.ProjectRole.TEAM_LEADER);
-        seedProjectMember(project, "AQ-001", "Agent Qualité", ProjectMember.ProjectRole.MEMBER);
-        seedProjectMember(project, "AQ-002", "Responsable Qualité", ProjectMember.ProjectRole.QUALITY_MANAGER);
-        seedProjectMember(project, "SUP-001", "Superviseur Usine", ProjectMember.ProjectRole.PROJECT_MANAGER);
-        seedProjectMember(project, "RHSE-001", "Responsable HSE", ProjectMember.ProjectRole.MEMBER);
 
         if (operatorRepository.count() > 0) {
             return; // Already seeded, prevent duplicates
@@ -271,15 +258,19 @@ public class DataSeeder implements CommandLineRunner {
         createQuestion(cuttingTpl, cuttingSec, 1, "L'opérateur respecte-t-il le standard de découpe ?", "Oui", EvaluationQuestion.ValidatorRole.CHEF_EQUIPE, EvaluationQuestion.QuestionStatus.PENDING);
         createQuestion(cuttingTpl, cuttingSec, 2, "L'opérateur contrôle-t-il les bavures de découpe ?", "Oui", EvaluationQuestion.ValidatorRole.AGENT_QUALITE, EvaluationQuestion.QuestionStatus.PENDING);
 
+        // Seed Teams for Team Leaders & Project Staff
+        Team team1 = seedTeam("Équipe SC / KJ", "Chef d'Équipe ", "CHEF-001", "Agent Qualité", "AQ-001", "Responsable Qualité", "AQ-002", "Superviseur Usine", "SUP-001", "Responsable HSE", "RHSE-001", project);
+        Team team2 = seedTeam("Équipe SQ52 / CMP", "Chef d'Équipe ", "CHEF-002", "Agent Qualité", "AQ-001", "Responsable Qualité", "AQ-002", "Superviseur Usine", "SUP-001", "Responsable HSE", "RHSE-001", project);
+
         // ==================== 8 OPERATORS FOR TEST CASES ====================
 
         // Case 1: Operator in Onboarding (Phase 1 - Incomplete)
-        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op1 = createOperator("OP001", "Alami", "Youssef", "Opérateur", LocalDate.now().minusDays(15), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC, team1);
         seedOnboardingModule(op1.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op1.getId(), "EHS Induction", "HSE001");
 
         // Case 2: Operator Ready for Practical Training (Phase 1 - 100% Onboarded)
-        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op2 = createOperator("OP002", "Berrada", "Selma", "Opérateur", LocalDate.now().minusDays(20), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC, team1);
         seedOnboardingModule(op2.getId(), "Présentation RH", "RH001");
         seedOnboardingModule(op2.getId(), "Code de conduite", "RH001");
         seedOnboardingModule(op2.getId(), "Réglement interne", "RH001");
@@ -306,7 +297,7 @@ public class DataSeeder implements CommandLineRunner {
         seedOnboardingModule(op2.getId(), "PES", "DGT001");
 
         // Case 3: Operator in Active 12-Day Training (Phase 2 - In Progress)
-        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op3 = createOperator("OP003", "Tazi", "Mehdi", "Opérateur", LocalDate.now().minusDays(30), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC, team1);
         WorkstationFormation form3 = new WorkstationFormation();
         form3.setOperator(op3);
         form3.setWorkstation(wsRacSc);
@@ -325,7 +316,7 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // Case 4: Operator Completed Training Successfully (Phase 2 - Passed, Level L Certified)
-        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op4 = createOperator("OP004", "Chraibi", "Amina", "Opérateur", LocalDate.now().minusMonths(8), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC, team1);
         WorkstationFormation form4 = new WorkstationFormation();
         form4.setOperator(op4);
         form4.setWorkstation(wsRacSc);
@@ -348,42 +339,42 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op4, genericTpl);
 
         // Case 5: Operator Failed 1st Attempt (Phase 2 - Failed -> Seconde Chance Formation Active)
-        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op5 = createOperator("OP005", "Kabbaj", "Hamza", "Opérateur", LocalDate.now().minusDays(50), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSQ52, team2);
         WorkstationFormation form5Failed = new WorkstationFormation();
         form5Failed.setOperator(op5);
-        form5Failed.setWorkstation(wsRacSc);
+        form5Failed.setWorkstation(wsRacSq52);
         form5Failed.setStatus("FAILED");
         form5Failed.setStartDate(LocalDate.now().minusDays(35));
         form5Failed.setEndDate(LocalDate.now().minusDays(20));
         formationRepository.save(form5Failed);
         WorkstationFormation form5Retry = new WorkstationFormation();
         form5Retry.setOperator(op5);
-        form5Retry.setWorkstation(wsRacSc);
+        form5Retry.setWorkstation(wsRacSq52);
         form5Retry.setStatus("IN_PROGRESS");
         form5Retry.setStartDate(LocalDate.now().minusDays(10));
         formationRepository.save(form5Retry);
 
         // Case 6: Operator in Double Failure (Phase 3 - Locked / Blocked)
-        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSC);
+        Operator op6 = createOperator("OP006", "El Amrani", "Karim", "Opérateur", LocalDate.now().minusDays(60), Operator.OperatorType.NOUVEAU_RECRU, project, zoneSQ52, team2);
         WorkstationFormation form6Failed1 = new WorkstationFormation();
         form6Failed1.setOperator(op6);
-        form6Failed1.setWorkstation(wsCecSc);
+        form6Failed1.setWorkstation(wsCacSq52L1);
         form6Failed1.setStatus("FAILED");
         form6Failed1.setStartDate(LocalDate.now().minusDays(50));
         form6Failed1.setEndDate(LocalDate.now().minusDays(35));
         formationRepository.save(form6Failed1);
         WorkstationFormation form6Blocked = new WorkstationFormation();
         form6Blocked.setOperator(op6);
-        form6Blocked.setWorkstation(wsCecSc);
+        form6Blocked.setWorkstation(wsCacSq52L1);
         form6Blocked.setStatus("BLOCKED");
         form6Blocked.setStartDate(LocalDate.now().minusDays(30));
         formationRepository.save(form6Blocked);
 
         // Case 7: Operator Ready for Recyclage (Planned Refresher)
-        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneSC);
+        Operator op7 = createOperator("OP007", "Benjelloun", "Leila", "Opérateur", LocalDate.now().minusYears(2), Operator.OperatorType.DEJA_EN_POSTE, project, zoneCMP, team2);
         RecyclagePlanning planning = new RecyclagePlanning();
         planning.setOperator(op7);
-        planning.setWorkstation(wsRacSc);
+        planning.setWorkstation(wsRacCmp);
         planning.setType(RecyclagePlanning.PlanningType.RECYCLAGE);
         planning.setScheduledDate(LocalDate.now().plusDays(10));
         planning.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
@@ -393,7 +384,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op7, genericTpl);
 
         // Case 8: Level L Operator targeting Level U (Seniority Gate: 13 months seniority)
-        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneSC);
+        Operator op8 = createOperator("OP008", "Sadiki", "Omar", "Opérateur", LocalDate.now().minusMonths(13), Operator.OperatorType.DEJA_EN_POSTE, project, zoneKJ, team1);
         EvaluationSession session8 = new EvaluationSession();
         session8.setOperator(op8);
         session8.setTemplate(coolingTpl);
@@ -409,18 +400,34 @@ public class DataSeeder implements CommandLineRunner {
         seedPassedGenericEvaluation(op8, genericTpl);
     }
 
-    private void seedProjectMember(Project project, String empId, String name, ProjectMember.ProjectRole role) {
-        if (!projectMemberRepository.existsByProjectIdAndEmployeeId(project.getId(), empId)) {
-            ProjectMember pm = new ProjectMember();
-            pm.setProject(project);
-            pm.setEmployeeId(empId);
-            pm.setEmployeeName(name);
-            pm.setProjectRole(role);
-            projectMemberRepository.save(pm);
-        }
+    private Team seedTeam(String name, String leaderName, String leaderEmpId,
+                          String aqName, String aqEmpId,
+                          String qmName, String qmEmpId,
+                          String pmName, String pmEmpId,
+                          String hseName, String hseEmpId, Project project) {
+        return teamRepository.findAll().stream()
+            .filter(t -> t.getName().equalsIgnoreCase(name))
+            .findFirst()
+            .orElseGet(() -> {
+                Team t = new Team();
+                t.setName(name);
+                t.setTeamLeader(leaderName);
+                t.setTeamLeaderEmployeeId(leaderEmpId);
+                t.setAgentQualite(aqName);
+                t.setAgentQualiteEmployeeId(aqEmpId);
+                t.setQualityManager(qmName);
+                t.setQualityManagerEmployeeId(qmEmpId);
+                t.setProjectManager(pmName);
+                t.setProjectManagerEmployeeId(pmEmpId);
+                t.setHseManager(hseName);
+                t.setHseManagerEmployeeId(hseEmpId);
+                t.setProject(project);
+                t.setProjects(Set.of(project));
+                return teamRepository.save(t);
+            });
     }
 
-    private Operator createOperator(String empId, String lastName, String firstName, String role, LocalDate hireDate, Operator.OperatorType type, Project project, Zone zone) {
+    private Operator createOperator(String empId, String lastName, String firstName, String role, LocalDate hireDate, Operator.OperatorType type, Project project, Zone zone, Team team) {
         Operator op = new Operator();
         op.setEmployeeId(empId);
         op.setLastName(lastName);
@@ -430,6 +437,7 @@ public class DataSeeder implements CommandLineRunner {
         op.setOperatorType(type);
         op.setProject(project);
         op.setZone(zone);
+        op.setTeam(team);
         op.setActive(true);
         return operatorRepository.save(op);
     }

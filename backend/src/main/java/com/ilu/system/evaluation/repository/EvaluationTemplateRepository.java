@@ -17,14 +17,14 @@ public interface EvaluationTemplateRepository extends JpaRepository<EvaluationTe
 
     List<EvaluationTemplate> findByWorkstationId(Long workstationId);
 
-    @Query("SELECT t FROM EvaluationTemplate t "
+    @Query("SELECT DISTINCT t FROM EvaluationTemplate t LEFT JOIN t.workstations w "
             + "WHERE t.status = 'VALIDATED' AND t.type = 'POSTE_PRODUCTION' "
-            + "AND t.workstation.id = :workstationId")
+            + "AND (t.workstation.id = :workstationId OR w.id = :workstationId)")
     List<EvaluationTemplate> findValidatedProductionForWorkstation(@Param("workstationId") Long workstationId);
 
-    @Query("SELECT t FROM EvaluationTemplate t "
+    @Query("SELECT DISTINCT t FROM EvaluationTemplate t LEFT JOIN t.workstations w "
             + "WHERE t.status = 'VALIDATED' AND t.type = 'ANIMATION' "
-            + "AND t.workstation.id = :workstationId")
+            + "AND (t.workstation.id = :workstationId OR w.id = :workstationId)")
     List<EvaluationTemplate> findValidatedAnimationForWorkstation(@Param("workstationId") Long workstationId);
 
     @Query("SELECT t FROM EvaluationTemplate t WHERE t.status = 'VALIDATED' ORDER BY t.name ASC")

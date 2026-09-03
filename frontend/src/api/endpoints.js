@@ -24,6 +24,7 @@ export const operatorsApi = {
   activate: (id) => api.put(`/operators/${id}/activate`),
   getFormations: (id) => api.get(`/operators/${id}/formations`),
   getAssignments: (id) => api.get(`/operators/${id}/assignments`),
+  deletePermanently: (id) => api.delete(`/operators/${id}`),
 }
 
 export const trainingApi = {
@@ -58,9 +59,6 @@ export const structureApi = {
   createWorkstation: (data) => api.post('/structure/workstations', data),
   updateWorkstation: (id, data) => api.put(`/structure/workstations/${id}`, data),
   deleteWorkstation: (id) => api.delete(`/structure/workstations/${id}`),
-  addMember: (projectId, data) => api.post(`/structure/projects/${projectId}/members`, null, { params: data }),
-  updateMember: (memberId, role) => api.put(`/structure/members/${memberId}`, null, { params: { role } }),
-  deleteMember: (memberId) => api.delete(`/structure/members/${memberId}`),
 }
 
 export const evaluationApi = {
@@ -68,6 +66,7 @@ export const evaluationApi = {
   getTemplates: () => api.get('/evaluation/templates'),
   getTemplateDetail: (id) => api.get(`/evaluation/templates/${id}`),
   createTemplate: (data) => api.post('/evaluation/templates', data),
+  assignWorkstations: (id, workstationIds) => api.put(`/evaluation/templates/${id}/workstations`, { workstationIds }),
   validateTemplate: (id) => api.post(`/evaluation/templates/${id}/validate`),
 
   // Sections
@@ -81,6 +80,10 @@ export const evaluationApi = {
   }),
   updateQuestion: (id, data) => api.put(`/evaluation/questions/${id}`, data),
   deleteQuestion: (id, templateId) => api.delete(`/evaluation/questions/${id}`, { params: { templateId } }),
+  deleteTemplate: (id) => api.delete(`/evaluation/templates/${id}`),
+  clearTemplateQuestions: (id) => api.delete(`/evaluation/templates/${id}/questions`),
+
+  assignWorkstationsToTemplate: (id, workstationIds) => api.put(`/evaluation/templates/${id}/workstations`, { workstationIds }),
 
   // Question Validation (Responsable)
   getPendingQuestions: () => api.get('/evaluation/questions/pending'),
@@ -136,11 +139,16 @@ export const notificationApi = {
   getUnreadCount: (userId) => api.get('/notifications/unread-count', { params: { userId } }),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   markAllAsRead: (userId) => api.put('/notifications/read-all', null, { params: { userId } }),
+  delete: (id) => api.delete(`/notifications/${id}`),
+  clearAll: () => api.delete('/notifications/clear-all'),
 }
 
 export const teamsApi = {
   getAll: () => api.get('/teams'),
   getById: (id) => api.get(`/teams/${id}`),
+  createTeam: (data) => api.post('/teams', data),
+  updateTeam: (id, data) => api.put(`/teams/${id}`, data),
+  deleteTeam: (id) => api.delete(`/teams/${id}`),
   requestUpdate: (teamId, operatorIds) => api.post(`/teams/${teamId}/request-update`, { operatorIds }),
   getPendingRequests: () => api.get('/teams/pending-requests'),
   approveRequest: (requestId) => api.post(`/teams/requests/${requestId}/approve`),

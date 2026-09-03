@@ -8,4 +8,5 @@ public interface FormationAssignmentRepository extends JpaRepository<FormationAs
     List<FormationAssignment> findByOperatorId(Long operatorId);
     List<FormationAssignment> findByIsPrimaryAssignmentTrueAndOperatorId(Long operatorId);
     List<FormationAssignment> findByWorkstationId(Long workstationId);
+    void deleteByOperatorId(Long operatorId);
 }

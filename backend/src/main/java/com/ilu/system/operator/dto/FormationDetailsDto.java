@@ -18,6 +18,8 @@ public class FormationDetailsDto {
     private Double averageCadence;
     private Integer totalDefects;
     private Integer daysWithData;
+    private Integer cadenceDaysCount;
+    private Integer defectsDaysCount;
     private Boolean passedCadence;
     private Boolean passedQuality;
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
@@ -36,6 +38,8 @@ public class FormationDetailsDto {
     public Double getAverageCadence() { return averageCadence; } public void setAverageCadence(Double v) { this.averageCadence = v; }
     public Integer getTotalDefects() { return totalDefects; } public void setTotalDefects(Integer v) { this.totalDefects = v; }
     public Integer getDaysWithData() { return daysWithData; } public void setDaysWithData(Integer v) { this.daysWithData = v; }
+    public Integer getCadenceDaysCount() { return cadenceDaysCount; } public void setCadenceDaysCount(Integer v) { this.cadenceDaysCount = v; }
+    public Integer getDefectsDaysCount() { return defectsDaysCount; } public void setDefectsDaysCount(Integer v) { this.defectsDaysCount = v; }
     public Boolean getPassedCadence() { return passedCadence; } public void setPassedCadence(Boolean v) { this.passedCadence = v; }
     public Boolean getPassedQuality() { return passedQuality; } public void setPassedQuality(Boolean v) { this.passedQuality = v; }
 }

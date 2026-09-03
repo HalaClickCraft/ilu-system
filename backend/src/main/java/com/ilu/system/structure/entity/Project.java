@@ -16,13 +16,12 @@ public class Project {
     private String name;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"project"})
     private List<Zone> zones;
-
-    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
-    private List<ProjectMember> members;
 
     @ManyToOne
     @JoinColumn(name = "created_by")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "roles"})
     private User createdBy;
 
     public Long getId() { return id; }
@@ -31,8 +30,6 @@ public class Project {
     public void setName(String name) { this.name = name; }
     public List<Zone> getZones() { return zones; }
     public void setZones(List<Zone> zones) { this.zones = zones; }
-    public List<ProjectMember> getMembers() { return members; }
-    public void setMembers(List<ProjectMember> members) { this.members = members; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
 }

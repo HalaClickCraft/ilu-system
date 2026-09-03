@@ -21,6 +21,8 @@ import com.ilu.system.recyclage.entity.RecyclagePlanning;
 import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -81,7 +83,8 @@ public class EvaluationService {
 
     @Transactional
     public Map<String, Object> createTemplate(String name, String description, String typeStr,
-                                               Long workstationId, String targetNiveau, Long createdById) {
+                                               Long workstationId, List<Long> workstationIds,
+                                               String targetNiveau, Long createdById) {
         EvaluationTemplate.TemplateType type;
         try {
             type = EvaluationTemplate.TemplateType.valueOf(typeStr);
@@ -96,11 +99,22 @@ public class EvaluationService {
         template.setTargetNiveau(targetNiveau);
         template.setCreatedById(createdById);
 
-        if (workstationId != null && (type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
+        Set<Workstation> wsSet = new HashSet<>();
+        if (workstationIds != null && !workstationIds.isEmpty()) {
+            for (Long wsId : workstationIds) {
+                if (wsId != null) {
+                    workstationRepo.findById(wsId).ifPresent(wsSet::add);
+                }
+            }
+        }
+        if (workstationId != null) {
+            workstationRepo.findById(workstationId).ifPresent(wsSet::add);
+        }
+
+        if (!wsSet.isEmpty() && (type == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
                 || type == EvaluationTemplate.TemplateType.ANIMATION)) {
-            Workstation ws = workstationRepo.findById(workstationId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Poste introuvable"));
-            template.setWorkstation(ws);
+            template.setWorkstations(wsSet);
+            template.setWorkstation(wsSet.iterator().next());
         }
 
         templateRepo.save(template);
@@ -111,6 +125,34 @@ public class EvaluationService {
         result.put("type", template.getType().name());
         result.put("status", template.getStatus().name());
         result.put("message", "Template cree avec succes");
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> assignWorkstationsToTemplate(Long templateId, List<Long> workstationIds) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        Set<Workstation> wsSet = new HashSet<>();
+        if (workstationIds != null && !workstationIds.isEmpty()) {
+            for (Long wsId : workstationIds) {
+                if (wsId != null) {
+                    workstationRepo.findById(wsId).ifPresent(wsSet::add);
+                }
+            }
+        }
+        template.setWorkstations(wsSet);
+        if (!wsSet.isEmpty()) {
+            template.setWorkstation(wsSet.iterator().next());
+        } else {
+            template.setWorkstation(null);
+        }
+        templateRepo.save(template);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", template.getId());
+        result.put("workstationsCount", wsSet.size());
+        result.put("message", "Postes affectes au template avec succes");
         return result;
     }
 
@@ -208,16 +250,53 @@ public class EvaluationService {
 
     @Transactional
     public List<Map<String, Object>> addQuestionsBatch(Long templateId, List<Map<String, Object>> questionsList, Long createdById) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
         List<Map<String, Object>> results = new ArrayList<>();
+        Map<String, EvaluationSection> sectionCache = new HashMap<>();
+
+        for (EvaluationSection sec : sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId)) {
+            sectionCache.put(sec.getTitle().trim().toLowerCase(), sec);
+        }
+
+        int sectionOrder = sectionCache.size() + 1;
+
         for (Map<String, Object> body : questionsList) {
             Long sectionId = body.get("sectionId") != null ? Long.valueOf(body.get("sectionId").toString()) : null;
+            String sectionTitle = body.get("sectionTitle") != null ? ((String) body.get("sectionTitle")).trim() : null;
+
+            if (sectionId == null && sectionTitle != null && !sectionTitle.isBlank()) {
+                String key = sectionTitle.toLowerCase();
+                if (!sectionCache.containsKey(key)) {
+                    EvaluationSection newSec = new EvaluationSection();
+                    newSec.setTemplate(template);
+                    newSec.setTitle(sectionTitle);
+                    newSec.setDisplayOrder(sectionOrder++);
+                    newSec = sectionRepo.save(newSec);
+                    sectionCache.put(key, newSec);
+                }
+                sectionId = sectionCache.get(key).getId();
+            } else if (sectionId == null) {
+                String key = "questions d'évaluation";
+                if (!sectionCache.containsKey(key)) {
+                    EvaluationSection newSec = new EvaluationSection();
+                    newSec.setTemplate(template);
+                    newSec.setTitle("Questions d'évaluation");
+                    newSec.setDisplayOrder(sectionOrder++);
+                    newSec = sectionRepo.save(newSec);
+                    sectionCache.put(key, newSec);
+                }
+                sectionId = sectionCache.get(key).getId();
+            }
+
             String questionText = (String) body.get("questionText");
             String expectedAnswer = (String) body.get("expectedAnswer");
             Integer questionNumber = body.get("questionNumber") != null ? Integer.valueOf(body.get("questionNumber").toString()) : null;
             String validatorRole = (String) body.get("validatorRole");
             String complementaryQuestions = (String) body.get("complementaryQuestions");
             String imageUrl = (String) body.get("imageUrl");
-            
+
             results.add(addQuestion(templateId, sectionId, questionText, expectedAnswer, questionNumber, validatorRole, complementaryQuestions, imageUrl, createdById));
         }
         return results;
@@ -294,11 +373,11 @@ public class EvaluationService {
                 opOpt = operatorRepo.findByEmployeeId(employeeId);
             }
             if (opOpt.isEmpty() && operatorName != null && !operatorName.isBlank()) {
-                String targetName = operatorName.replaceAll("\\s+", " ").trim().toLowerCase();
+                String targetName = normalizePersonName(operatorName);
                 opOpt = operatorRepo.findAll().stream()
                         .filter(o -> {
-                            String fullName = (o.getLastName() + " " + o.getFirstName()).replaceAll("\\s+", " ").trim().toLowerCase();
-                            String reverseName = (o.getFirstName() + " " + o.getLastName()).replaceAll("\\s+", " ").trim().toLowerCase();
+                            String fullName = normalizePersonName((o.getLastName() != null ? o.getLastName() : "") + " " + (o.getFirstName() != null ? o.getFirstName() : ""));
+                            String reverseName = normalizePersonName((o.getFirstName() != null ? o.getFirstName() : "") + " " + (o.getLastName() != null ? o.getLastName() : ""));
                             return fullName.equals(targetName) || reverseName.equals(targetName);
                         })
                         .findFirst();
@@ -313,16 +392,22 @@ public class EvaluationService {
                 }
             } else {
                 operator = new Operator();
-                String cleanName = operatorName != null ? operatorName.trim() : "OPÉRATEUR IMPORTÉ";
+                String rawName = operatorName != null ? operatorName.trim() : "OPÉRATEUR IMPORTÉ";
+                // Strip common prefixes and brackets
+                String cleanName = rawName.replaceAll("^(?i)(m\\.|mme\\.|mme|mr\\.|mr|mlle\\.?)\\s+", "")
+                        .replaceAll("\\s*\\([^)]*\\)", "").replaceAll("\\s+", " ").trim();
+                if (cleanName.isBlank()) cleanName = "OPÉRATEUR IMPORTÉ";
+                
                 String[] parts = cleanName.split("\\s+");
                 if (parts.length > 1) {
-                    operator.setLastName(parts[0]);
+                    operator.setLastName(parts[0].toUpperCase());
                     operator.setFirstName(cleanName.substring(parts[0].length()).trim());
                 } else {
-                    operator.setLastName(cleanName);
+                    operator.setLastName(cleanName.toUpperCase());
                     operator.setFirstName("");
                 }
                 String empId = (employeeId != null && !employeeId.isBlank()) ? employeeId : "MAT_" + (System.currentTimeMillis() % 100000) + "_" + (int)(Math.random() * 1000);
+                operator.setOperatorType(Operator.OperatorType.DEJA_EN_POSTE);
                 operator.setEmployeeId(empId);
                 operator.setRole("Opérateur");
                 operator.setHireDate(LocalDate.now());
@@ -333,13 +418,27 @@ public class EvaluationService {
                 operator = operatorRepo.save(operator);
             }
 
-            // Find or create template for this workstation
+            // Find or create template for this workstation (with master template fallback)
             final Workstation finalWs = workstation;
             EvaluationTemplate template = templateRepo.findByWorkstationId(finalWs.getId())
                     .stream().findFirst()
                     .orElseGet(() -> {
+                        // Check if a Master Template exists for the same zone or project
+                        if (finalWs.getZone() != null) {
+                            Long zoneId = finalWs.getZone().getId();
+                            Optional<EvaluationTemplate> zoneTpl = templateRepo.findAll().stream()
+                                    .filter(t -> t.getWorkstation() != null && t.getWorkstation().getZone() != null && t.getWorkstation().getZone().getId().equals(zoneId))
+                                    .findFirst();
+                            if (zoneTpl.isPresent()) return zoneTpl.get();
+                        }
+                        // Check generic common template
+                        Optional<EvaluationTemplate> genericTpl = templateRepo.findAll().stream()
+                                .filter(t -> t.getType() == EvaluationTemplate.TemplateType.GENERIC_COMMON || t.getWorkstation() == null)
+                                .findFirst();
+                        if (genericTpl.isPresent()) return genericTpl.get();
+
                         EvaluationTemplate temp = new EvaluationTemplate();
-                        temp.setName("Template Importé - " + finalWs.getName());
+                        temp.setName("Template Maître - " + finalWs.getName());
                         temp.setWorkstation(finalWs);
                         temp.setType(EvaluationTemplate.TemplateType.POSTE_PRODUCTION);
                         temp.setStatus(EvaluationTemplate.TemplateStatus.VALIDATED);
@@ -354,6 +453,24 @@ public class EvaluationService {
                 }
             }
 
+            final Operator finalOp = operator;
+            final LocalDate finalValDate = validationDate;
+
+            // Record completed formation status for this operator on this workstation
+            WorkstationFormation formation = formationRepo.findByOperator_IdAndWorkstation_Id(operator.getId(), finalWs.getId())
+                    .orElseGet(() -> {
+                        WorkstationFormation f = new WorkstationFormation();
+                        f.setOperator(finalOp);
+                        f.setWorkstation(finalWs);
+                        f.setStartDate(finalValDate);
+                        return f;
+                    });
+            formation.setStatus("COMPLETED");
+            formation.setAchievedLevel(level.toUpperCase().trim());
+            formation.setTargetLevel("L");
+            formation.setEndDate(validationDate);
+            formationRepo.save(formation);
+
             EvaluationSession session = new EvaluationSession();
             session.setOperator(operator);
             session.setTemplate(template);
@@ -363,6 +480,20 @@ public class EvaluationService {
             session.setCreatedAt(validationDate.atStartOfDay());
             session.setCompletedAt(validationDate.atStartOfDay());
             sessionRepo.save(session);
+
+            // Automatically schedule 12-month Recyclage for this workstation with valid source
+            RecyclagePlanning planning = new RecyclagePlanning();
+            planning.setOperator(operator);
+            planning.setWorkstation(finalWs);
+            planning.setType(RecyclagePlanning.PlanningType.RECYCLAGE);
+            planning.setStatus(RecyclagePlanning.PlanningStatus.PLANIFIEE);
+            planning.setSource(RecyclagePlanning.PlanningSource.ANNUELLE);
+            if (finalWs.getZone() != null && finalWs.getZone().getProject() != null) {
+                planning.setProjectId(finalWs.getZone().getProject().getId());
+            }
+            planning.setScheduledDate(validationDate.plusMonths(12));
+            planning.setNiveauObtenu(level.toUpperCase().trim());
+            recyclagePlanningRepo.save(planning);
 
             res.put("status", "SUCCESS");
             res.put("message", "Certification " + level + " enregistrée avec succès");
@@ -378,12 +509,6 @@ public class EvaluationService {
                                                String complementaryQuestions, String imageUrl) {
         EvaluationQuestion question = questionRepo.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable"));
-
-        Long tId = templateId != null ? templateId : (question.getTemplate() != null ? question.getTemplate().getId() : null);
-        if (tId != null && sessionRepo.existsByTemplateId(tId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees sur ce poste");
-        }
 
         if (questionText != null) {
             question.setQuestionText(questionText);
@@ -465,6 +590,50 @@ public class EvaluationService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", questionId);
         result.put("message", "Question supprimee avec succes");
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> clearTemplateQuestions(Long templateId) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        if (sessionRepo.existsByTemplateId(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template est verrouille car des sessions d'evaluation sont deja en cours ou terminees");
+        }
+
+        List<EvaluationQuestion> questions = questionRepo.findByTemplateId(templateId);
+        for (EvaluationQuestion q : questions) {
+            answerRepo.deleteByQuestionId(q.getId());
+            questionRepo.delete(q);
+        }
+
+        List<EvaluationSection> sections = sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId);
+        sectionRepo.deleteAll(sections);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("templateId", templateId);
+        result.put("message", "Toutes les questions et sections ont ete supprimees avec succes");
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> deleteTemplate(Long templateId) {
+        EvaluationTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template introuvable"));
+
+        if (sessionRepo.existsByTemplateId(templateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le template ne peut pas etre supprime car des sessions d'evaluation sont deja associees");
+        }
+
+        clearTemplateQuestions(templateId);
+        templateRepo.delete(template);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("templateId", templateId);
+        result.put("message", "Template supprime avec succes");
         return result;
     }
 
@@ -705,7 +874,11 @@ public class EvaluationService {
 
             EvaluationQuestion question = questionRepo.findById(questionId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question introuvable: " + questionId));
-            if (!question.getTemplate().getId().equals(session.getTemplate().getId())) {
+
+            Long qTplId = question.getTemplate().getId();
+            boolean matchesSessionTemplate = qTplId.equals(session.getTemplate().getId())
+                    || (session.getNextTemplateId() != null && qTplId.equals(session.getNextTemplateId()));
+            if (!matchesSessionTemplate && templateRepo.findById(qTplId).isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "La question n'appartient pas au template de cette session");
             }
@@ -1037,13 +1210,16 @@ public class EvaluationService {
         // 2) Find validated POSTE_PRODUCTION template for the operator's workstation
         EvaluationTemplate productionTemplate = null;
         if (wsId != null) {
+            final Long targetWsId = wsId;
             for (EvaluationTemplate t : templateRepo.findAll()) {
                 if (t.getType() == EvaluationTemplate.TemplateType.POSTE_PRODUCTION
-                        && t.getStatus() == EvaluationTemplate.TemplateStatus.VALIDATED
-                        && t.getWorkstation() != null
-                        && t.getWorkstation().getId().equals(wsId)) {
-                    productionTemplate = t;
-                    break;
+                        && t.getStatus() == EvaluationTemplate.TemplateStatus.VALIDATED) {
+                    boolean matches = (t.getWorkstation() != null && t.getWorkstation().getId().equals(targetWsId))
+                            || (t.getWorkstations() != null && t.getWorkstations().stream().anyMatch(w -> w.getId().equals(targetWsId)));
+                    if (matches) {
+                        productionTemplate = t;
+                        break;
+                    }
                 }
             }
         }
@@ -1406,6 +1582,22 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
             map.put("targetNiveau", t.getTargetNiveau());
             map.put("workstationId", t.getWorkstation() != null ? t.getWorkstation().getId() : null);
             map.put("workstationName", t.getWorkstation() != null ? t.getWorkstation().getName() : null);
+            
+            List<Map<String, Object>> wsList = t.getWorkstations().stream().map(w -> {
+                Map<String, Object> wm = new LinkedHashMap<>();
+                wm.put("id", w.getId());
+                wm.put("name", w.getName());
+                if (w.getZone() != null) {
+                    wm.put("zoneId", w.getZone().getId());
+                    wm.put("zoneName", w.getZone().getName());
+                    if (w.getZone().getProject() != null) {
+                        wm.put("projectId", w.getZone().getProject().getId());
+                        wm.put("projectName", w.getZone().getProject().getName());
+                    }
+                }
+                return wm;
+            }).collect(Collectors.toList());
+            map.put("workstations", wsList);
             map.put("createdAt", t.getCreatedAt());
             long qCount = questionRepo.findByTemplateId(t.getId()).stream()
                     .filter(q -> q.getStatus() == EvaluationQuestion.QuestionStatus.VALIDATED).count();
@@ -1420,13 +1612,56 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
             map.put("id", q.getId());
             map.put("questionText", q.getQuestionText());
             map.put("expectedAnswer", q.getExpectedAnswer());
-            map.put("validatorRole", q.getValidatorRole().name());
-            map.put("templateId", q.getTemplate().getId());
-            map.put("templateName", q.getTemplate().getName());
+            map.put("validatorRole", q.getValidatorRole() != null ? q.getValidatorRole().name() : "AGENT_QUALITE");
+            map.put("templateId", q.getTemplate() != null ? q.getTemplate().getId() : null);
+            map.put("templateName", q.getTemplate() != null ? q.getTemplate().getName() : "Template");
+            map.put("complementaryQuestions", q.getComplementaryQuestions());
+
+            String wsName = null;
+            String zoneName = null;
+            String projName = null;
+
+            if (q.getTemplate() != null) {
+                if (q.getTemplate().getWorkstation() != null) {
+                    Workstation ws = q.getTemplate().getWorkstation();
+                    wsName = ws.getName();
+                    if (ws.getZone() != null) {
+                        zoneName = ws.getZone().getName();
+                        if (ws.getZone().getProject() != null) {
+                            projName = ws.getZone().getProject().getName();
+                        }
+                    }
+                } else if (q.getTemplate().getWorkstations() != null && !q.getTemplate().getWorkstations().isEmpty()) {
+                    Workstation ws = q.getTemplate().getWorkstations().iterator().next();
+                    wsName = ws.getName();
+                    if (ws.getZone() != null) {
+                        zoneName = ws.getZone().getName();
+                        if (ws.getZone().getProject() != null) {
+                            projName = ws.getZone().getProject().getName();
+                        }
+                    }
+                }
+            }
+
+            map.put("workstationName", wsName != null ? wsName : "Tous postes");
+            map.put("zoneName", zoneName != null ? zoneName : "Toutes zones");
+            map.put("projectName", projName != null ? projName : "Tous projets");
+
             map.put("createdById", q.getCreatedById());
             map.put("createdAt", q.getCreatedAt());
-            String creatorName = q.getCreatedById() != null
-                    ? userRepo.findById(q.getCreatedById()).map(User::getName).orElse("Inconnu") : "Inconnu";
+
+            String creatorName = "Inconnu";
+            if (q.getCreatedById() != null) {
+                Optional<User> uOpt = userRepo.findById(q.getCreatedById());
+                if (uOpt.isPresent()) {
+                    creatorName = uOpt.get().getName();
+                } else {
+                    Optional<User> uEmpOpt = userRepo.findByEmployeeId(String.valueOf(q.getCreatedById()));
+                    if (uEmpOpt.isPresent()) {
+                        creatorName = uEmpOpt.get().getName();
+                    }
+                }
+            }
             map.put("createdByName", creatorName);
             return map;
         }).collect(Collectors.toList());
@@ -1498,7 +1733,48 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         map.put("workstationId", template.getWorkstation() != null ? template.getWorkstation().getId() : null);
         map.put("workstationName", template.getWorkstation() != null ? template.getWorkstation().getName() : null);
 
-        List<Map<String, Object>> sectionsList = sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId).stream()
+        List<Map<String, Object>> wsList = template.getWorkstations() != null ? template.getWorkstations().stream().map(w -> {
+            Map<String, Object> wm = new LinkedHashMap<>();
+            wm.put("id", w.getId());
+            wm.put("name", w.getName());
+            if (w.getZone() != null) {
+                wm.put("zoneId", w.getZone().getId());
+                wm.put("zoneName", w.getZone().getName());
+                if (w.getZone().getProject() != null) {
+                    wm.put("projectId", w.getZone().getProject().getId());
+                    wm.put("projectName", w.getZone().getProject().getName());
+                }
+            }
+            return wm;
+        }).collect(Collectors.toList()) : new ArrayList<>();
+        map.put("workstations", wsList);
+
+        List<EvaluationSection> sections = sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId);
+        List<EvaluationQuestion> allQuestions = questionRepo.findByTemplateId(templateId);
+
+        List<EvaluationQuestion> unsectioned = allQuestions.stream()
+                .filter(q -> q.getSection() == null)
+                .collect(Collectors.toList());
+
+        if (!unsectioned.isEmpty()) {
+            EvaluationSection defaultSec = sections.stream()
+                    .filter(s -> "Général".equalsIgnoreCase(s.getTitle()) || "Questions d'évaluation".equalsIgnoreCase(s.getTitle()))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        EvaluationSection s = new EvaluationSection();
+                        s.setTemplate(template);
+                        s.setTitle("Questions d'évaluation");
+                        s.setDisplayOrder(1);
+                        return sectionRepo.save(s);
+                    });
+            for (EvaluationQuestion q : unsectioned) {
+                q.setSection(defaultSec);
+                questionRepo.save(q);
+            }
+            sections = sectionRepo.findByTemplateIdOrderByDisplayOrderAsc(templateId);
+        }
+
+        List<Map<String, Object>> sectionsList = sections.stream()
                 .map(s -> {
                     Map<String, Object> sMap = new LinkedHashMap<>();
                     sMap.put("id", s.getId());
@@ -1691,14 +1967,29 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         for (Operator op : operators) {
             for (Workstation ws : workstations) {
                 List<WorkstationFormation> formations = formationRepo.findByOperator_Id(op.getId()).stream()
-                        .filter(f -> f.getWorkstation().getId().equals(ws.getId()) && ("FAILED".equals(f.getStatus()) || "BLOCKED".equals(f.getStatus())))
+                        .filter(f -> f.getWorkstation() != null
+                                && f.getWorkstation().getId().equals(ws.getId())
+                                && ("FAILED".equals(f.getStatus()) || "BLOCKED".equals(f.getStatus())))
                         .collect(Collectors.toList());
 
                 List<EvaluationSession> sessions = sessionRepo.findByOperatorIdOrderByCreatedAtDesc(op.getId()).stream()
-                        .filter(s -> s.getTemplate() != null
-                                && s.getTemplate().getWorkstation() != null
-                                && s.getTemplate().getWorkstation().getId().equals(ws.getId())
-                                && (s.getStatus() == EvaluationSession.SessionStatus.FAILED || s.getStatus() == EvaluationSession.SessionStatus.BLOCKED))
+                        .filter(s -> {
+                            if (s.getStatus() != EvaluationSession.SessionStatus.FAILED && s.getStatus() != EvaluationSession.SessionStatus.BLOCKED) {
+                                return false;
+                            }
+                            if (s.getFormation() != null && s.getFormation().getWorkstation() != null && s.getFormation().getWorkstation().getId().equals(ws.getId())) {
+                                return true;
+                            }
+                            if (s.getTemplate() != null) {
+                                if (s.getTemplate().getWorkstation() != null && s.getTemplate().getWorkstation().getId().equals(ws.getId())) {
+                                    return true;
+                                }
+                                if (s.getTemplate().getWorkstations() != null && s.getTemplate().getWorkstations().stream().anyMatch(w -> w.getId().equals(ws.getId()))) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        })
                         .collect(Collectors.toList());
 
                 long failedCount = formations.size() + sessions.size();
@@ -1765,4 +2056,43 @@ public Map<String, Object> getPolyvalenceMatrix(Long projectId) {
         }
     }
 
+    public ResponseEntity<org.springframework.core.io.Resource> getQuestionImage(String filename) {
+        try {
+            java.io.File file = new java.io.File(new java.io.File(System.getProperty("user.dir"), "uploads/questions"), filename);
+            if (!file.exists()) {
+                file = new java.io.File(new java.io.File(System.getProperty("user.dir"), "uploads"), filename);
+            }
+            if (!file.exists() || !file.isFile()) {
+                return ResponseEntity.notFound().build();
+            }
+            org.springframework.core.io.Resource resource = new org.springframework.core.io.UrlResource(file.toURI());
+            String contentType = java.nio.file.Files.probeContentType(file.toPath());
+            if (contentType == null) {
+                contentType = filename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+            }
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType)
+                    .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "max-age=86400, public")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    private String normalizePersonName(String name) {
+        if (name == null) return "";
+        String clean = name.trim();
+        // Remove prefixes like "M. ", "Mme. ", "Mme ", "Mr. ", "Mr ", "Mlle "
+        clean = clean.replaceAll("^(?i)(m\\.|mme\\.|mme|mr\\.|mr|mlle\\.?)\\s+", "");
+        // Remove trailing tags like "(Intérim)", "(CDD)", "(CDI)", "(Renfort)", "(Prestation)"
+        clean = clean.replaceAll("\\s*\\([^)]*\\)", "");
+        // Remove special punctuation/accents or multiple spaces
+        clean = java.text.Normalizer.normalize(clean, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-zA-Z0-9\\s]", " ")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase();
+        return clean;
+    }
 }

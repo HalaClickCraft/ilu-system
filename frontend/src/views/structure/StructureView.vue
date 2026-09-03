@@ -7,35 +7,60 @@
       </button>
     </div>
 
-    <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+    <!-- Tab Navigation -->
+    <div class="border-b border-gray-200">
+      <nav class="-mb-px flex gap-6">
+        <button
+          @click="activeMainTab = 'layout'"
+          :class="[
+            activeMainTab === 'layout'
+              ? 'border-emerald-600 text-emerald-600 font-bold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium',
+            'py-3 px-1 border-b-2 text-sm transition-colors flex items-center gap-2'
+          ]"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          Layout Physique (Projets, Zones & Postes)
+        </button>
+        <button
+          @click="activeMainTab = 'teams'"
+          :class="[
+            activeMainTab === 'teams'
+              ? 'border-emerald-600 text-emerald-600 font-bold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium',
+            'py-3 px-1 border-b-2 text-sm transition-colors flex items-center gap-2'
+          ]"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          Équipes de Production (Affectations & Shifts)
+        </button>
+      </nav>
+    </div>
 
-    <div v-else>
+    <!-- TAB 1: Layout Physique -->
+    <div v-if="activeMainTab === 'layout'">
+      <div v-if="loading" class="flex items-center justify-center py-20"><div class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+
+      <div v-else>
       <div v-for="project in projects" :key="project.id" class="bg-white rounded-xl shadow-sm border border-gray-200 mb-4">
         <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition" @click="toggleProject(project.id)">
           <div class="flex items-center gap-3">
             <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedProjects.has(project.id) }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <div><h2 class="font-semibold text-gray-900">{{ project.name }}</h2><p class="text-xs text-gray-500">{{ project.zones?.length || 0 }} zones, {{ project.members?.length || 0 }} membres</p></div>
+            <div>
+              <h2 class="font-semibold text-gray-900">{{ project.name }}</h2>
+              <p class="text-xs text-gray-500">{{ project.zones?.length || 0 }} zones</p>
+            </div>
           </div>
           <div v-if="canEditStructure" class="flex items-center gap-2">
-            <button @click.stop="showAddZone(project.id)" class="text-sm text-emerald-600 hover:underline">+ Zone</button>
-            <button @click.stop="showAddMember(project.id)" class="text-sm text-blue-600 hover:underline">+ Affecter</button>
-            <button @click.stop="openEditProject(project)" class="text-gray-400 hover:text-blue-600 transition" title="Modifier"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button @click.stop="deleteProject(project.id)" class="text-gray-400 hover:text-red-600 transition" title="Supprimer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+            <button @click.stop="showAddZone(project.id)" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition shadow-2xs" title="Ajouter une zone à ce projet">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              + Zone
+            </button>
+            <button @click.stop="openEditProject(project)" class="text-gray-400 hover:text-blue-600 transition p-1" title="Modifier"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+            <button @click.stop="deleteProject(project.id)" class="text-gray-400 hover:text-red-600 transition p-1" title="Supprimer"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
           </div>
         </div>
         <div v-if="expandedProjects.has(project.id)" class="border-t border-gray-100">
-          <div v-if="project.members?.length" class="p-4 border-b border-gray-100">
-            <h3 class="text-sm font-medium text-gray-700 mb-2">Membres du projet</h3>
-            <div class="flex flex-wrap gap-2">
-              <span v-for="m in project.members" :key="m.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-sm text-slate-700">
-                {{ m.employeeName || m.employeeId }}
-                <span class="text-xs font-medium px-1.5 py-0.5 rounded" :class="roleBadgeClass(m.projectRole)">{{ roleLabel(m.projectRole) }}</span>
-                <button @click.stop="removeMember(m.id)" class="text-slate-400 hover:text-red-500 ml-1" title="Retirer">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </span>
-            </div>
-          </div>
-          <div v-else class="p-4 border-b border-gray-100 text-sm text-gray-400">Aucun membre dans ce projet</div>
           <div v-for="zone in project.zones" :key="zone.id" class="border-b border-gray-100 last:border-b-0">
             <div class="p-4 pl-8 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition" @click="toggleZone(zone.id)">
               <div class="flex items-center gap-2">
@@ -68,17 +93,7 @@
       <div v-if="projects.length === 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">Aucun projet configure</div>
     </div>
 
-    <!-- Create Project Modal -->
-    <div v-if="showCreateProject" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCreateProject = false">
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Nouveau Projet</h2>
-        <form @submit.prevent="createProject" class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom du projet</label><input v-model="projectForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" /></div>
-          <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
-          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateProject = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Créer</button></div>
-        </form>
-      </div>
-    </div>
+
 
     <!-- Add Member Modal (just role filter + user) -->
     <div v-if="showMemberModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showMemberModal = false">
@@ -181,18 +196,42 @@
       </div>
     </div>
 
+    </div>
+
+    <!-- TAB 2: Équipes de Production -->
+    <div v-if="activeMainTab === 'teams'">
+      <TeamsView embeddedMode="teams" />
+    </div>
+
+    <!-- Create Project Modal (Root Level) -->
+    <div v-if="showCreateProject" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCreateProject = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Nouveau Projet</h2>
+        <form @submit.prevent="createProject" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Nom du projet</label><input v-model="projectForm.name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Ex: CMP 2026, KJ92 2026..." /></div>
+          <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg">{{ error }}</div>
+          <div class="flex justify-end gap-3 pt-2"><button type="button" @click="showCreateProject = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Annuler</button><button type="submit" :disabled="creating" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 font-semibold shadow-sm">Créer le projet</button></div>
+        </form>
+      </div>
+    </div>
+
     <!-- Confirm Dialog -->
     <ConfirmDialog :visible="confirmData.visible" :title="confirmData.title" :message="confirmData.message" :type="confirmData.type" @confirm="handleConfirm" @cancel="handleCancel" />
   </div>
 </template>
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { structureApi } from '@/api/endpoints'
+import { useRoute } from 'vue-router'
+import { structureApi, usersApi } from '@/api/endpoints'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import TeamsView from '@/views/structure/TeamsView.vue'
+
+const route = useRoute()
+const activeMainTab = ref(route.query.tab === 'teams' ? 'teams' : 'layout')
 
 const authStore = useAuthStore()
-const canEditStructure = computed(() => authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE']))
+const canEditStructure = computed(() => authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE']))
 
 const projects = ref([])
 const loading = ref(true)
@@ -205,6 +244,14 @@ const showZoneModal = ref(false)
 const showWorkstationModal = ref(false)
 const showMemberModal = ref(false)
 const availableUsers = ref([])
+const fetchAvailableUsers = async () => {
+  try {
+    const res = await usersApi.getAll()
+    availableUsers.value = res.data || []
+  } catch (e) {
+    console.error(e)
+  }
+}
 const projectForm = ref({ name: '' })
 const zoneForm = ref({ name: '', projectId: null })
 const wsForm = ref({ name: '', type: 'POSTE', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId: null })
@@ -228,15 +275,83 @@ const systemToProjectRole = (filterRole) => ({ CHEF_EQUIPE: 'TEAM_LEADER', AGENT
 const toggleProject = (id) => { if (expandedProjects.value.has(id)) expandedProjects.value.delete(id); else expandedProjects.value.add(id); expandedProjects.value = new Set(expandedProjects.value) }
 const toggleZone = (id) => { if (expandedZones.value.has(id)) expandedZones.value.delete(id); else expandedZones.value.add(id); expandedZones.value = new Set(expandedZones.value) }
 
-const fetchProjects = async () => { loading.value = true; try { projects.value = (await structureApi.getAll()).data } catch (e) { console.error(e) } finally { loading.value = false } }
-const fetchAvailableUsers = async () => { try { availableUsers.value = (await structureApi.getAvailableUsers()).data } catch (e) { console.error(e) } }
+import { teamsApi } from '@/api/endpoints'
 
-const createProject = async () => { creating.value = true; error.value = ''; try { await structureApi.createProject({ name: projectForm.value.name }); showCreateProject.value = false; projectForm.value = { name: '' }; fetchProjects() } catch (e) { const msg = e.response?.data?.message || e.message || 'Erreur inconnue'; error.value = msg; alert('Erreur: ' + msg + ' (status: ' + (e.response?.status || 'n/a') + ')'); console.error(e) } finally { creating.value = false } }
-const deleteProject = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le projet', message: 'Cette action est irreversible. Voulez-vous continuer ?', type: 'danger' }; pendingDeleteAction.value = () => deleteProjectConfirmed(id); return; try { await structureApi.deleteProject(id); fetchProjects() } catch (e) { console.error(e) } }
+const allTeams = ref([])
+const showTeamAssignModal = ref(false)
+const teamAssignProjectId = ref(null)
+const selectedTeamToAssign = ref('')
+
+const getProjectTeams = (projectId) => {
+  return allTeams.value.filter(t => t.project?.id === projectId || t.projects?.some(p => p.id === projectId))
+}
+
+const showAssignTeamModal = (project) => {
+  teamAssignProjectId.value = project.id
+  selectedTeamToAssign.value = ''
+  showTeamAssignModal.value = true
+}
+
+const submitAssignTeam = async () => {
+  if (!selectedTeamToAssign.value || !teamAssignProjectId.value) return
+  creating.value = true
+  try {
+    const teamId = Number(selectedTeamToAssign.value)
+    const team = allTeams.value.find(t => t.id === teamId)
+    await teamsApi.updateTeam(teamId, {
+      ...team,
+      project: { id: teamAssignProjectId.value }
+    })
+    showTeamAssignModal.value = false
+    await fetchProjects()
+  } catch (e) {
+    console.error(e)
+    alert("Erreur lors de l'affectation de l'équipe")
+  } finally {
+    creating.value = false
+  }
+}
+
+const fetchProjects = async () => {
+  loading.value = true
+  try {
+    const [projRes, teamsRes] = await Promise.all([
+      structureApi.getAll(),
+      teamsApi.getAll()
+    ])
+    projects.value = projRes.data || []
+    allTeams.value = teamsRes.data || []
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchProjects)
+
+const deleteProject = (id) => {
+  confirmData.value = {
+    visible: true,
+    title: 'Supprimer le projet',
+    message: 'Cette action est irréversible et supprimera les zones et postes associés. Voulez-vous continuer ?',
+    type: 'danger'
+  }
+  pendingDeleteAction.value = () => deleteProjectConfirmed(id)
+}
 
 const showAddZone = (projectId) => { zoneForm.value = { name: '', projectId }; showZoneModal.value = true }
 const createZone = async () => { creating.value = true; try { await structureApi.createZone(zoneForm.value.projectId, { name: zoneForm.value.name }); showZoneModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
-const deleteZone = async (id) => { confirmData.value = { visible: true, title: 'Supprimer la zone', message: 'Voulez-vous supprimer cette zone et tous ses postes ?', type: 'danger' }; pendingDeleteAction.value = () => deleteZoneConfirmed(id); return; try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
+
+const deleteZone = (id) => {
+  confirmData.value = {
+    visible: true,
+    title: 'Supprimer la zone',
+    message: 'Voulez-vous supprimer cette zone et tous ses postes ?',
+    type: 'danger'
+  }
+  pendingDeleteAction.value = () => deleteZoneConfirmed(id)
+}
 
 const showAddMember = async (projectId) => { memberForm.value = { projectId, filterRole: '', employeeId: '' }; await fetchAvailableUsers(); showMemberModal.value = true }
 const addMember = async () => {
@@ -251,22 +366,77 @@ const addMember = async () => {
     showMemberModal.value = false; fetchProjects()
   } catch (e) { error.value = e.response?.data?.message || e.message || 'Erreur inconnue'; alert('Erreur: ' + error.value) } finally { creating.value = false }
 }
-const removeMember = async (memberId) => {
+const removeMember = (memberId) => {
   confirmData.value = { visible: true, title: 'Retirer le membre', message: 'Voulez-vous retirer ce membre du projet ?', type: 'danger' }; pendingDeleteAction.value = () => removeMemberConfirmed(memberId)
 }
 const showAddWorkstation = (zoneId, projectId) => { wsForm.value = { name: '', type: 'POSTE', targetCadence: null, versatilityTarget: null, targetIluLevel: 'I', zoneId }; showWorkstationModal.value = true }
 const createWorkstation = async () => { creating.value = true; try { await structureApi.createWorkstation(wsForm.value); showWorkstationModal.value = false; fetchProjects() } catch (e) { console.error(e) } finally { creating.value = false } }
-const deleteWorkstation = async (id) => { confirmData.value = { visible: true, title: 'Supprimer le poste', message: 'Voulez-vous supprimer ce poste de travail ?', type: 'danger' }; pendingDeleteAction.value = () => deleteWorkstationConfirmed(id) }
+
+const deleteWorkstation = (id) => {
+  confirmData.value = {
+    visible: true,
+    title: 'Supprimer le poste',
+    message: 'Voulez-vous supprimer ce poste de travail ?',
+    type: 'danger'
+  }
+  pendingDeleteAction.value = () => deleteWorkstationConfirmed(id)
+}
 
 const confirmData = ref({ visible: false, title: '', message: '', type: 'danger' })
 const pendingDeleteAction = ref(null)
-const handleConfirm = () => { confirmData.value.visible = false; if (pendingDeleteAction.value) { pendingDeleteAction.value(); pendingDeleteAction.value = null } }
-const handleCancel = () => { confirmData.value.visible = false; pendingDeleteAction.value = null }
 
-const deleteProjectConfirmed = async (id) => { try { await structureApi.deleteProject(id); fetchProjects() } catch (e) { console.error(e) } }
-const deleteZoneConfirmed = async (id) => { try { await structureApi.deleteZone(id); fetchProjects() } catch (e) { console.error(e) } }
-const deleteWorkstationConfirmed = async (id) => { try { await structureApi.deleteWorkstation(id); fetchProjects() } catch (e) { console.error(e) } }
-const removeMemberConfirmed = async (memberId) => { try { await structureApi.deleteMember(memberId); fetchProjects() } catch (e) { console.error(e) } }
+const handleConfirm = async () => {
+  confirmData.value.visible = false
+  if (pendingDeleteAction.value) {
+    const action = pendingDeleteAction.value
+    pendingDeleteAction.value = null
+    await action()
+  }
+}
+
+const handleCancel = () => {
+  confirmData.value.visible = false
+  pendingDeleteAction.value = null
+}
+
+const deleteProjectConfirmed = async (id) => {
+  try {
+    await structureApi.deleteProject(id)
+    await fetchProjects()
+  } catch (e) {
+    console.error(e)
+    alert(e.response?.data?.message || 'Erreur lors de la suppression du projet')
+  }
+}
+
+const deleteZoneConfirmed = async (id) => {
+  try {
+    await structureApi.deleteZone(id)
+    await fetchProjects()
+  } catch (e) {
+    console.error(e)
+    alert(e.response?.data?.message || 'Erreur lors de la suppression de la zone')
+  }
+}
+
+const deleteWorkstationConfirmed = async (id) => {
+  try {
+    await structureApi.deleteWorkstation(id)
+    await fetchProjects()
+  } catch (e) {
+    console.error(e)
+    alert(e.response?.data?.message || 'Erreur lors de la suppression du poste')
+  }
+}
+
+const removeMemberConfirmed = async (memberId) => {
+  try {
+    await structureApi.deleteMember(memberId)
+    await fetchProjects()
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 // Edit Project
 const showEditProjectModal = ref(false)

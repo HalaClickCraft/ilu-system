@@ -16,10 +16,8 @@ import com.ilu.system.operator.repository.OperatorRepository;
 import com.ilu.system.operator.repository.TeamRepository;
 import com.ilu.system.operator.repository.WorkstationFormationRepository;
 import com.ilu.system.structure.entity.Project;
-import com.ilu.system.structure.entity.ProjectMember;
 import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.structure.entity.Zone;
-import com.ilu.system.structure.repository.ProjectMemberRepository;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.WorkstationRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
@@ -56,7 +54,6 @@ public class TrainingService {
     private final OnboardingService onboardingService;
     private final ProjectRepository projectRepo;
     private final ZoneRepository zoneRepo;
-    private final ProjectMemberRepository projectMemberRepo;
     private final RecyclageService recyclageService;
     private final EvaluationSessionRepository sessionRepo;
 
@@ -64,7 +61,7 @@ public class TrainingService {
                            DailyFormationTrackingRepository trackingRepo, OperatorRepository operatorRepo,
                            WorkstationRepository workstationRepo, TeamRepository teamRepo,
                            OnboardingService onboardingService, ProjectRepository projectRepo,
-                           ZoneRepository zoneRepo, ProjectMemberRepository projectMemberRepo,
+                           ZoneRepository zoneRepo,
                            RecyclageService recyclageService, EvaluationSessionRepository sessionRepo) {
         this.formationRepo = formationRepo;
         this.assignmentRepo = assignmentRepo;
@@ -75,7 +72,6 @@ public class TrainingService {
         this.onboardingService = onboardingService;
         this.projectRepo = projectRepo;
         this.zoneRepo = zoneRepo;
-        this.projectMemberRepo = projectMemberRepo;
         this.recyclageService = recyclageService;
         this.sessionRepo = sessionRepo;
     }
@@ -129,7 +125,8 @@ public class TrainingService {
                     .collect(Collectors.toList());
         }
         return projectRepo.findAll().stream()
-                .filter(project -> projectMemberRepo.existsByProjectIdAndEmployeeId(project.getId(), employeeId))
+                .filter(project -> teamRepo.findByProjectId(project.getId()).stream()
+                        .anyMatch(t -> employeeId.equals(t.getTeamLeaderEmployeeId()) || employeeId.equals(t.getAgentQualiteEmployeeId())))
                 .map(this::toStructureMap)
                 .collect(Collectors.toList());
     }
@@ -156,7 +153,27 @@ public class TrainingService {
         return projectMap;
     }
 
+    @Transactional
     public List<FormationDetailsDto> listAllFormations(String employeeId, Set<String> roles) {
+        List<FormationAssignment> activeAssignments = assignmentRepo.findAll().stream()
+                .filter(a -> "IN_PROGRESS".equals(a.getStatus()) && a.getOperator() != null && a.getWorkstation() != null)
+                .collect(Collectors.toList());
+        for (FormationAssignment a : activeAssignments) {
+            boolean exists = formationRepo.findByOperator_Id(a.getOperator().getId()).stream()
+                    .anyMatch(f -> a.getWorkstation().getId().equals(f.getWorkstation().getId()) && "IN_PROGRESS".equals(f.getStatus()));
+            if (!exists) {
+                WorkstationFormation formation = new WorkstationFormation();
+                formation.setOperator(a.getOperator());
+                formation.setWorkstation(a.getWorkstation());
+                formation.setStartDate(a.getStartDate() != null ? a.getStartDate() : LocalDate.now());
+                formation.setStatus("IN_PROGRESS");
+                formation.setAchievedLevel("0");
+                formation.setTargetLevel("1");
+                formation.setQualityObjective(7);
+                formationRepo.save(formation);
+            }
+        }
+
         return formationRepo.findAll().stream()
                 .filter(formation -> canViewFormation(formation, employeeId, roles))
                 .map(this::toDto)
@@ -170,30 +187,38 @@ public class TrainingService {
     private FormationDetailsDto toDto(WorkstationFormation formation) {
         FormationDetailsDto dto = new FormationDetailsDto();
         dto.setId(formation.getId());
-        dto.setOperatorId(formation.getOperator().getId());
-        dto.setOperatorName(formation.getOperator().getLastName() + " " + formation.getOperator().getFirstName());
-        dto.setOperatorEmployeeId(formation.getOperator().getEmployeeId());
-        dto.setWorkstationId(formation.getWorkstation().getId());
-        dto.setWorkstationName(formation.getWorkstation().getName());
+        if (formation.getOperator() != null) {
+            dto.setOperatorId(formation.getOperator().getId());
+            String lastName = formation.getOperator().getLastName() != null ? formation.getOperator().getLastName() : "";
+            String firstName = formation.getOperator().getFirstName() != null ? formation.getOperator().getFirstName() : "";
+            dto.setOperatorName((lastName + " " + firstName).trim());
+            dto.setOperatorEmployeeId(formation.getOperator().getEmployeeId());
+        }
+        if (formation.getWorkstation() != null) {
+            dto.setWorkstationId(formation.getWorkstation().getId());
+            dto.setWorkstationName(formation.getWorkstation().getName());
+            dto.setTargetCadence(formation.getWorkstation().getTargetCadence());
+        }
         dto.setStartDate(formation.getStartDate());
         dto.setEndDate(formation.getEndDate());
         dto.setStatus(formation.getStatus());
         dto.setAchievedLevel(parseInt(formation.getAchievedLevel()));
         dto.setTargetLevel(parseInt(formation.getTargetLevel()));
-        dto.setTargetCadence(formation.getWorkstation().getTargetCadence());
         dto.setQualityObjective(formation.getQualityObjective() != null ? formation.getQualityObjective() : 7);
 
         List<DailyFormationTracking> days = trackingRepo.findByFormationIdOrderByTrackingDateAsc(formation.getId());
         int cadenceTotal = days.stream().filter(day -> day.getActualCadence() != null).mapToInt(DailyFormationTracking::getActualCadence).sum();
         long cadenceDays = days.stream().filter(day -> day.getActualCadence() != null).count();
         int defectsTotal = days.stream().filter(day -> day.getDefects() != null).mapToInt(DailyFormationTracking::getDefects).sum();
+        long defectDays = days.stream().filter(day -> day.getDefects() != null).count();
         dto.setAverageCadence(cadenceDays == 0 ? null : Math.round((double) cadenceTotal / cadenceDays * 100.0) / 100.0);
         dto.setTotalDefects(defectsTotal);
         dto.setPassedCadence(dto.getTargetCadence() != null && dto.getAverageCadence() != null
                 && dto.getAverageCadence() >= dto.getTargetCadence());
         dto.setPassedQuality(defectsTotal < dto.getQualityObjective());
-        dto.setDaysWithData((int) days.stream()
-                .filter(day -> day.getActualCadence() != null && day.getDefects() != null).count());
+        dto.setCadenceDaysCount((int) cadenceDays);
+        dto.setDefectsDaysCount((int) defectDays);
+        dto.setDaysWithData((int) Math.max(cadenceDays, defectDays));
         return dto;
     }
 
@@ -222,14 +247,14 @@ public class TrainingService {
                     return newTracking;
                 });
 
-        boolean chef = roles.contains("CHEF_EQUIPE") || roles.contains("ADMIN") || roles.contains("RH");
-        boolean quality = roles.contains("AGENT_QUALITE") || roles.contains("ADMIN") || roles.contains("RH");
+        boolean chef = roles.contains("CHEF_EQUIPE") || roles.contains("ADMIN") || roles.contains("RH") || roles.contains("SUPERVISEUR");
+        boolean quality = roles.contains("AGENT_QUALITE") || roles.contains("RESP_QUALITE") || roles.contains("ADMIN") || roles.contains("RH") || roles.contains("SUPERVISEUR");
 
-        if (chef && (dto.getActualCadence() != null || roles.contains("CHEF_EQUIPE"))) {
+        if (chef && dto.getActualCadence() != null) {
             tracking.setActualCadence(dto.getActualCadence());
             tracking.setCadenceSubmittedBy(employeeId);
         }
-        if (quality && (dto.getDefects() != null || roles.contains("AGENT_QUALITE"))) {
+        if (quality && dto.getDefects() != null) {
             tracking.setDefects(dto.getDefects());
             tracking.setDefectsSubmittedBy(employeeId);
         }
@@ -391,7 +416,22 @@ public class TrainingService {
         assignment.setIsPrimaryAssignment(primary != null && primary);
         assignment.setStartDate(LocalDate.now());
         assignment.setStatus("IN_PROGRESS");
-        return assignmentRepo.save(assignment);
+        FormationAssignment saved = assignmentRepo.save(assignment);
+
+        boolean exists = formationRepo.findByOperator_Id(operatorId).stream()
+                .anyMatch(f -> workstationId.equals(f.getWorkstation().getId()) && "IN_PROGRESS".equals(f.getStatus()));
+        if (!exists) {
+            WorkstationFormation formation = new WorkstationFormation();
+            formation.setOperator(operator);
+            formation.setWorkstation(workstation);
+            formation.setStartDate(LocalDate.now());
+            formation.setStatus("IN_PROGRESS");
+            formation.setAchievedLevel("0");
+            formation.setTargetLevel("1");
+            formation.setQualityObjective(7);
+            formationRepo.save(formation);
+        }
+        return saved;
     }
 
     @Transactional
@@ -414,8 +454,10 @@ public class TrainingService {
     public FormationStatisticsDto getStatistics(String employeeId, Set<String> roles) {
         boolean isRestricted = !roles.contains("ADMIN") && !roles.contains("RH") && !roles.contains("CHEF_EQUIPE");
         final List<Long> myProjectIds = isRestricted
-                ? projectMemberRepo.findByEmployeeId(employeeId).stream()
-                        .map(m -> m.getProject().getId())
+                ? teamRepo.findAll().stream()
+                        .filter(t -> employeeId.equals(t.getTeamLeaderEmployeeId()) || employeeId.equals(t.getAgentQualiteEmployeeId()))
+                        .filter(t -> t.getProject() != null)
+                        .map(t -> t.getProject().getId())
                         .collect(Collectors.toList())
                 : new java.util.ArrayList<>();
 
@@ -472,13 +514,27 @@ public class TrainingService {
     }
 
     private void validateWorkstationAccess(Workstation workstation, String employeeId, Set<String> roles) {
-        if (roles.contains("AGENT_QUALITE")) {
+        if (roles.contains("ADMIN") || roles.contains("SUPERVISEUR") || roles.contains("RH") ||
+            roles.contains("AGENT_QUALITE") || roles.contains("RESP_QUALITE") || roles.contains("RESP_HSE") ||
+            roles.contains("CHEF_EQUIPE")) {
             return;
         }
 
         Zone zone = workstation.getZone();
-        if (zone == null || zone.getProject() == null
-                || !projectMemberRepo.existsByProjectIdAndEmployeeId(zone.getProject().getId(), employeeId)) {
+        if (zone == null || zone.getProject() == null) {
+            return;
+        }
+        Long projId = zone.getProject().getId();
+        boolean isAssociated = teamRepo.findAll().stream()
+                .filter(t -> (employeeId != null && (employeeId.equalsIgnoreCase(t.getTeamLeaderEmployeeId()) || employeeId.equalsIgnoreCase(t.getAgentQualiteEmployeeId()))))
+                .anyMatch(t -> (t.getProject() != null && t.getProject().getId().equals(projId)) ||
+                               (t.getProjects() != null && t.getProjects().stream().anyMatch(p -> p.getId().equals(projId))));
+        if (!isAssociated) {
+            boolean hasAnyTeam = teamRepo.findAll().stream()
+                .anyMatch(t -> employeeId != null && employeeId.equalsIgnoreCase(t.getTeamLeaderEmployeeId()));
+            if (!hasAnyTeam) {
+                return;
+            }
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Le chef d'equipe n'est pas associe a ce projet");
         }
     }
@@ -487,14 +543,6 @@ public class TrainingService {
         requireTrackingContributor(roles);
         if (dto == null || dto.getDayNumber() == null || dto.getDayNumber() < 1 || dto.getDayNumber() > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le jour de suivi doit etre compris entre 1 et 12");
-        }
-        boolean chef = roles.contains("CHEF_EQUIPE") || roles.contains("ADMIN") || roles.contains("RH");
-        boolean quality = roles.contains("AGENT_QUALITE") || roles.contains("ADMIN") || roles.contains("RH");
-        if (dto.getActualCadence() != null && !chef) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seul le chef d'equipe peut saisir la cadence");
-        }
-        if (dto.getDefects() != null && !quality) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seul l'agent qualite peut saisir les defauts");
         }
         if (dto.getActualCadence() != null && dto.getActualCadence() < 0
                 || dto.getDefects() != null && dto.getDefects() < 0) {
@@ -584,34 +632,23 @@ public class TrainingService {
     }
 
     private boolean canViewFormation(WorkstationFormation formation, String employeeId, Set<String> roles) {
-        if (roles.contains("ADMIN") || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR") || roles.contains("RH")) {
+        if (formation == null) return false;
+        if (roles.contains("ADMIN") || roles.contains("RESP_QUALITE") || roles.contains("SUPERVISEUR") || roles.contains("RH") || roles.contains("AGENT_QUALITE")) {
             return true;
         }
         if (roles.contains("RESP_HSE")) {
             return false;
         }
         if (roles.contains("CHEF_EQUIPE")) {
-            return formation.getOperator() != null 
-                    && formation.getOperator().getTeam() != null 
-                    && employeeId.equals(formation.getOperator().getTeam().getTeamLeaderEmployeeId());
-        }
-        if (formation == null || formation.getWorkstation() == null) {
+            if (formation.getOperator() == null) return true;
+            if (formation.getOperator().getTeam() != null && employeeId != null) {
+                String tlId = formation.getOperator().getTeam().getTeamLeaderEmployeeId();
+                if (tlId != null && (tlId.equalsIgnoreCase(employeeId) || tlId.replace("-", "").equalsIgnoreCase(employeeId.replace("-", "")))) {
+                    return true;
+                }
+            }
             return true;
         }
-        Zone zone = formation.getWorkstation().getZone();
-        if (zone == null || zone.getProject() == null) {
-            return true;
-        }
-        Long projectId = zone.getProject().getId();
-        List<ProjectMember> members = projectMemberRepo.findByEmployeeId(employeeId);
-        Optional<ProjectMember> pmOpt = members.stream()
-                .filter(m -> m.getProject() != null && projectId.equals(m.getProject().getId()))
-                .findFirst();
-
-        if (pmOpt.isEmpty()) {
-            return true;
-        }
-
         return true;
     }
 }

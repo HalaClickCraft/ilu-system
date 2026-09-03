@@ -9,6 +9,8 @@ import java.util.Optional;
 public interface OperatorRepository extends JpaRepository<Operator, Long> {
     Optional<Operator> findByEmployeeId(String employeeId);
     List<Operator> findByTeamId(Long teamId);
+    List<Operator> findByProjectId(Long projectId);
+    List<Operator> findByZoneId(Long zoneId);
     List<Operator> findByActiveTrue();
     List<Operator> findByActiveFalse();
     long countByActiveTrue();

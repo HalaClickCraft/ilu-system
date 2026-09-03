@@ -17,13 +17,16 @@ public class Zone {
 
     @ManyToOne
     @JoinColumn(name = "project_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"zones", "createdBy"})
     private Project project;
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"zone"})
     private List<Workstation> workstations;
 
     @ManyToOne
     @JoinColumn(name = "created_by")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "roles"})
     private User createdBy;
 
     public Long getId() { return id; }

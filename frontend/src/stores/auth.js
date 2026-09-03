@@ -1,9 +1,54 @@
 import { defineStore } from 'pinia'
 import { authApi } from '../api/endpoints.js'
 
+function decodeJwt(token) {
+  if (!token) return null
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonStr)
+  } catch (e) {
+    console.warn('Failed to parse JWT token', e)
+    return null
+  }
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.roles) {
+      parsed.roles = new Set(Array.isArray(parsed.roles) ? parsed.roles : Array.from(parsed.roles))
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function getUserRoles(user) {
+  if (!user || !user.roles) return []
+  if (user.roles instanceof Set) return Array.from(user.roles)
+  if (Array.isArray(user.roles)) {
+    return user.roles.map(r => (typeof r === 'object' && r ? r.label || r.name || '' : String(r)))
+  }
+  return []
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null,
+    user: getStoredUser(),
     token: localStorage.getItem('token') || null,
     loading: false,
     error: null,
@@ -12,25 +57,29 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
     fullName: (state) => state.user?.name || 'Utilisateur',
     primaryRole: (state) => {
-      if (!state.user?.roles || state.user.roles.size === 0) return ''
-      const priority = ['ADMIN', 'RH', 'RESP_QUALITE', 'RESP_HSE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'SUPERVISEUR']
+      const roles = getUserRoles(state.user)
+      if (roles.length === 0) return ''
+      const priority = ['ADMIN', 'RH', 'SUPERVISEUR', 'RESP_QUALITE', 'RESP_HSE', 'CHEF_EQUIPE', 'AGENT_QUALITE']
       for (const r of priority) {
-        if (state.user.roles.has(r)) return r
+        if (roles.includes(r)) return r
       }
-      return Array.from(state.user.roles)[0]
+      return roles[0]
     },
-    isAdmin: (state) => state.user?.roles?.has('ADMIN') || false,
-    isRh: (state) => state.user?.roles?.has('RH') || false,
-    isRespQualite: (state) => state.user?.roles?.has('RESP_QUALITE') || false,
-    isRespHse: (state) => state.user?.roles?.has('RESP_HSE') || false,
-    isAgentQualite: (state) => state.user?.roles?.has('AGENT_QUALITE') || false,
-    isSuperviseur: (state) => state.user?.roles?.has('SUPERVISEUR') || false,
-    isChefEquipe: (state) => state.user?.roles?.has('CHEF_EQUIPE') || false,
+    isAdmin: (state) => getUserRoles(state.user).includes('ADMIN'),
+    isRh: (state) => getUserRoles(state.user).includes('RH'),
+    isRespQualite: (state) => getUserRoles(state.user).includes('RESP_QUALITE'),
+    isRespHse: (state) => getUserRoles(state.user).includes('RESP_HSE'),
+    isAgentQualite: (state) => getUserRoles(state.user).includes('AGENT_QUALITE'),
+    isSuperviseur: (state) => getUserRoles(state.user).includes('SUPERVISEUR'),
+    isChefEquipe: (state) => getUserRoles(state.user).includes('CHEF_EQUIPE'),
     hasRole: (state) => {
-      return (role) => state.user?.roles?.has(role) || false
+      return (role) => getUserRoles(state.user).includes(role)
     },
     hasAnyRole: (state) => {
-      return (roles) => roles.some(r => state.user?.roles?.has(r))
+      return (roles) => {
+        const userRoles = getUserRoles(state.user)
+        return roles.some(r => userRoles.includes(r))
+      }
     },
   },
   actions: {
@@ -42,13 +91,21 @@ export const useAuthStore = defineStore('auth', {
         const data = response.data
         this.token = data.token
         localStorage.setItem('token', data.token)
+        const rolesArray = Array.from(data.roles || [])
         this.user = {
           id: data.id,
           employeeId: data.employeeId,
           name: data.name,
           mustChangePassword: data.mustChangePassword,
-          roles: new Set(data.roles || []),
+          roles: new Set(rolesArray),
         }
+        localStorage.setItem('user', JSON.stringify({
+          id: data.id,
+          employeeId: data.employeeId,
+          name: data.name,
+          mustChangePassword: data.mustChangePassword,
+          roles: rolesArray,
+        }))
         return { success: true, mustChangePassword: data.mustChangePassword }
       } catch (err) {
         this.error = err.response?.data?.message || 'Identifiants invalides'
@@ -71,10 +128,15 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     restoreFromToken() {
+      const stored = getStoredUser()
+      if (stored) {
+        this.user = stored
+        return
+      }
       const token = this.token
       if (!token) return
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
+      const payload = decodeJwt(token)
+      if (payload) {
         const roles = payload.roles || []
         this.user = {
           id: payload.userId || null,
@@ -83,14 +145,20 @@ export const useAuthStore = defineStore('auth', {
           mustChangePassword: false,
           roles: new Set(roles),
         }
-      } catch {
-        this.logout()
+        localStorage.setItem('user', JSON.stringify({
+          id: payload.userId || null,
+          employeeId: payload.sub,
+          name: payload.name || payload.sub,
+          mustChangePassword: false,
+          roles: roles,
+        }))
       }
     },
     logout() {
       this.user = null
       this.token = null
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
     },
   },
 })

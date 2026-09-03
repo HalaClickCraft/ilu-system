@@ -278,7 +278,7 @@ const renderContent = (content) => {
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
   
   // Lists (- Item or * Item)
-  html = html.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li class="ml-4 list-disc text-gray-700 py-0.5">$1</li>')
+  html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li class="ml-4 list-disc text-gray-700 py-0.5">$1</li>')
   
   // Wrap sequential lists in ul tags
   html = html.replace(/(<li.*<\/li>)/gs, '<ul class="my-1.5">$1</ul>')

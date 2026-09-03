@@ -32,6 +32,8 @@ class OperatorWorkflowScenariosTest {
     @Mock
     private ZoneRepository zoneRepository;
     @Mock
+    private com.ilu.system.structure.repository.WorkstationRepository workstationRepository;
+    @Mock
     private WorkstationFormationRepository workstationFormationRepository;
     @Mock
     private FormationAssignmentRepository formationAssignmentRepository;
@@ -47,6 +49,7 @@ class OperatorWorkflowScenariosTest {
                 teamRepository,
                 projectRepository,
                 zoneRepository,
+                workstationRepository,
                 workstationFormationRepository,
                 formationAssignmentRepository,
                 recyclagePlanningRepository

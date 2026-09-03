@@ -61,7 +61,7 @@ private com.ilu.system.recyclage.repository.RecyclagePlanningRepository recyclag
 @Autowired
 private com.ilu.system.operator.repository.OperatorRepository operatorRepository;
 @Autowired
-private com.ilu.system.structure.repository.ProjectMemberRepository projectMemberRepository;
+private com.ilu.system.operator.repository.TeamRepository teamRepository;
 @Autowired
 private com.ilu.system.structure.repository.WorkstationRepository workstationRepository;
 @Autowired
@@ -71,6 +71,9 @@ private com.ilu.system.structure.repository.ProjectRepository projectRepository;
 
 @jakarta.persistence.PersistenceContext
 private jakarta.persistence.EntityManager entityManager;
+
+@Autowired
+private com.ilu.system.operator.config.DataSeeder dataSeeder;
 
 @PostMapping("/reset-database")
 @org.springframework.transaction.annotation.Transactional
@@ -82,7 +85,7 @@ public ResponseEntity<String> resetDatabase() {
             "daily_formation_tracking", "workstation_formations", "evaluation_answers",
             "evaluation_questions", "evaluation_sections", "evaluation_sessions",
             "evaluation_templates", "recyclage_planning", "operator_onboarding", "operators",
-            "project_members", "workstations", "zones", "projects"
+            "teams", "team_projects", "workstations", "zones", "projects"
         };
         for (String table : tables) {
             try {
@@ -91,7 +94,11 @@ public ResponseEntity<String> resetDatabase() {
         }
         entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
         entityManager.clear();
-        return ResponseEntity.ok("Base de données totalement réinitialisée à 0 (MySQL Truncate 100%) !");
+
+        // Re-seed default structure, teams, templates and operators
+        dataSeeder.seedMockData();
+
+        return ResponseEntity.ok("Base de données totalement réinitialisée et re-semée avec succès (Projets, Zones, Postes, Équipes et Opérateurs prêts à tester) !");
     } catch (Exception e) {
         return ResponseEntity.status(500).body("Erreur: " + e.getMessage());
     }

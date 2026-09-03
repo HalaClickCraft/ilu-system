@@ -43,7 +43,7 @@ const routes = [
         name: 'training',
         component: () => import('@/views/training/TrainingView.vue'),
         meta: {
-          roles: ['ADMIN', 'RH', 'AGENT_QUALITE', 'RESP_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR'],
+          roles: ['ADMIN', 'AGENT_QUALITE', 'RESP_QUALITE', 'CHEF_EQUIPE'],
         },
       },
       {
@@ -61,7 +61,7 @@ const routes = [
         path: 'teams',
         name: 'teams',
         component: () => import('@/views/structure/TeamsView.vue'),
-        meta: { roles: ['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'] },
+        meta: { roles: ['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE', 'RESP_HSE'] },
       },
       // Admin
       {
@@ -147,7 +147,7 @@ const routes = [
         path: 'absences',
         name: 'absences',
         component: () => import('@/views/absence/GestionAbsences.vue'),
-        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR'] },
+        meta: { roles: ['ADMIN', 'RH', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RESP_HSE'] },
       },
     ],
   },
@@ -157,6 +157,9 @@ const router = createRouter({ history: createWebHistory(), routes })
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  if (authStore.isAuthenticated && !authStore.user) {
+    authStore.restoreFromToken()
+  }
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.guest && authStore.isAuthenticated) {

@@ -103,13 +103,16 @@
         </div>
         <div class="mt-3 flex items-center gap-2 text-xs text-gray-500 flex-wrap">
           <span class="bg-gray-100 px-2 py-0.5 rounded">{{ typeLabel(tpl.type) }}</span>
-          <span v-if="tpl.workstationName" class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{
-            tpl.workstationName
-          }}</span>
-          <span v-if="tpl.targetNiveau" class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded"
-            >Niveau {{ tpl.targetNiveau }}</span
-          >
-          <span>{{ tpl.validatedQuestionCount || 0 }} questions validees</span>
+          <span v-if="tpl.workstations && tpl.workstations.length > 1" class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold border border-indigo-200">
+            🔗 {{ tpl.workstations.length }} postes liés
+          </span>
+          <span v-else-if="tpl.workstationName" class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+            {{ tpl.workstationName }}
+          </span>
+          <span v-if="tpl.targetNiveau" class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded">
+            Niveau {{ tpl.targetNiveau }}
+          </span>
+          <span>{{ tpl.validatedQuestionCount || 0 }} questions validées</span>
         </div>
       </div>
       <div
@@ -129,16 +132,28 @@
       <div class="p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-bold">{{ selectedTemplate.name }}</h2>
-          <div class="flex items-center gap-3">
-            <button @click="exportQuestionsToExcel" class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button @click="exportQuestionsToExcel" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              Exporter Questions (Excel)
+              Exporter (Excel)
             </button>
-            <button v-if="canManage" @click="openImportQuestionsModal" class="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+            <button v-if="canManage" @click="openAssignModal(selectedTemplate)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Affecter Postes
+            </button>
+            <button v-if="canManage" @click="openImportQuestionsModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-              Importer Questions (Excel)
+              Importer (Excel)
             </button>
-            <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg">
+            <button v-if="canManage" @click="clearQuestions" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium transition shadow-sm" title="Vider toutes les questions pour réimporter proprement">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Vider questions
+            </button>
+            <button v-if="canManage" @click="deleteThisTemplate" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition shadow-sm" title="Supprimer définitivement ce template">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Supprimer template
+            </button>
+            <button @click="closePanel" class="p-2 hover:bg-gray-100 rounded-lg ml-1">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -152,33 +167,58 @@
         </div>
 
         <!-- Template info -->
-        <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <!-- Template info -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <div>
-            <span class="text-xs text-gray-500">Type</span>
-            <p class="font-medium">{{ typeLabel(selectedTemplate.type) }}</p>
+            <span class="text-xs text-gray-500 block mb-0.5">Type</span>
+            <p class="font-medium text-gray-900">{{ typeLabel(selectedTemplate.type) }}</p>
           </div>
           <div>
-            <span class="text-xs text-gray-500">Statut</span>
+            <span class="text-xs text-gray-500 block mb-0.5">Statut</span>
             <p>
               <span
                 :class="statusClass(selectedTemplate.status)"
-                class="text-xs font-medium px-2 py-0.5 rounded-full"
+                class="text-xs font-semibold px-2 py-0.5 rounded-full"
                 >{{ statusLabel(selectedTemplate.status) }}</span
               >
             </p>
           </div>
-          <div v-if="selectedTemplate.workstationName">
-            <span class="text-xs text-gray-500">Poste</span>
-            <p class="font-medium">{{ selectedTemplate.workstationName }}</p>
-          </div>
           <div>
-            <span class="text-xs text-gray-500">Questions validees</span>
-            <p class="font-medium">
+            <span class="text-xs text-gray-500 block mb-0.5">Questions validées</span>
+            <p class="font-medium text-gray-900">
               {{
                 templateDetail?.sections?.reduce((sum, s) => sum + (s.questions?.length || 0), 0) ||
+                selectedTemplate.validatedQuestionCount ||
                 0
               }}
             </p>
+          </div>
+
+          <!-- Workstations display -->
+          <div class="sm:col-span-2 md:col-span-1" v-if="selectedTemplate.type === 'POSTE_PRODUCTION'">
+            <span class="text-xs text-gray-500 block mb-0.5">Poste(s) affecté(s)</span>
+            <div v-if="(templateDetail?.workstations && templateDetail.workstations.length > 0) || (selectedTemplate.workstations && selectedTemplate.workstations.length > 0)" class="flex flex-wrap gap-1">
+              <span 
+                v-for="ws in (templateDetail?.workstations?.length ? templateDetail.workstations : selectedTemplate.workstations || [])" 
+                :key="ws.id" 
+                class="inline-flex items-center gap-1 text-[11px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded"
+              >
+                <span v-if="ws.projectName" class="text-indigo-500 font-normal">{{ ws.projectName }} &rsaquo;</span>
+                <span>{{ ws.name }}</span>
+              </span>
+            </div>
+            <div v-else-if="selectedTemplate.workstationName" class="font-medium text-gray-800">
+              {{ selectedTemplate.workstationName }}
+            </div>
+            <div v-else class="text-xs text-amber-600 font-medium italic">
+              Aucun poste affecté
+            </div>
+          </div>
+          <div class="sm:col-span-2 md:col-span-1" v-else>
+            <span class="text-xs text-gray-500 block mb-0.5">Portée</span>
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">
+              🌐 Global Usine (Tous postes)
+            </span>
           </div>
         </div>
 
@@ -268,13 +308,13 @@
                   <th class="border border-gray-400 px-2 py-2 text-center w-[5%]">0</th>
                   <th class="border border-gray-400 px-2 py-2 text-center w-[5%]">1</th>
                   <th class="border border-gray-400 px-3 py-2 text-left w-[16%]">Question Complémentaire</th>
-                  <th v-if="canManage && selectedTemplate.status === 'DRAFT'" class="border border-gray-400 px-2 py-2 text-center w-[8%]">Actions</th>
+                  <th v-if="canManage" class="border border-gray-400 px-2 py-2 text-center w-[8%]">Actions</th>
                 </tr>
               </thead>
               <tbody v-for="section in templateDetail?.sections" :key="section.id">
                   <!-- Section Header Row -->
                   <tr class="bg-slate-200/60 font-bold border-b border-gray-450">
-                    <td :colspan="canManage && selectedTemplate.status === 'DRAFT' ? 7 : 6" class="border border-gray-400 px-3 py-1.5 text-gray-800 uppercase tracking-wider text-[11px] bg-slate-200/50">
+                    <td :colspan="canManage ? 7 : 6" class="border border-gray-400 px-3 py-1.5 text-gray-800 uppercase tracking-wider text-[11px] bg-slate-200/50">
                       {{ section.title }}
                     </td>
                   </tr>
@@ -353,12 +393,12 @@
                     </td>
 
                     <!-- 7. Actions (Management) -->
-                    <td v-if="canManage && selectedTemplate.status === 'DRAFT'" class="border border-gray-400 p-1.5 text-center">
+                    <td v-if="canManage" class="border border-gray-400 p-1.5 text-center">
                       <div v-if="editingQuestionId !== q.id" class="flex items-center justify-center gap-1">
-                        <button @click.stop="startEditQuestion(q)" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Modifier">
+                        <button @click.stop="startEditQuestion(q)" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Modifier la question (texte, image, etc.)">
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
-                        <button @click.stop="deleteQuestion(q.id)" class="p-1 text-red-600 hover:bg-red-50 rounded" title="Supprimer">
+                        <button v-if="selectedTemplate.status === 'DRAFT' || authStore.isAdmin" @click.stop="deleteQuestion(q.id)" class="p-1 text-red-600 hover:bg-red-50 rounded" title="Supprimer la question">
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                       </div>
@@ -473,40 +513,105 @@
               <option value="ANIMATION">Animation (L vers U)</option>
             </select>
           </div>
-          <div v-if="newTemplate.type === 'POSTE_PRODUCTION' || newTemplate.type === 'ANIMATION'" class="space-y-3">
+          <!-- Info badge for GENERIC_COMMON -->
+          <div v-if="newTemplate.type === 'GENERIC_COMMON'" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-start gap-2">
+            <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <div>
-              <label class="text-sm font-medium text-gray-700">Projet *</label>
-              <select
-                v-model="newTemplate.projectId"
-                @change="newTemplate.zoneId = ''; newTemplate.workstationId = null"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1"
-              >
-                <option :value="null">-- Sélectionner un Projet --</option>
-                <option v-for="p in createTemplateProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
-              </select>
+              <p class="font-bold">Template Global Transversal</p>
+              <p class="text-blue-600 mt-0.5">Ce template est unique pour l'usine et s'applique automatiquement à tous les projets et tous les postes de travail.</p>
             </div>
+          </div>
+
+          <!-- Info badge for ANIMATION -->
+          <div v-if="newTemplate.type === 'ANIMATION'" class="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-800 flex items-start gap-2">
+            <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <div>
-              <label class="text-sm font-medium text-gray-700">Zone *</label>
-              <select
-                v-model="newTemplate.zoneId"
-                :disabled="!newTemplate.projectId"
-                @change="newTemplate.workstationId = null"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 disabled:bg-gray-100"
-              >
-                <option :value="null">-- Sélectionner une Zone --</option>
-                <option v-for="z in createTemplateZones" :key="z.id" :value="z.id">{{ z.name }}</option>
-              </select>
+              <p class="font-bold">Template Global Animation (L ➡️ U)</p>
+              <p class="text-purple-600 mt-0.5">Ce questionnaire d'animation s'applique globalement à tous les opérateurs passant du niveau L vers le niveau U.</p>
             </div>
-            <div>
-              <label class="text-sm font-medium text-gray-700">Poste de travail (Workstation) *</label>
-              <select
-                v-model="newTemplate.workstationId"
-                :disabled="!newTemplate.zoneId"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 disabled:bg-gray-100"
-              >
-                <option :value="null">-- Sélectionner un Poste --</option>
-                <option v-for="ws in createTemplateWorkstations" :key="ws.id" :value="ws.id">{{ ws.name }}</option>
-              </select>
+          </div>
+
+          <!-- Multi-workstations picker for POSTE_PRODUCTION -->
+          <div v-if="newTemplate.type === 'POSTE_PRODUCTION'" class="space-y-3">
+            <div class="border border-gray-200 rounded-xl p-3 bg-slate-50 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                  Affectation aux postes de travail
+                </label>
+                <span class="text-[11px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200">
+                  {{ newTemplate.workstationIds.length }} poste(s) sélectionné(s)
+                </span>
+              </div>
+
+              <!-- Filter controls: Project dropdown & Zone dropdown -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-gray-600 mb-0.5">1. Filtrer par Projet</label>
+                  <select v-model="createPickerProjectId" @change="createPickerZoneId = ''" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-indigo-500">
+                    <option value="">-- Choisir un Projet --</option>
+                    <option v-for="p in createTemplateProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-gray-600 mb-0.5">2. Filtrer par Zone</label>
+                  <select v-model="createPickerZoneId" :disabled="!createPickerProjectId" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400">
+                    <option value="">Toutes les zones du projet</option>
+                    <option v-for="z in createPickerAvailableZones" :key="z.id" :value="z.id">{{ z.name }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Search and bulk select/deselect in filtered view -->
+              <div v-if="createPickerProjectId" class="flex items-center justify-between gap-2 pt-1 border-t border-gray-200">
+                <input v-model="createPickerSearch" type="text" placeholder="Rechercher un poste dans ce projet..." class="flex-1 border border-gray-300 rounded-lg px-2.5 py-1 text-xs bg-white focus:ring-1 focus:ring-indigo-500" />
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" @click="selectAllInCreatePicker" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 underline">Tout cocher</button>
+                  <span class="text-gray-300">|</span>
+                  <button type="button" @click="deselectAllInCreatePicker" class="text-[11px] font-medium text-gray-500 hover:text-gray-700 underline">Décocher</button>
+                </div>
+              </div>
+
+              <!-- Workstations list for selected project/zone -->
+              <div v-if="createPickerProjectId" class="max-h-44 overflow-y-auto space-y-1.5 border border-gray-200 rounded-lg p-2 bg-white">
+                <div v-if="createPickerDisplayedWorkstations.length === 0" class="text-center py-4 text-xs text-gray-400">
+                  Aucun poste trouvé pour cette sélection
+                </div>
+                <label
+                  v-for="ws in createPickerDisplayedWorkstations"
+                  :key="ws.id"
+                  :class="newTemplate.workstationIds.includes(ws.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-700'"
+                  class="flex items-center justify-between p-2 rounded-lg border hover:bg-slate-100 cursor-pointer transition text-xs"
+                >
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" :value="ws.id" v-model="newTemplate.workstationIds" class="rounded text-emerald-600 focus:ring-emerald-500" />
+                    <span>{{ ws.name }}</span>
+                  </div>
+                  <span class="text-[10px] text-gray-400 bg-white px-1.5 py-0.5 rounded border border-gray-200">{{ ws.zoneName || 'Zone' }}</span>
+                </label>
+              </div>
+
+              <div v-else class="text-center py-4 text-xs text-gray-500 bg-white rounded-lg border border-dashed border-gray-200">
+                👉 Sélectionnez d'abord un projet ci-dessus pour afficher et cocher ses postes de travail.
+              </div>
+
+              <!-- Selected Workstations Chips Tray (Cross-Project summary) -->
+              <div v-if="newTemplate.workstationIds.length > 0" class="pt-2 border-t border-gray-200">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[11px] font-bold text-gray-700">Postes sélectionnés (Tous projets confondus) :</span>
+                  <button type="button" @click="newTemplate.workstationIds = []" class="text-[10px] text-red-600 hover:text-red-800 underline">Vider tout 🗑️</button>
+                </div>
+                <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  <span
+                    v-for="wsId in newTemplate.workstationIds"
+                    :key="wsId"
+                    class="inline-flex items-center gap-1 text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 shadow-xs"
+                  >
+                    <span class="font-medium">{{ getWorkstationInfo(wsId).projectName }} &rsaquo; {{ getWorkstationInfo(wsId).name }}</span>
+                    <button type="button" @click="removeWsFromCreate(wsId)" class="hover:text-red-600 font-bold ml-0.5">✕</button>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="flex gap-2 pt-2">
@@ -568,6 +673,107 @@
         </div>
       </div>
     </div>
+    <!-- Assign Workstations Modal (Multi-Postes / Shared Template) -->
+    <div v-if="showAssignModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" @click.self="showAssignModal = false">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 p-6 flex flex-col max-h-[85vh]">
+        <div class="flex items-center justify-between border-b pb-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Affecter le Template à plusieurs Postes</h2>
+            <p class="text-xs text-gray-500">Sélectionnez les postes de travail du même projet ou d'autres projets</p>
+          </div>
+          <button @click="showAssignModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <div class="space-y-3 overflow-y-auto flex-1 pr-1">
+          <div class="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-lg p-2.5">
+            <div>
+              <span class="text-[11px] text-sky-600 font-semibold uppercase tracking-wider block">Template sélectionné</span>
+              <span class="text-xs font-bold text-sky-900">{{ assignTargetTemplate?.name }}</span>
+            </div>
+            <span class="text-xs font-bold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200">
+              {{ selectedAssignWsIds.length }} poste(s) lié(s)
+            </span>
+          </div>
+
+          <!-- Filter controls: Project dropdown & Zone dropdown -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-gray-200">
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600 mb-0.5">1. Filtrer par Projet</label>
+              <select v-model="assignPickerProjectId" @change="assignPickerZoneId = ''" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Choisir un Projet --</option>
+                <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600 mb-0.5">2. Filtrer par Zone</label>
+              <select v-model="assignPickerZoneId" :disabled="!assignPickerProjectId" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400">
+                <option value="">Toutes les zones du projet</option>
+                <option v-for="z in assignPickerAvailableZones" :key="z.id" :value="z.id">{{ z.name }}</option>
+              </select>
+            </div>
+
+            <!-- Search and bulk actions -->
+            <div v-if="assignPickerProjectId" class="sm:col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-gray-200 mt-1">
+              <input v-model="assignPickerSearch" type="text" placeholder="Rechercher un poste dans ce projet..." class="flex-1 border border-gray-300 rounded-lg px-2.5 py-1 text-xs bg-white focus:ring-1 focus:ring-indigo-500" />
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" @click="selectAllInAssignPicker" class="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 underline">Tout cocher</button>
+                <span class="text-gray-300">|</span>
+                <button type="button" @click="deselectAllInAssignPicker" class="text-[11px] font-medium text-gray-500 hover:text-gray-700 underline">Décocher</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workstations list for selected project/zone -->
+          <div v-if="assignPickerProjectId" class="max-h-48 overflow-y-auto space-y-1.5 border border-gray-200 rounded-lg p-2 bg-white">
+            <div v-if="assignPickerDisplayedWorkstations.length === 0" class="text-center py-4 text-xs text-gray-400">
+              Aucun poste trouvé pour cette sélection
+            </div>
+            <label
+              v-for="ws in assignPickerDisplayedWorkstations"
+              :key="ws.id"
+              :class="selectedAssignWsIds.includes(ws.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-700'"
+              class="flex items-center justify-between p-2 rounded-lg border hover:bg-slate-100 cursor-pointer transition text-xs"
+            >
+              <div class="flex items-center gap-2">
+                <input type="checkbox" :value="ws.id" v-model="selectedAssignWsIds" class="rounded text-emerald-600 focus:ring-emerald-500" />
+                <span>{{ ws.name }}</span>
+              </div>
+              <span class="text-[10px] text-gray-400 bg-white px-1.5 py-0.5 rounded border border-gray-200">{{ ws.zoneName || 'Zone' }}</span>
+            </label>
+          </div>
+
+          <div v-else class="text-center py-5 text-xs text-gray-500 bg-slate-50 rounded-lg border border-dashed border-gray-200">
+            👉 Sélectionnez un projet ci-dessus pour afficher et cocher/décocher ses postes de travail.
+          </div>
+
+          <!-- Selected Workstations Chips Tray (Cross-Project summary) -->
+          <div v-if="selectedAssignWsIds.length > 0" class="pt-2 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[11px] font-bold text-gray-700">Tous les postes actuellement affectés à ce template :</span>
+              <button type="button" @click="selectedAssignWsIds = []" class="text-[10px] text-red-600 hover:text-red-800 underline">Vider tout 🗑️</button>
+            </div>
+            <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-lg border border-gray-200">
+              <span
+                v-for="wsId in selectedAssignWsIds"
+                :key="wsId"
+                class="inline-flex items-center gap-1 text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 shadow-xs"
+              >
+                <span class="font-medium">{{ getWorkstationInfo(wsId).projectName }} &rsaquo; {{ getWorkstationInfo(wsId).name }}</span>
+                <button type="button" @click="removeWsFromAssign(wsId)" class="hover:text-red-600 font-bold ml-0.5">✕</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-gray-100 mt-3">
+          <button @click="showAssignModal = false" class="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Annuler</button>
+          <button @click="saveWorkstationAssignments" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+            Enregistrer l'Affectation ({{ selectedAssignWsIds.length }} poste(s))
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Zoom Image Modal -->
     <div v-if="activeZoomImageUrl" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-zoom-out" @click="activeZoomImageUrl = null">
       <div class="relative bg-white rounded-lg p-2 max-w-4xl max-h-[85vh] overflow-auto shadow-2xl" @click.stop>
@@ -583,6 +789,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { evaluationApi, structureApi } from '@/api/endpoints'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { useUserScope } from '@/composables/useUserScope'
 
 const { isRestrictedRole, myProjectIds, loadUserProjects } = useUserScope()
@@ -625,6 +832,144 @@ const selectedTemplate = ref(null)
 const templateDetail = ref(null)
 const activeZoomImageUrl = ref(null)
 const showCreateModal = ref(false)
+const showAssignModal = ref(false)
+const assignTargetTemplate = ref(null)
+const selectedAssignWsIds = ref([])
+
+const assignPickerProjectId = ref('')
+const assignPickerZoneId = ref('')
+const assignPickerSearch = ref('')
+
+const openAssignModal = (tpl) => {
+  assignTargetTemplate.value = tpl
+  assignPickerProjectId.value = ''
+  assignPickerZoneId.value = ''
+  assignPickerSearch.value = ''
+  const existingIds = []
+  if (tpl.workstationId) existingIds.push(tpl.workstationId)
+  if (tpl.workstations && Array.isArray(tpl.workstations)) {
+    for (const w of tpl.workstations) {
+      if (w.id && !existingIds.includes(w.id)) {
+        existingIds.push(w.id)
+      }
+    }
+  }
+  selectedAssignWsIds.value = existingIds
+  showAssignModal.value = true
+}
+
+const assignPickerAvailableZones = computed(() => {
+  if (!assignPickerProjectId.value) return []
+  const p = projects.value.find(proj => proj.id === Number(assignPickerProjectId.value))
+  return p?.zones || []
+})
+
+const assignPickerDisplayedWorkstations = computed(() => {
+  if (!assignPickerProjectId.value) return []
+  const p = projects.value.find(proj => proj.id === Number(assignPickerProjectId.value))
+  if (!p) return []
+  let list = []
+  if (assignPickerZoneId.value) {
+    const z = p.zones?.find(zone => zone.id === Number(assignPickerZoneId.value))
+    list = (z?.workstations || []).map(ws => ({ ...ws, zoneName: z.name, projectName: p.name }))
+  } else {
+    list = (p.zones || []).flatMap(z => (z.workstations || []).map(ws => ({ ...ws, zoneName: z.name, projectName: p.name })))
+  }
+  if (assignPickerSearch.value) {
+    const q = assignPickerSearch.value.trim().toLowerCase()
+    list = list.filter(ws => ws.name.toLowerCase().includes(q))
+  }
+  return list
+})
+
+const selectAllInAssignPicker = () => {
+  for (const ws of assignPickerDisplayedWorkstations.value) {
+    if (!selectedAssignWsIds.value.includes(ws.id)) {
+      selectedAssignWsIds.value.push(ws.id)
+    }
+  }
+}
+
+const deselectAllInAssignPicker = () => {
+  const displayedIds = new Set(assignPickerDisplayedWorkstations.value.map(ws => ws.id))
+  selectedAssignWsIds.value = selectedAssignWsIds.value.filter(id => !displayedIds.has(id))
+}
+
+const removeWsFromAssign = (id) => {
+  selectedAssignWsIds.value = selectedAssignWsIds.value.filter(wsId => wsId !== id)
+}
+
+const saveWorkstationAssignments = async () => {
+  if (!assignTargetTemplate.value) return
+  try {
+    await evaluationApi.assignWorkstationsToTemplate(assignTargetTemplate.value.id, selectedAssignWsIds.value)
+    showAssignModal.value = false
+    await load()
+  } catch (e) {
+    alert('Erreur lors de l\'affectation: ' + (e.response?.data?.message || e.message))
+  }
+}
+
+// Helpers & State for Create Modal Picker
+const createPickerProjectId = ref('')
+const createPickerZoneId = ref('')
+const createPickerSearch = ref('')
+
+const createPickerAvailableZones = computed(() => {
+  if (!createPickerProjectId.value) return []
+  const p = projects.value.find(proj => proj.id === Number(createPickerProjectId.value))
+  return p?.zones || []
+})
+
+const createPickerDisplayedWorkstations = computed(() => {
+  if (!createPickerProjectId.value) return []
+  const p = projects.value.find(proj => proj.id === Number(createPickerProjectId.value))
+  if (!p) return []
+  let list = []
+  if (createPickerZoneId.value) {
+    const z = p.zones?.find(zone => zone.id === Number(createPickerZoneId.value))
+    list = (z?.workstations || []).map(ws => ({ ...ws, zoneName: z.name, projectName: p.name }))
+  } else {
+    list = (p.zones || []).flatMap(z => (z.workstations || []).map(ws => ({ ...ws, zoneName: z.name, projectName: p.name })))
+  }
+  if (createPickerSearch.value) {
+    const q = createPickerSearch.value.trim().toLowerCase()
+    list = list.filter(ws => ws.name.toLowerCase().includes(q))
+  }
+  return list
+})
+
+const selectAllInCreatePicker = () => {
+  for (const ws of createPickerDisplayedWorkstations.value) {
+    if (!newTemplate.workstationIds.includes(ws.id)) {
+      newTemplate.workstationIds.push(ws.id)
+    }
+  }
+}
+
+const deselectAllInCreatePicker = () => {
+  const displayedIds = new Set(createPickerDisplayedWorkstations.value.map(ws => ws.id))
+  newTemplate.workstationIds = newTemplate.workstationIds.filter(id => !displayedIds.has(id))
+}
+
+const removeWsFromCreate = (id) => {
+  newTemplate.workstationIds = newTemplate.workstationIds.filter(wsId => wsId !== id)
+}
+
+const getWorkstationInfo = (id) => {
+  for (const p of projects.value) {
+    for (const z of (p.zones || [])) {
+      for (const w of (z.workstations || [])) {
+        if (w.id === id) {
+          return { id: w.id, name: w.name, zoneName: z.name, projectName: p.name }
+        }
+      }
+    }
+  }
+  const w = workstations.value.find(ws => ws.id === id)
+  return w ? { id: w.id, name: w.name, zoneName: '', projectName: '' } : { id, name: `Poste #${id}`, zoneName: '', projectName: '' }
+}
+
 const newSectionTitle = ref('')
 const newQuestion = reactive({})
 const editingQuestionId = ref(null)
@@ -638,6 +983,7 @@ const newTemplate = reactive({
   name: '',
   description: '',
   type: 'POSTE_PRODUCTION',
+  workstationIds: [],
   workstationId: null,
   projectId: null,
   zoneId: null,
@@ -683,7 +1029,13 @@ const filteredTemplates = computed(() => {
       const wsIds = new Set(
         (proj.zones || []).flatMap(z => z.workstations || []).map(w => w.id)
       )
-      list = list.filter(t => !t.workstationId || wsIds.has(t.workstationId))
+      list = list.filter(t => {
+        if (t.type === 'GENERIC_COMMON' || t.type === 'ANIMATION') return true
+        if (!t.workstationId && (!t.workstations || t.workstations.length === 0)) return true
+        if (t.workstationId && wsIds.has(t.workstationId)) return true
+        if (Array.isArray(t.workstations) && t.workstations.some(w => wsIds.has(w.id))) return true
+        return false
+      })
     }
   }
 
@@ -692,7 +1044,13 @@ const filteredTemplates = computed(() => {
     const zone = availableZones.value.find(z => z.id === zId)
     if (zone) {
       const wsIds = new Set((zone.workstations || []).map(w => w.id))
-      list = list.filter(t => !t.workstationId || wsIds.has(t.workstationId))
+      list = list.filter(t => {
+        if (t.type === 'GENERIC_COMMON' || t.type === 'ANIMATION') return true
+        if (!t.workstationId && (!t.workstations || t.workstations.length === 0)) return true
+        if (t.workstationId && wsIds.has(t.workstationId)) return true
+        if (Array.isArray(t.workstations) && t.workstations.some(w => wsIds.has(w.id))) return true
+        return false
+      })
     }
   }
 
@@ -845,17 +1203,26 @@ async function openCreateModal() {
   newTemplate.name = ''
   newTemplate.description = ''
   newTemplate.type = 'POSTE_PRODUCTION'
+  newTemplate.workstationIds = []
   newTemplate.workstationId = null
   newTemplate.projectId = null
   newTemplate.zoneId = null
+  createPickerProjectId.value = ''
+  createPickerZoneId.value = ''
+  createPickerSearch.value = ''
   showCreateModal.value = true
 }
 
 async function createTemplate() {
   if (!newTemplate.name || !newTemplate.type) return
   try {
-    const payload = { ...newTemplate }
-    if (payload.workstationId) payload.workstationId = Number(payload.workstationId)
+    const payload = {
+      name: newTemplate.name,
+      description: newTemplate.description,
+      type: newTemplate.type,
+      workstationIds: newTemplate.workstationIds || [],
+      workstationId: newTemplate.workstationIds?.length > 0 ? newTemplate.workstationIds[0] : null
+    }
     await evaluationApi.createTemplate(payload)
     showCreateModal.value = false
     await load()
@@ -874,6 +1241,7 @@ async function addSection() {
     })
     newSectionTitle.value = ''
     await selectTemplate(selectedTemplate.value)
+    await load()
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
   }
@@ -894,6 +1262,7 @@ async function addQuestionToSection(sectionId) {
     })
     newQuestion[sectionId] = { text: '', expected: '', complementary: '', imageUrl: '' }
     await selectTemplate(selectedTemplate.value)
+    await load()
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
   }
@@ -923,6 +1292,7 @@ async function saveEditQuestion() {
     })
     editingQuestionId.value = null
     await selectTemplate(selectedTemplate.value)
+    await load()
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
   }
@@ -969,23 +1339,16 @@ function formatRoleLabel(role) {
   return labels[role] || role
 }
 
-function detectValidatorRole(questionText, explicitRoleStr) {
-  if (explicitRoleStr) {
-    const rStr = String(explicitRoleStr).toUpperCase().trim()
-    if (rStr.includes('QUALITE') || rStr.includes('QUALITÉ')) {
-      return rStr.includes('RESP') ? 'RESP_QUALITE' : 'AGENT_QUALITE'
-    } else if (rStr.includes('HSE') || rStr.includes('EHS') || rStr.includes('SÉCURITÉ') || rStr.includes('SECURITE')) {
-      return 'RESP_HSE'
-    } else if (rStr.includes('CHEF') || rStr.includes('EQUIPE') || rStr.includes('ÉQUIPE')) {
-      return 'CHEF_EQUIPE'
-    }
-  }
-  const qUpper = String(questionText).toUpperCase().trim()
-  if (qUpper.includes('EPI') || qUpper.includes('SÉCURITÉ') || qUpper.includes('SECURITE') || qUpper.includes('EHS') || qUpper.includes('ENVIRONNEMENT') || qUpper.includes('URGENCE') || qUpper.includes('DANGER') || qUpper.includes('ACCIDENT')) {
+function detectValidatorRole(questionText, explicitRoleStr, sectionTitle = '') {
+  const combined = ((explicitRoleStr || '') + ' ' + (sectionTitle || '') + ' ' + (questionText || '')).toUpperCase().trim()
+  if (combined.includes('HSE') || combined.includes('EHS') || combined.includes('SÉCURITÉ') || combined.includes('SECURITE') || combined.includes('ENVIRONNEMENT')) {
     return 'RESP_HSE'
   }
-  if (qUpper.includes('QUALITÉ') || qUpper.includes('QUALITE') || qUpper.includes('DÉFAUT') || qUpper.includes('DEFAUT') || qUpper.includes('NON CONFORME') || qUpper.includes('ESCALADE') || qUpper.includes('TRAÇABILITÉ') || qUpper.includes('TRACABILITE') || qUpper.includes('ETIQUETTE')) {
-    return 'AGENT_QUALITE'
+  if (combined.includes('QUALITÉ') || combined.includes('QUALITE') || combined.includes('KPC') || combined.includes('S/R') || combined.includes('NON CONFORME') || combined.includes('DÉFAUT') || combined.includes('DEFAUT')) {
+    return combined.includes('RESP') ? 'RESP_QUALITE' : 'AGENT_QUALITE'
+  }
+  if (combined.includes('CHEF') || combined.includes('EQUIPE') || combined.includes('ÉQUIPE')) {
+    return 'CHEF_EQUIPE'
   }
   return 'CHEF_EQUIPE'
 }
@@ -995,6 +1358,33 @@ async function deleteQuestion(questionId) {
   try {
     await evaluationApi.deleteQuestion(questionId, selectedTemplate.value.id)
     await selectTemplate(selectedTemplate.value)
+    await load()
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
+}
+
+async function clearQuestions() {
+  if (!selectedTemplate.value) return
+  if (!confirm(`Voulez-vous vraiment supprimer toutes les questions du template "${selectedTemplate.value.name}" ? Vous pourrez ensuite réimporter votre fichier Excel proprement.`)) return
+  try {
+    await evaluationApi.clearTemplateQuestions(selectedTemplate.value.id)
+    await selectTemplate(selectedTemplate.value)
+    await load()
+    alert('Toutes les questions ont été supprimées avec succès. Vous pouvez maintenant réimporter le fichier Excel.')
+  } catch (e) {
+    alert('Erreur: ' + (e.response?.data?.message || e.message))
+  }
+}
+
+async function deleteThisTemplate() {
+  if (!selectedTemplate.value) return
+  if (!confirm(`Voulez-vous vraiment supprimer définitivement le template "${selectedTemplate.value.name}" ?`)) return
+  try {
+    await evaluationApi.deleteTemplate(selectedTemplate.value.id)
+    closePanel()
+    await load()
+    alert('Template supprimé avec succès.')
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.message || e.message))
   }
@@ -1058,7 +1448,6 @@ function handleFileChange(event) {
       }
       
       // Multi-sheet / Header detection for OPmobility form
-      let rowsToProcess = []
       let qTextIdx = -1, expectedIdx = -1, roleIdx = -1, compIdx = -1
       
       // Check if header row exists in first sheet
@@ -1072,50 +1461,107 @@ function handleFileChange(event) {
       
       if (qTextIdx !== -1) {
         // Standard Tabular Format (Header row present)
+        let lastAnswer = ''
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i]
           if (!row || row.length === 0 || !row[qTextIdx]) continue
           const qText = String(row[qTextIdx]).trim()
           if (!qText) continue
           
+          let expAnswer = expectedIdx !== -1 && row[expectedIdx] ? String(row[expectedIdx]).trim() : ''
+          if (expAnswer) {
+            lastAnswer = expAnswer
+          } else if (lastAnswer) {
+            expAnswer = lastAnswer
+          }
+
           let roleVal = detectValidatorRole(qText, roleIdx !== -1 && row[roleIdx] ? String(row[roleIdx]) : '')
+          const secTitle = headers.findIndex(h => h.includes('section')) !== -1 && row[headers.findIndex(h => h.includes('section'))]
+            ? String(row[headers.findIndex(h => h.includes('section'))]).trim()
+            : 'Questions d\'évaluation'
+
           list.push({
+            sectionTitle: secTitle,
             questionText: qText,
-            expectedAnswer: expectedIdx !== -1 && row[expectedIdx] ? String(row[expectedIdx]).trim() : '',
+            expectedAnswer: expAnswer,
             validatorRole: roleVal,
             complementaryQuestions: compIdx !== -1 && row[compIdx] ? String(row[compIdx]).trim() : '',
             questionNumber: list.length + 1
           })
         }
       } else {
-        // Freeform / OPmobility Form Format (Iterate all non-empty rows across sheet)
+        // OPmobility Official Form Format
         let currentCategory = 'Général'
+        let currentSectionRole = 'CHEF_EQUIPE'
+        let lastExpectedAnswer = ''
+
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i]
           if (!row || row.length === 0) continue
           
-          // Find first non-empty cell in row
-          const cellStr = row.map(c => String(c || '').trim()).filter(Boolean).join(' ')
-          if (!cellStr || cellStr.length < 3) continue
+          const cell0 = String(row[0] || '').trim()
+          const fullRowStr = row.map(c => String(c || '').trim()).filter(Boolean).join(' ')
           
-          // Check if it's a section header or question
-          if (/^\d+[\s.-]/i.test(cellStr) || cellStr.includes('?')) {
-            // It's a question
-            let expectedAns = ''
-            if (row.length > 5 && row[5]) expectedAns = String(row[5]).trim()
-            else if (row.length > 9 && row[9]) expectedAns = String(row[9]).trim()
-            
-            let roleVal = detectValidatorRole(cellStr + ' ' + currentCategory, '')
+          if (fullRowStr.includes('VALIDATION AU POSTE') || fullRowStr.includes('Total des questions') || fullRowStr.includes('Date de validation') || fullRowStr.includes('Nom :') || fullRowStr.includes('Signature')) {
+            continue
+          }
+
+          // Check if row starts with a question number (e.g. 1-, 2-, 10-, 21-)
+          const qMatch = cell0.match(/^(\d+)[\s.-]+(.+)/s)
+          if (qMatch) {
+            const qNum = parseInt(qMatch[1], 10)
+            let qText = qMatch[2].trim()
+            let expectedAns = String(row[1] || '').trim()
+            let roleStr = String(row[2] || '').trim()
+            let compQuestion = String(row[9] || '').trim()
+
+            // Lookahead for wrapped continuation rows (e.g. non-conforme?, PPM, etc.)
+            while (i + 1 < jsonData.length && jsonData[i+1] && jsonData[i+1].length > 0) {
+              const nextCell0 = String(jsonData[i+1][0] || '').trim()
+              const nextCell1 = String(jsonData[i+1][1] || '').trim()
+              const nextCell9 = String(jsonData[i+1][9] || '').trim()
+              
+              if (nextCell0.match(/^(\d+)[\s.-]+/) || nextCell0.length > 30 || nextCell0.includes('Total') || nextCell0.includes('Signature')) {
+                break
+              }
+              
+              if (nextCell0) {
+                qText += ' ' + nextCell0
+              }
+              if (nextCell1) {
+                expectedAns = expectedAns ? expectedAns + ' - ' + nextCell1 : nextCell1
+              }
+              if (nextCell9) {
+                compQuestion = compQuestion ? compQuestion + ' | ' + nextCell9 : nextCell9
+              }
+              i++
+            }
+
+            if (roleStr) {
+              currentSectionRole = detectValidatorRole(qText, roleStr, currentCategory)
+            } else {
+              currentSectionRole = detectValidatorRole(qText, '', currentCategory)
+            }
+
+            if (expectedAns) {
+              lastExpectedAnswer = expectedAns
+            } else if (lastExpectedAnswer) {
+              // Forward-fill expected answer for merged/shared question rows!
+              expectedAns = lastExpectedAnswer
+            }
+
             list.push({
-              questionText: cellStr,
+              questionNumber: qNum,
+              sectionTitle: currentCategory,
+              questionText: qText,
               expectedAnswer: expectedAns,
-              validatorRole: roleVal,
-              complementaryQuestions: '',
-              questionNumber: list.length + 1
+              validatorRole: currentSectionRole,
+              complementaryQuestions: compQuestion
             })
-          } else if (cellStr.length < 40 && !cellStr.includes(':')) {
-            // Likely a section category name (e.g. Sécurité, 5S, Traçabilité)
-            currentCategory = cellStr
+          } else if (cell0 && cell0.length > 2 && cell0.length < 50 && !cell0.includes('1: Bonne') && !cell0.includes('0: Mauvaise') && !cell0.includes('Réponse espérée')) {
+            currentCategory = cell0
+            currentSectionRole = detectValidatorRole('', '', currentCategory)
+            lastExpectedAnswer = ''
           }
         }
       }
@@ -1144,6 +1590,7 @@ async function submitImport() {
     importSuccess.value = `${parsedQuestions.value.length} questions ont été importées avec succès !`
     parsedQuestions.value = []
     await selectTemplate(selectedTemplate.value)
+    await load()
   } catch (err) {
     console.error(err)
     importError.value = err.response?.data?.message || err.message || "Erreur lors de l'importation."
@@ -1152,54 +1599,204 @@ async function submitImport() {
   }
 }
 
-function exportQuestionsToExcel() {
+async function exportQuestionsToExcel() {
   if (!selectedTemplate.value) return
   const tpl = selectedTemplate.value
+  const sections = templateDetail.value?.sections || tpl.sections || []
   
-  const data = [
-    ["TEMPLATE D'ÉVALUATION", tpl.name || ""],
-    ["POSTE DE TRAVAIL", tpl.workstationName || "Tous postes"],
-    ["TYPE", typeLabel(tpl.type) || ""],
-    ["STATUT", statusLabel(tpl.status) || ""],
-    [""],
-    ["N°", "Section", "Texte de la Question", "Réponse Attendue", "Rôle Validateur", "Questions Complémentaires", "Statut"]
-  ]
+  const workstationNames = tpl.workstations?.length > 0
+    ? tpl.workstations.map(w => (w.projectName ? `${w.projectName} › ${w.name}` : w.name)).join(', ')
+    : (tpl.workstationName || "Tous postes")
 
-  let qNum = 1
-  const sections = tpl.sections || []
-  sections.forEach(sec => {
-    const qList = sec.questions || []
-    qList.forEach(q => {
-      data.push([
-        qNum++,
-        sec.title || sec.name || "Général",
-        q.questionText || "",
-        q.expectedAnswer || "",
-        formatRoleLabel(q.validatorRole),
-        q.complementaryQuestions || "",
-        q.status === 'VALIDATED' ? "Validée" : (q.status === 'REJECTED' ? "Rejetée" : "En attente")
-      ])
-    })
+  const subTitle = tpl.type === 'ANIMATION'
+    ? "Capacité d'animation et suivi (applicable pour le passage de L à U)"
+    : (tpl.type === 'GENERIC_COMMON' ? "Partie Générique Commune" : "Partie Production")
+
+  const workbook = new ExcelJS.Workbook()
+  const sheetName = tpl.type === 'ANIMATION' ? "Capacité d'animation Suivi" : "Validation au poste"
+  const worksheet = workbook.addWorksheet(sheetName, {
+    views: [{ showGridLines: true }]
   })
 
-  const worksheet = XLSX.utils.aoa_to_sheet(data)
-  
-  // Set custom column widths for beautiful layout readability
-  worksheet['!cols'] = [
-    { wch: 6 },  // N°
-    { wch: 25 }, // Section
-    { wch: 50 }, // Texte de la Question
-    { wch: 40 }, // Réponse Attendue
-    { wch: 22 }, // Rôle Validateur
-    { wch: 35 }, // Questions Complémentaires
-    { wch: 15 }  // Statut
+  // Define column dimensions
+  worksheet.columns = [
+    { key: 'q', width: 48 },
+    { key: 'ans', width: 38 },
+    { key: 'val', width: 24 },
+    { key: 's0', width: 8 },
+    { key: 's1', width: 8 },
+    { key: 'comp', width: 40 },
   ]
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Questions")
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+    left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+    bottom: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+    right: { style: 'thin', color: { argb: 'FF9CA3AF' } }
+  }
 
-  const safeName = (tpl.name || "Template").replace(/[^a-z0-9]/gi, '_')
-  XLSX.writeFile(workbook, `Template_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  // 1. Top Header Banner
+  worksheet.mergeCells('A1:F1')
+  const r1 = worksheet.getCell('A1')
+  r1.value = `VALIDATION AU POSTE : ${(tpl.name || 'ÉVALUATION').toUpperCase()}`
+  r1.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFFFFFF' } }
+  r1.alignment = { horizontal: 'center', vertical: 'middle' }
+  r1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF003F15' } }
+  worksheet.getRow(1).height = 28
+
+  // 2. Subtitle Banner
+  worksheet.mergeCells('A2:F2')
+  const r2 = worksheet.getCell('A2')
+  r2.value = subTitle
+  r2.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF374151' } }
+  r2.alignment = { horizontal: 'center', vertical: 'middle' }
+  r2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+  worksheet.getRow(2).height = 20
+
+  // 3. Metadata & Scoring Legend
+  worksheet.getCell('A4').value = 'Nom : _______________________________'
+  worksheet.getCell('A4').font = { name: 'Calibri', size: 10, bold: true }
+  worksheet.getCell('C4').value = "Date d'évaluation : ________________"
+  worksheet.getCell('C4').font = { name: 'Calibri', size: 10, bold: true }
+
+  worksheet.getCell('A5').value = `Poste(s) de travail : ${workstationNames}`
+  worksheet.getCell('A5').font = { name: 'Calibri', size: 10 }
+  worksheet.getCell('F5').value = '1 : Bonne réponse   |   0 : Mauvaise réponse'
+  worksheet.getCell('F5').font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF003F15' } }
+  worksheet.getCell('F5').alignment = { horizontal: 'right' }
+
+  // 4. Table Header (Row 7)
+  const headerRow = worksheet.getRow(7)
+  headerRow.values = ['Question', 'Réponse espérée', 'Validateur', '0', '1', 'Question Complémentaire']
+  headerRow.height = 24
+  headerRow.eachCell((cell, colNum) => {
+    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF111827' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+    cell.border = thinBorder
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  })
+  worksheet.getCell('A7').alignment = { horizontal: 'left', vertical: 'middle' }
+  worksheet.getCell('B7').alignment = { horizontal: 'left', vertical: 'middle' }
+  worksheet.getCell('F7').alignment = { horizontal: 'left', vertical: 'middle' }
+
+  let currRowNum = 8
+  let qNum = 1
+  let totalQuestionsCount = 0
+
+  sections.forEach(sec => {
+    const qList = sec.questions || []
+    if (qList.length > 0 || sec.title) {
+      // Section Header Row
+      worksheet.mergeCells(`A${currRowNum}:F${currRowNum}`)
+      const secCell = worksheet.getCell(`A${currRowNum}`)
+      secCell.value = (sec.title || 'GÉNÉRAL').toUpperCase()
+      secCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E293B' } }
+      secCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+      secCell.border = thinBorder
+      secCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
+      worksheet.getRow(currRowNum).height = 22
+      currRowNum++
+
+      // Question Rows
+      qList.forEach(q => {
+        totalQuestionsCount++
+        const row = worksheet.getRow(currRowNum)
+        const roleLabel = formatRoleLabel(q.validatorRole)
+        row.values = [
+          `${qNum++}- ${q.questionText || ''}`,
+          q.expectedAnswer || '',
+          roleLabel ? `à valider par ${roleLabel}` : '',
+          '',
+          '',
+          q.complementaryQuestions || ''
+        ]
+        row.height = 28
+        row.eachCell((cell, colNum) => {
+          cell.border = thinBorder
+          cell.alignment = { vertical: 'middle', wrapText: true }
+          if (colNum === 1) cell.font = { name: 'Calibri', size: 10, bold: false }
+          if (colNum === 2) {
+            cell.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF4B5563' } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }
+          }
+          if (colNum === 3) {
+            cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF1E40AF' } }
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+          }
+          if (colNum === 4 || colNum === 5) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B7280' } }
+          }
+          if (colNum === 6) {
+            cell.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF6B21A8' } }
+          }
+        })
+        currRowNum++
+      })
+    }
+  })
+
+  // 5. Evaluation Summary Block
+  currRowNum++
+  worksheet.getCell(`C${currRowNum}`).value = 'Total des questions :'
+  worksheet.getCell(`C${currRowNum}`).font = { name: 'Calibri', size: 10, bold: true }
+  worksheet.getCell(`D${currRowNum}`).value = totalQuestionsCount
+  worksheet.getCell(`D${currRowNum}`).font = { name: 'Calibri', size: 11, bold: true }
+  worksheet.getCell(`D${currRowNum}`).alignment = { horizontal: 'center' }
+
+  currRowNum++
+  worksheet.getCell(`C${currRowNum}`).value = 'Total des réponses correctes :'
+  worksheet.getCell(`C${currRowNum}`).font = { name: 'Calibri', size: 10, bold: true }
+  worksheet.getCell(`D${currRowNum}`).value = '____'
+  worksheet.getCell(`D${currRowNum}`).alignment = { horizontal: 'center' }
+
+  currRowNum++
+  worksheet.getCell(`C${currRowNum}`).value = 'Score final :'
+  worksheet.getCell(`C${currRowNum}`).font = { name: 'Calibri', size: 10, bold: true }
+  worksheet.getCell(`D${currRowNum}`).value = '____ %'
+  worksheet.getCell(`D${currRowNum}`).alignment = { horizontal: 'center' }
+
+  currRowNum += 2
+  worksheet.getCell(`A${currRowNum}`).value = 'Décision :   [   ] Validé (≥ 80%)      [   ] Non Validé (< 80%)'
+  worksheet.getCell(`A${currRowNum}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1F2937' } }
+
+  // 6. Signatures Box
+  currRowNum += 2
+  const sigHeadersRow = worksheet.getRow(currRowNum)
+  sigHeadersRow.values = [
+    'Signature Opérateur',
+    'Signature Responsable HSE',
+    'Signature Chef d\'Équipe',
+    '',
+    '',
+    'Signature Agent Qualité'
+  ]
+  sigHeadersRow.height = 20
+  sigHeadersRow.eachCell((cell) => {
+    cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF374151' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+    cell.border = thinBorder
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  })
+
+  currRowNum++
+  const sigBoxRow = worksheet.getRow(currRowNum)
+  sigBoxRow.height = 45
+  sigBoxRow.values = ['', '', '', '', '', '']
+  sigBoxRow.eachCell((cell) => {
+    cell.border = thinBorder
+  })
+
+  // Write file in browser
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = window.URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  const safeName = (tpl.name || 'Evaluation').replace(/[^a-z0-9]/gi, '_')
+  anchor.download = `Fiche_Evaluation_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`
+  anchor.click()
+  window.URL.revokeObjectURL(url)
 }
 
 onMounted(load)

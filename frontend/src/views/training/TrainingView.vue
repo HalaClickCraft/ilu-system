@@ -331,7 +331,7 @@
     <div v-if="currentWorkflowTab === 'retard' && canSeeRetard" class="space-y-4">
       <div v-if="overdueFormations.length" class="rounded-xl border border-red-200 bg-red-50/50 shadow-sm p-4">
         <h3 class="text-sm font-semibold text-red-800 mb-3 flex items-center gap-2">
-          <svg class="w-4.5 h-4.5 text-red-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          <svg class="w-5 h-5 flex-shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
           Formations Actives en Retard (> 14 jours d'inactivité)
         </h3>
         <div class="overflow-x-auto border border-red-100 rounded-lg bg-white">
@@ -362,7 +362,7 @@
 
       <div v-if="evalEnRetard.length" class="rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm p-4">
         <h3 class="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
-          <svg class="w-4.5 h-4.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <svg class="w-5 h-5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           Évaluations Finales en Retard (12 jours complétés, en attente de décision)
         </h3>
         <div class="overflow-x-auto border border-amber-100 rounded-lg bg-white">
@@ -480,6 +480,16 @@ function formatNiveau(level) {
   return level
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return '-'
+  try {
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch (e) {
+    return dateStr
+  }
+}
+
 const route = useRoute()
 const formations = ref([])
 const eligibleOperators = ref([])
@@ -561,8 +571,8 @@ const getProjectNamesForOperator = (operatorId) => {
   return op?.project ? [op.project.name] : []
 }
 
-const canEditCadence = computed(() => authStore.isChefEquipe)
-const canEditDefects = computed(() => authStore.isAgentQualite)
+const canEditCadence = computed(() => authStore.isChefEquipe || authStore.isAdmin || authStore.isRh || authStore.isSuperviseur)
+const canEditDefects = computed(() => authStore.isAgentQualite || authStore.isRespQualite || authStore.isAdmin || authStore.isRh || authStore.isSuperviseur)
 const canContribute = computed(() => canEditCadence.value || canEditDefects.value)
 const canAssignPost = computed(() => authStore.isChefEquipe || authStore.isAdmin || authStore.isSuperviseur)
 import { useUserScope } from '@/composables/useUserScope'
@@ -639,7 +649,12 @@ const operatorGroups = computed(() => {
     group.formations.push(f)
     if (f.status === 'IN_PROGRESS') {
       group.inProgress++
-      group.currentFormation = { workstationName: f.workstationName, daysWithData: f.daysWithData }
+      group.currentFormation = {
+        workstationName: f.workstationName,
+        daysWithData: f.daysWithData,
+        cadenceDaysCount: f.cadenceDaysCount,
+        defectsDaysCount: f.defectsDaysCount
+      }
     }
     if (f.status === 'COMPLETED') { group.completed++; group.hasCompletedFormation = true }
     if (f.status === 'FAILED') group.failed++
@@ -772,53 +787,73 @@ const statusClass = s => ({ IN_PROGRESS: 'bg-amber-100 text-amber-700', COMPLETE
 
 const load = async () => {
   error.value = ''
-  const [formationsResponse, operatorsResponse] = await Promise.all([
-    trainingApi.getFormations(), operatorsApi.getActive(),
-  ])
-  formations.value = formationsResponse.data
-  if (canContribute.value || canAssignPost.value) {
-    availableStructure.value = (await trainingApi.getAvailableStructure()).data
-  } else {
-    availableStructure.value = []
-  }
-  const completion = (await onboardingApi.batchCheckComplete(operatorsResponse.data.map(operator => operator.id))).data
-  const operatorsInProgress = new Set(
-    formations.value.filter(f => f.status === 'IN_PROGRESS').map(f => f.operatorId)
-  )
-  eligibleOperators.value = operatorsResponse.data.filter(
-    operator => completion[operator.id] && !operatorsInProgress.has(operator.id)
-  )
-  // Fetch project/teams/operator data for project & shift filtering
-  const [projRes, teamsRes, opsRes] = await Promise.allSettled([
-    structureApi.getAll(),
-    structureApi.getTeams(),
-    operatorsApi.getAll(),
-  ])
-  if (projRes.status === 'fulfilled') projects.value = projRes.value.data || []
-  if (teamsRes.status === 'fulfilled') teams.value = teamsRes.value.data || []
-  if (opsRes.status === 'fulfilled') allOperatorsData.value = opsRes.value.data || []
-  // Load evaluation sessions to check for overdue evaluations
-  if (canSeeRetard.value) {
-    try {
-      const evalRes = await evaluationApi.getHistory()
-      const completedFormations = new Set(formations.value.filter(f => f.status === 'COMPLETED').map(f => f.operatorId + '-' + f.workstationId))
-     const evalData = Array.isArray(evalRes.data) ? evalRes.data : (evalRes.data?.content || evalRes.data?.items || [])
-evalEnRetard.value = evalData.filter(s =>
-  s.status === 'COMPLETED' && !completedFormations.has((s.operatorId || s.operator?.id) + '-' + (s.formationId || ''))
-)
-    } catch (e) {
-      console.error('Error loading eval retard', e)
+  try {
+    const [formationsRes, operatorsRes, structRes, projRes, teamsRes, opsRes] = await Promise.allSettled([
+      trainingApi.getFormations(),
+      operatorsApi.getActive(),
+      (canContribute.value || canAssignPost.value) ? trainingApi.getAvailableStructure() : Promise.resolve({ data: [] }),
+      structureApi.getAll(),
+      structureApi.getTeams(),
+      operatorsApi.getAll(),
+    ])
+
+    const rawFormations = formationsRes.status === 'fulfilled' ? (formationsRes.value.data || []) : []
+    formations.value = Array.isArray(rawFormations) ? rawFormations : (rawFormations.content || rawFormations.formations || [])
+
+    const rawActiveOps = operatorsRes.status === 'fulfilled' ? (operatorsRes.value.data || []) : []
+    const activeOps = Array.isArray(rawActiveOps) ? rawActiveOps : (rawActiveOps.content || rawActiveOps.operators || [])
+
+    availableStructure.value = structRes.status === 'fulfilled' ? (structRes.value.data || []) : []
+    projects.value = projRes.status === 'fulfilled' ? (projRes.value.data || []) : []
+    teams.value = teamsRes.status === 'fulfilled' ? (teamsRes.value.data || []) : []
+    const rawAllOps = opsRes.status === 'fulfilled' ? (opsRes.value.data || []) : []
+    allOperatorsData.value = Array.isArray(rawAllOps) ? rawAllOps : (rawAllOps.content || rawAllOps.operators || [])
+
+    let completion = {}
+    if (activeOps.length > 0) {
+      try {
+        const compRes = await onboardingApi.batchCheckComplete(activeOps.map(op => op.id).filter(Boolean))
+        completion = compRes.data || {}
+      } catch (e) {
+        console.warn('Onboarding check failed', e)
+      }
     }
+
+    const operatorsInProgress = new Set(
+      formations.value.filter(f => f.status === 'IN_PROGRESS').map(f => f.operatorId).filter(Boolean)
+    )
+    eligibleOperators.value = activeOps.filter(
+      op => (completion[op.id] ?? true) && !operatorsInProgress.has(op.id)
+    )
+
+    if (canSeeRetard.value) {
+      try {
+        const evalRes = await evaluationApi.getHistory()
+        const completedFormations = new Set(formations.value.filter(f => f.status === 'COMPLETED').map(f => f.operatorId + '-' + f.workstationId))
+        const evalData = Array.isArray(evalRes.data) ? evalRes.data : (evalRes.data?.content || evalRes.data?.items || [])
+        evalEnRetard.value = evalData.filter(s =>
+          s.status === 'COMPLETED' && !completedFormations.has((s.operatorId || s.operator?.id) + '-' + (s.formationId || ''))
+        )
+      } catch (e) {
+        console.error('Error loading eval retard', e)
+      }
+    }
+  } catch (e) {
+    console.error('Error in load', e)
+    error.value = e.response?.data?.message || 'Impossible de charger les formations.'
   }
 }
 
 const createFormation = async () => {
   creating.value = true; error.value = ''
   try {
+    const opId = form.operatorIds && form.operatorIds.length ? form.operatorIds[0] : null
     await trainingApi.createFormations(form.workstationId, form.operatorIds)
     showCreate.value = false
     form.projectId = ''; form.zoneId = ''; form.workstationId = ''; form.operatorIds = []
     await load()
+    currentWorkflowTab.value = 'active'
+    if (opId) selectedOperatorId.value = opId
   } catch (e) {
     error.value = e.response?.data?.message || 'Impossible de créer la formation.'
   } finally { creating.value = false }
@@ -831,11 +866,16 @@ const startFormation = operator => {
 }
 
 const openDailyBatch = () => {
-  // FIX: each formation now gets its own next day-to-fill (daysWithData + 1),
-  // instead of one global "batchDay" being forced onto every operator - which
-  // used to overwrite/repeat the wrong day for anyone not on day 1.
   for (const f of batchFilteredFormations.value) {
-    batchEntries[f.id] = { cadence: null, defauts: null, dayNumber: Math.min((f.daysWithData || 0) + 1, 12) }
+    let nextDay = 1
+    if (canEditCadence.value && !canEditDefects.value) {
+      nextDay = (f.cadenceDaysCount != null ? f.cadenceDaysCount : f.daysWithData || 0) + 1
+    } else if (canEditDefects.value && !canEditCadence.value) {
+      nextDay = (f.defectsDaysCount != null ? f.defectsDaysCount : f.daysWithData || 0) + 1
+    } else {
+      nextDay = (f.daysWithData || 0) + 1
+    }
+    batchEntries[f.id] = { cadence: null, defauts: null, dayNumber: Math.min(nextDay, 12) }
   }
   showDailyBatch.value = true
 }
@@ -887,7 +927,16 @@ const savingSingle = ref(false)
 
 watch(() => selectedGroup.value, (newGroup) => {
   if (newGroup && newGroup.currentFormation) {
-    singleEntry.dayNumber = Math.min((newGroup.currentFormation.daysWithData || 0) + 1, 12)
+    const cf = newGroup.currentFormation
+    let nextDay = 1
+    if (canEditCadence.value && !canEditDefects.value) {
+      nextDay = (cf.cadenceDaysCount != null ? cf.cadenceDaysCount : cf.daysWithData || 0) + 1
+    } else if (canEditDefects.value && !canEditCadence.value) {
+      nextDay = (cf.defectsDaysCount != null ? cf.defectsDaysCount : cf.daysWithData || 0) + 1
+    } else {
+      nextDay = (cf.daysWithData || 0) + 1
+    }
+    singleEntry.dayNumber = Math.min(nextDay, 12)
     singleEntry.cadence = null
     singleEntry.defauts = null
   } else {
@@ -927,6 +976,8 @@ const assignOperatorWorkstation = async (op) => {
     await trainingApi.createFormations(form.workstationId, form.operatorIds)
     form.projectId = ''; form.zoneId = ''; form.workstationId = ''; form.operatorIds = []
     await load()
+    currentWorkflowTab.value = 'active'
+    if (op?.id) selectedOperatorId.value = op.id
   } catch (e) {
     error.value = e.response?.data?.message || "Impossible d'affecter l'opérateur."
   } finally {

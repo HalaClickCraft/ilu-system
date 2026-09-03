@@ -207,25 +207,16 @@ public class ChatbotService {
         }
         sb.append("\n");
 
-        sb.append("### MEMBRES DES PROJETS & GROUPES SUPPORT (SUPPORT TEAMS)\n");
-        for (Project p : projects) {
-            sb.append("- Projet '").append(p.getName()).append("' :\n");
-            if (p.getMembers() == null || p.getMembers().isEmpty()) {
-                sb.append("  * Aucun membre/groupe support configuré.\n");
-            } else {
-                for (var m : p.getMembers()) {
-                    sb.append("  * ").append(m.getEmployeeName()).append(" (Matricule: ").append(m.getEmployeeId())
-                            .append(") | Rôle: ").append(m.getProjectRole().name()).append("\n");
-                }
-            }
-        }
-        sb.append("\n");
-
-        sb.append("### ÉQUIPES & CHEFS\n");
+        sb.append("### ÉQUIPES & ENCADREMENT (TEAMS & STAFF)\n");
         for (Team t : teams) {
-            String chefNom = t.getTeamLeader() != null ? t.getTeamLeader() : "Aucun";
+            String pName = t.getProject() != null ? t.getProject().getName() : "Non attribué";
             long teamOps = operators.stream().filter(o -> o.getTeam() != null && o.getTeam().getId().equals(t.getId())).count();
-            sb.append("- Équipe '").append(t.getName()).append("' : ").append(teamOps).append(" opérateurs (Chef: ").append(chefNom).append(").\n");
+            sb.append("- Équipe '").append(t.getName()).append("' (Projet: ").append(pName).append(") : ").append(teamOps).append(" opérateurs :\n");
+            if (t.getTeamLeader() != null) sb.append("  * Chef d'Équipe: ").append(t.getTeamLeader()).append(" (Matricule: ").append(t.getTeamLeaderEmployeeId()).append(")\n");
+            if (t.getAgentQualite() != null) sb.append("  * Agent Qualité: ").append(t.getAgentQualite()).append(" (Matricule: ").append(t.getAgentQualiteEmployeeId()).append(")\n");
+            if (t.getQualityManager() != null) sb.append("  * Resp. Qualité: ").append(t.getQualityManager()).append(" (Matricule: ").append(t.getQualityManagerEmployeeId()).append(")\n");
+            if (t.getProjectManager() != null) sb.append("  * Superviseur: ").append(t.getProjectManager()).append(" (Matricule: ").append(t.getProjectManagerEmployeeId()).append(")\n");
+            if (t.getHseManager() != null) sb.append("  * Resp. HSE: ").append(t.getHseManager()).append(" (Matricule: ").append(t.getHseManagerEmployeeId()).append(")\n");
         }
         sb.append("\n");
 

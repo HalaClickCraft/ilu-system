@@ -62,8 +62,38 @@
       </div>
     </div>
 
-    <!-- Master-Detail Split Workspace -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+    <!-- Main Tab Navigation -->
+    <div class="border-b border-gray-200">
+      <nav class="-mb-px flex gap-6">
+        <button
+          @click="activeMainTab = 'directory'"
+          :class="[
+            activeMainTab === 'directory'
+              ? 'border-sky-600 text-sky-600 font-bold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium',
+            'py-3 px-1 border-b-2 text-sm transition-colors flex items-center gap-2'
+          ]"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Annuaire des Opérateurs
+        </button>
+        <button
+          @click="activeMainTab = 'assignment'"
+          :class="[
+            activeMainTab === 'assignment'
+              ? 'border-emerald-600 text-emerald-600 font-bold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium',
+            'py-3 px-1 border-b-2 text-sm transition-colors flex items-center gap-2'
+          ]"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+          Affectation à mon Équipe (par Chef d'Équipe)
+        </button>
+      </nav>
+    </div>
+
+    <!-- TAB 1: Master-Detail Split Workspace -->
+    <div v-if="activeMainTab === 'directory'" class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
       <!-- Left Pane: Operator Directory (Annuaire) - 2/5 width -->
       <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[70vh]">
         <!-- Search bar inside left pane -->
@@ -155,15 +185,22 @@
           </div>
 
           <!-- Quick action panel -->
-          <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-wrap gap-2">
+          <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-wrap items-center gap-2">
             <button
-              v-if="selectedOperator.active !== false && auth.hasAnyRole(['CHEF_EQUIPE', 'SUPERVISEUR', 'ADMIN', 'RH', 'AGENT_QUALITE'])"
+              v-if="selectedOperator.active !== false && auth.hasAnyRole(['CHEF_EQUIPE', 'SUPERVISEUR', 'ADMIN', 'RH', 'AGENT_QUALITE']) && hasValidFormations"
               @click="$router.push('/training?operatorId=' + selectedOperator.id)"
               class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-md transition transform hover:scale-105"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Affecter à un nouveau poste
             </button>
+            <div
+              v-else-if="selectedOperator.active !== false && !hasValidFormations"
+              class="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg font-medium"
+            >
+              <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Formation initiale requise avant nouvelle affectation</span>
+            </div>
             <button
               v-if="auth.hasAnyRole(['ADMIN', 'RH'])"
               @click="openEditModal(selectedOperator)"
@@ -187,6 +224,15 @@
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
               Activer
+            </button>
+            <button
+              v-if="auth.hasAnyRole(['ADMIN', 'RH'])"
+              @click="deletePermanently(selectedOperator)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 text-xs font-semibold rounded-lg shadow-sm transition"
+              title="Supprimer définitivement l'opérateur de la base de données"
+            >
+              <svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Supprimer définitivement
             </button>
           </div>
 
@@ -250,7 +296,102 @@
       </div>
     </div>
 
-    <!-- Create Operator Modal -->
+    <!-- TAB 2: Affectation des Opérateurs par le Chef d'Équipe -->
+    <div v-if="activeMainTab === 'assignment'" class="space-y-4">
+      <!-- Success/Error Banner -->
+      <div v-if="assignBannerMsg" class="rounded-xl p-4 text-sm font-medium border flex items-center justify-between transition shadow-sm"
+        :class="assignBannerSuccess ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'">
+        <div class="flex items-center gap-2">
+          <span>{{ assignBannerMsg }}</span>
+        </div>
+        <button @click="assignBannerMsg = ''" class="text-xs text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+
+      <!-- Controls & Search Header -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- Search input by Nom, Prénom, or Matricule -->
+        <div class="relative flex-1 max-w-md">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input
+            v-model="assignSearch"
+            type="text"
+            placeholder="Rechercher par Nom, Prénom ou Matricule (ex: OP001, ALAMI)..."
+            class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <!-- Count Badge for Unassigned Operators -->
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            {{ unassignedCount }} opérateur(s) non-affecté(s) à attribuer
+          </span>
+        </div>
+      </div>
+
+      <!-- Operators Assignment Grid -->
+      <div v-if="filteredAssignOperators.length === 0" class="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+        <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+        Aucun opérateur correspondant trouvé pour cette recherche.
+      </div>
+
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div
+          v-for="op in filteredAssignOperators"
+          :key="op.id"
+          class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+        >
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-sm">
+                  {{ (op.firstName?.[0] || '') + (op.lastName?.[0] || '') }}
+                </div>
+                <div>
+                  <h3 class="font-bold text-gray-900 text-sm leading-snug">{{ op.lastName }} {{ op.firstName }}</h3>
+                  <span class="text-[11px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ op.employeeId }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-1 text-xs text-gray-600 mb-4 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Statut Équipe:</span>
+                <span v-if="isOpInMyTeam(op)" class="font-bold text-emerald-600">Mon Équipe</span>
+                <span v-else-if="op.team" class="font-semibold text-slate-700">{{ op.team.teamLeader ? 'Équipe ' + op.team.teamLeader : op.team.name }}</span>
+                <span v-else class="font-semibold text-amber-600 italic">Non assigné</span>
+              </div>
+              <div class="flex justify-between" v-if="op.project">
+                <span class="text-gray-400">Projet:</span>
+                <span class="font-medium text-gray-800">{{ op.project.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div class="pt-2 border-t border-gray-100">
+            <button
+              v-if="isOpInMyTeam(op)"
+              @click="removeFromMyTeam(op)"
+              class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-lg text-xs transition border border-red-200 flex items-center justify-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Retirer de mon équipe
+            </button>
+            <button
+              v-else
+              @click="assignToMyTeam(op)"
+              class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+              + Affecter à mon équipe
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Nouvel Opérateur</h2>
@@ -430,14 +571,42 @@
 </template>
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { operatorsApi, structureApi } from '@/api/endpoints'
+import { operatorsApi, structureApi, teamsApi } from '@/api/endpoints'
 import { formatDate } from '@/shared/utils/date'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 
 import * as XLSX from 'xlsx'
 
+import { useUserScope } from '@/composables/useUserScope'
+
 const auth = useAuthStore()
+const { loadUserProjects, filterOperators, isRestrictedRole } = useUserScope()
+
+const activeMainTab = ref('directory')
+const assignSearch = ref('')
+const assignFilterMode = ref('unassigned')
+const assignBannerMsg = ref('')
+const assignBannerSuccess = ref(true)
+
+const operators = ref([])
+const projects = ref([])
+const teams = ref([])
+const chefProjects = ref([])
+const useChefProjects = ref(false)
+const loading = ref(true)
+
+const search = ref('')
+const selectedProjectFilter = ref('')
+const selectedTeamFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(15)
+const sortBy = ref('lastName')
+const sortOrder = ref('asc')
+
+const selectedOperatorId = ref(null)
+const selectedOperatorFormations = ref([])
+const formationsLoading = ref(false)
 
 function formatNiveau(level) {
   if (!level) return '-'
@@ -448,70 +617,198 @@ function formatNiveau(level) {
   return level
 }
 
-const operators = ref([])
-const projects = ref([])
-
-const selectedOperatorId = ref(null)
-const selectedOperatorFormations = ref([])
-const formationsLoading = ref(false)
-
-const selectedOperator = computed(() => {
-  const list = sortedOperators.value
-  if (!selectedOperatorId.value && list.length > 0) {
-    return list[0]
-  }
-  return operators.value.find(op => op.id === selectedOperatorId.value) || null
+const hasValidFormations = computed(() => {
+  if (!selectedOperator.value) return false
+  if (selectedOperator.value.operatorType === 'DEJA_EN_POSTE') return true
+  const list = selectedOperatorFormations.value || []
+  return list.some(f => f.status === 'VALIDEE' || f.status === 'COMPLETED' || f.achievedLevel === '3' || f.achievedLevel === 'U' || f.achievedLevel === '2' || f.achievedLevel === 'L' || f.achievedLevel === '1' || f.achievedLevel === 'I')
 })
 
-watch(() => selectedOperator.value?.id, (newId) => {
-  if (newOpIdVal(newId)) {
-    selectedOperatorId.value = newId
-  }
-})
-
-function newOpIdVal(id) {
-  return id && selectedOperatorId.value !== id
-}
-
-watch(selectedOperatorId, async (newId) => {
-  if (!newId) {
+watch(selectedOperatorId, async (id) => {
+  if (!id) {
     selectedOperatorFormations.value = []
     return
   }
   formationsLoading.value = true
   try {
-    const res = await operatorsApi.getFormations(newId)
-    selectedOperatorFormations.value = res.data || []
+    const res = await operatorsApi.getFormations(id)
+    selectedOperatorFormations.value = Array.isArray(res.data) ? res.data : []
   } catch (e) {
-    console.error('Error loading formations:', e)
+    console.error('Error loading operator formations:', e)
+    selectedOperatorFormations.value = []
   } finally {
     formationsLoading.value = false
   }
 }, { immediate: true })
 
-const opStatusLabel = (s) => ({ IN_PROGRESS: 'En Cours', COMPLETED: 'Terminée', FAILED: 'Échouée', PLANNED: 'Planifiée' })[s] || s
-const opStatusClass = (s) => ({ IN_PROGRESS: 'bg-amber-50 text-amber-700 border border-amber-200', COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-200', FAILED: 'bg-red-50 text-red-700 border border-red-200', PLANNED: 'bg-gray-50 text-gray-600' })[s] || 'bg-gray-50 text-gray-600'
+// 1. Base scoped operators:
+// - Responsable Qualité, Superviseur, RH, HSE, Admin see ALL operators across all shifts
+// - Chef d'Équipe & Agent Qualité see ONLY operators in their assigned shift(s) / team(s)
+const scopedOperators = computed(() => {
+  if (auth.isRespQualite || auth.isSuperviseur || auth.isRh || auth.isAdmin || auth.isRespHse) {
+    return operators.value || []
+  }
+  if (auth.isChefEquipe || auth.isAgentQualite) {
+    return (operators.value || []).filter(op => isOpInMyTeam(op))
+  }
+  return operators.value || []
+})
 
-const totalActiveCount = computed(() => scopedOperators.value.filter(o => o.active !== false).length)
-const totalNewRecruits = computed(() => scopedOperators.value.filter(o => o.operatorType !== 'DEJA_EN_POSTE').length)
-const totalInactives = computed(() => scopedOperators.value.filter(o => o.active === false).length)
-const teams = ref([])
-const chefProjects = ref([])
-const useChefProjects = ref(false)
-const loading = ref(true)
-const search = ref('')
-const selectedProjectFilter = ref('')
-const selectedTeamFilter = ref('')
+// 2. Filtered operators (search & dropdown filters)
+const filteredOperators = computed(() => {
+  let result = scopedOperators.value || []
+  if (selectedProjectFilter.value) {
+    const pid = Number(selectedProjectFilter.value)
+    result = result.filter(op => op.project?.id === pid)
+  }
+  if (selectedTeamFilter.value) {
+    const tid = Number(selectedTeamFilter.value)
+    result = result.filter(op => op.team?.id === tid)
+  }
+  const q = (search.value || '').toLowerCase()
+  if (q) {
+    result = result.filter(o =>
+      `${o.lastName || ''} ${o.firstName || ''} ${o.employeeId || ''}`.toLowerCase().includes(q)
+    )
+  }
+  return result
+})
+
+// 3. Sorted operators
+const sortedOperators = computed(() => {
+  const result = [...filteredOperators.value]
+  const field = sortBy.value
+  const order = sortOrder.value === 'asc' ? 1 : -1
+  result.sort((a, b) => {
+    let valA = '', valB = ''
+    if (field === 'lastName') {
+      valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase()
+      valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase()
+    } else if (field === 'employeeId') {
+      valA = (a.employeeId || '').toLowerCase()
+      valB = (b.employeeId || '').toLowerCase()
+    } else if (field === 'team') {
+      valA = (a.team?.name || '').toLowerCase()
+      valB = (b.team?.name || '').toLowerCase()
+    } else if (field === 'hireDate') {
+      valA = a.hireDate || ''
+      valB = b.hireDate || ''
+    } else if (field === 'exitDate') {
+      valA = a.exitDate || ''
+      valB = b.exitDate || ''
+    } else if (field === 'active') {
+      valA = a.active !== false ? '1' : '0'
+      valB = b.active !== false ? '1' : '0'
+    }
+    if (valA < valB) return -1 * order
+    if (valA > valB) return 1 * order
+    return 0
+  })
+  return result
+})
+
+// 4. Selected operator (now safely accesses sortedOperators!)
+const selectedOperator = computed(() => {
+  const list = sortedOperators.value
+  if (!selectedOperatorId.value && list.length > 0) {
+    return list[0]
+  }
+  return (operators.value || []).find(op => op.id === selectedOperatorId.value) || null
+})
+
+// 5. Stats counters
+const totalActiveCount = computed(() => (scopedOperators.value || []).filter(o => o && o.active !== false).length)
+const totalNewRecruits = computed(() => (scopedOperators.value || []).filter(o => o && o.operatorType !== 'DEJA_EN_POSTE').length)
+const totalInactives = computed(() => (scopedOperators.value || []).filter(o => o && o.active === false).length)
 const showCreateModal = ref(false)
 const creating = ref(false)
 const error = ref('')
 
-// Pagination and Sorting state
-const currentPage = ref(1)
-const pageSize = ref(15)
-const sortBy = ref('lastName')
-const sortOrder = ref('asc')
+const unassignedCount = computed(() => {
+  return (operators.value || []).filter(op => op && op.active !== false && !op.team).length
+})
 
+const myTeamCount = computed(() => {
+  return (operators.value || []).filter(op => op && op.active !== false && isOpInMyTeam(op)).length
+})
+
+const isOpInMyTeam = (op) => {
+  if (!op || !op.team) return false
+  const userEmpId = auth.user?.employeeId
+  const userName = auth.user?.name ? auth.user.name.toLowerCase() : null
+  const leaderEmpId = op.team.teamLeaderEmployeeId
+  const leaderName = op.team.teamLeader ? op.team.teamLeader.toLowerCase() : null
+
+  if (leaderEmpId && userEmpId && leaderEmpId === userEmpId) return true
+  if (leaderName && userName && leaderName === userName) return true
+  return false
+}
+
+const filteredAssignOperators = computed(() => {
+  let list = (operators.value || []).filter(op => op && op.active !== false && !op.team)
+
+  if (assignSearch.value && assignSearch.value.trim()) {
+    const q = assignSearch.value.trim().toLowerCase()
+    list = list.filter(op => {
+      const fn = (op.firstName || '').toLowerCase()
+      const ln = (op.lastName || '').toLowerCase()
+      const empId = (op.employeeId || '').toLowerCase()
+      return fn.includes(q) || ln.includes(q) || empId.includes(q) || `${ln} ${fn}`.includes(q)
+    })
+  }
+
+  return list
+})
+
+const assignToMyTeam = async (op) => {
+  const userEmpId = auth.user?.employeeId
+  const userName = auth.user?.name ? auth.user.name.toLowerCase() : null
+
+  let userTeam = (teams.value || []).find(t => {
+    const leaderEmpId = t.teamLeaderEmployeeId
+    const leaderName = t.teamLeader ? t.teamLeader.toLowerCase() : null
+    if (leaderEmpId && userEmpId && leaderEmpId === userEmpId) return true
+    if (leaderName && userName && leaderName === userName) return true
+    return false
+  })
+
+  if (!userTeam && auth.hasAnyRole(['SUPERVISEUR', 'ADMIN', 'RH'])) {
+    userTeam = (teams.value || [])[0]
+  }
+
+  if (!userTeam) {
+    showAssignBanner("Aucune équipe configurée pour votre compte Chef d'Équipe. Veuillez contacter l'administrateur.", false)
+    return
+  }
+
+  try {
+    await teamsApi.assignChef(op.id, userTeam.id)
+    showAssignBanner(`L'opérateur ${op.lastName || ''} ${op.firstName || ''} (${op.employeeId || ''}) a été affecté avec succès à votre équipe.`)
+    await fetchOperators()
+    await fetchTeams()
+  } catch (e) {
+    showAssignBanner("Erreur lors de l'affectation de l'opérateur.", false)
+  }
+}
+
+const removeFromMyTeam = async (op) => {
+  try {
+    await teamsApi.assignChef(op.id, null)
+    showAssignBanner(`L'opérateur ${op.lastName || ''} ${op.firstName || ''} (${op.employeeId || ''}) a été retiré de votre équipe.`)
+    await fetchOperators()
+    await fetchTeams()
+  } catch (e) {
+    showAssignBanner("Erreur lors du retrait de l'opérateur.", false)
+  }
+}
+
+const showAssignBanner = (msg, success = true) => {
+  assignBannerMsg.value = msg
+  assignBannerSuccess.value = success
+  setTimeout(() => { assignBannerMsg.value = '' }, 5000)
+}
+
+// Pagination and Sorting state
 const projectPages = ref({})
 const collapsedProjects = ref(new Set())
 
@@ -581,35 +878,49 @@ const projectList = computed(() => {
 
 // Build team list from teams data
 const teamList = computed(() => {
-  return teams.value.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
+  if (!Array.isArray(teams.value)) return []
+  return teams.value.map(t => ({ id: t.id, name: t.name })).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 })
 
 const filteredTeams = computed(() => {
-  if (!form.value.projectId) return []
-  return teams.value.filter(t => t.projects?.some(p => p.id === Number(form.value.projectId)))
+  if (!form.value.projectId || !Array.isArray(teams.value)) return []
+  const pid = Number(form.value.projectId)
+  return teams.value.filter(t => {
+    if (t.projects && t.projects.some(p => p.id === pid)) return true
+    if (t.project && t.project.id === pid) return true
+    return false
+  })
 })
 
 const filteredEditTeams = computed(() => {
-  if (!editForm.value.projectId) return []
-  return teams.value.filter(t => t.projects?.some(p => p.id === Number(editForm.value.projectId)))
+  if (!editForm.value.projectId || !Array.isArray(teams.value)) return []
+  const pid = Number(editForm.value.projectId)
+  return teams.value.filter(t => {
+    if (t.projects && t.projects.some(p => p.id === pid)) return true
+    if (t.project && t.project.id === pid) return true
+    return false
+  })
 })
 
-// Project(s) led by the current chef d'equipe (based on project membership),
-// used to restrict what he can see to only his own project's operators.
+// Project(s) led by the current chef d'equipe (based on project membership)
 const myChefMember = computed(() => {
   const empId = auth.user?.employeeId
+  if (!Array.isArray(projects.value)) return null
   for (const p of projects.value) {
-    const m = p.members?.find(mem => mem.employeeId === empId)
-    if (m) return m
+    if (Array.isArray(p.members)) {
+      const m = p.members.find(mem => mem.employeeId === empId)
+      if (m) return m
+    }
   }
   return null
 })
 
 const myProjectIds = computed(() => {
   const empId = auth.user?.employeeId
+  if (!Array.isArray(projects.value)) return new Set()
   return new Set(
     projects.value
-      .filter(p => p.members?.some(m => m.employeeId === empId))
+      .filter(p => Array.isArray(p.members) && p.members.some(m => m.employeeId === empId))
       .map(p => p.id)
   )
 })
@@ -621,50 +932,9 @@ const getOperatorProjects = (op) => {
   return op.project ? [op.project.name] : []
 }
 
-import { useUserScope } from '@/composables/useUserScope'
-
-const { loadUserProjects, filterOperators, isRestrictedRole } = useUserScope()
-
-// Base operator list, strictly scoped by role and project/shift assignments:
-const scopedOperators = computed(() => {
-  return filterOperators(operators.value)
-})
-
-// Operators filtered by search, project, team, and shift
-const filteredOperators = computed(() => {
-  let result = scopedOperators.value
-
-  // Filter by project
-  if (selectedProjectFilter.value) {
-    const pid = Number(selectedProjectFilter.value)
-    result = result.filter(op => op.project?.id === pid)
-  }
-
-
-
-  // Filter by team
-  if (selectedTeamFilter.value) {
-    const tid = Number(selectedTeamFilter.value)
-    result = result.filter(op => op.team?.id === tid)
-  }
-
-  // Filter by search text
-  const q = search.value.toLowerCase()
-  if (q) {
-    result = result.filter(o =>
-      `${o.lastName} ${o.firstName} ${o.employeeId}`.toLowerCase().includes(q)
-    )
-  }
-
-  return result
-})
-
-// Group operators by project - name of the project, then each operator underneath.
-// Used for multi-project roles (RH, Superviseur, Qualite, Admin...) to see
-// "who works with who" per project at a glance.
 const groupedByProject = computed(() => {
   const groups = {}
-  for (const op of filteredOperators.value) {
+  for (const op of (filteredOperators.value || [])) {
     const proj = op.project
     const key = proj ? proj.id : '_none'
     if (!groups[key]) {
@@ -679,40 +949,7 @@ const groupedByProject = computed(() => {
   })
 })
 
-const sortedOperators = computed(() => {
-  const result = [...filteredOperators.value]
-  const field = sortBy.value
-  const order = sortOrder.value === 'asc' ? 1 : -1
-  
-  result.sort((a, b) => {
-    let valA = '', valB = ''
-    if (field === 'lastName') {
-      valA = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase()
-      valB = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase()
-    } else if (field === 'employeeId') {
-      valA = (a.employeeId || '').toLowerCase()
-      valB = (b.employeeId || '').toLowerCase()
-    } else if (field === 'team') {
-      valA = (a.team?.name || '').toLowerCase()
-      valB = (b.team?.name || '').toLowerCase()
-    } else if (field === 'hireDate') {
-      valA = a.hireDate || ''
-      valB = b.hireDate || ''
-    } else if (field === 'exitDate') {
-      valA = a.exitDate || ''
-      valB = b.exitDate || ''
-    } else if (field === 'active') {
-      valA = a.active !== false ? '1' : '0'
-      valB = b.active !== false ? '1' : '0'
-    }
-    
-    if (valA < valB) return -1 * order
-    if (valA > valB) return 1 * order
-    return 0
-  })
-  
-  return result
-})
+
 
 const paginatedOperators = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -771,30 +1008,31 @@ const paginatedGroupedByProject = computed(() => {
 
 // Selected project name for the header bar
 const selectedProjectName = computed(() => {
-  if (!selectedProjectFilter.value) return ''
+  if (!selectedProjectFilter.value || !Array.isArray(projects.value)) return ''
   return projects.value.find(p => p.id === Number(selectedProjectFilter.value))?.name || ''
 })
 
 const selectedProjectZones = computed(() => {
   const list = useChefProjects.value ? chefProjects.value : projects.value
-  if (!form.value.projectId || !list.length) return []
+  if (!form.value.projectId || !Array.isArray(list)) return []
   const p = list.find(pr => pr.id === form.value.projectId)
-  return p?.zones || []
+  return Array.isArray(p?.zones) ? p.zones : []
 })
 
 const selectedZoneWorkstations = computed(() => {
-  if (!form.value.zoneId) return []
+  if (!form.value.zoneId || !Array.isArray(selectedProjectZones.value)) return []
   const zone = selectedProjectZones.value.find(z => z.id === form.value.zoneId)
-  return zone?.workstations || []
+  return Array.isArray(zone?.workstations) ? zone.workstations : []
 })
 
 const fetchOperators = async () => {
   loading.value = true
   try {
     const r = await operatorsApi.getAll()
-    operators.value = r.data
+    operators.value = Array.isArray(r.data) ? r.data : []
   } catch (e) {
     console.error(e)
+    operators.value = []
   } finally {
     loading.value = false
   }
@@ -802,18 +1040,21 @@ const fetchOperators = async () => {
 
 const fetchProjects = async () => {
   try {
-    projects.value = (await structureApi.getAll()).data
+    const r = await structureApi.getAll()
+    projects.value = Array.isArray(r.data) ? r.data : []
   } catch (e) {
     console.error(e)
+    projects.value = []
   }
 }
 
 const fetchTeams = async () => {
   try {
     const r = await structureApi.getTeams()
-    teams.value = r.data || []
+    teams.value = Array.isArray(r.data) ? r.data : []
   } catch (e) {
     console.error(e)
+    teams.value = []
   }
 }
 
@@ -822,9 +1063,10 @@ const openCreateModal = async () => {
   error.value = ''
   useChefProjects.value = false
   chefProjects.value = []
-  if (!projects.value.length) await fetchProjects()
-  if (auth.isChefEquipe && projects.value.length > 0) {
-    const myProjects = projects.value.filter(p => p.members?.some(m => m.employeeId === auth.user?.employeeId))
+  if (!Array.isArray(projects.value) || !projects.value.length) await fetchProjects()
+  if (!Array.isArray(teams.value) || !teams.value.length) await fetchTeams()
+  if (auth.isChefEquipe && Array.isArray(projects.value) && projects.value.length > 0) {
+    const myProjects = projects.value.filter(p => Array.isArray(p.members) && p.members.some(m => m.employeeId === auth.user?.employeeId))
     if (myProjects.length > 0) {
       chefProjects.value = myProjects
       useChefProjects.value = true
@@ -846,16 +1088,27 @@ const createOperator = async () => {
       workstationId: form.value.workstationId || null,
     }
     if (auth.isChefEquipe) {
-      const myTeam = teams.value.find(t => t.teamLeaderEmployeeId === auth.user?.employeeId)
+      const userEmpId = (auth.user?.employeeId || '').trim().toLowerCase()
+      const userName = (auth.user?.name || '').trim().toLowerCase()
+      const myTeam = (teams.value || []).find(t => {
+        const leaderEmpId = (t.teamLeaderEmployeeId || '').trim().toLowerCase()
+        const leaderName = (t.teamLeader || '').trim().toLowerCase()
+        if (userEmpId && leaderEmpId === userEmpId) return true
+        if (userName && leaderName === userName) return true
+        return false
+      })
       if (myTeam) {
         payload.teamId = myTeam.id
       }
     } else {
       payload.teamId = form.value.teamId || null
     }
-    await operatorsApi.create(payload)
+    const res = await operatorsApi.create(payload)
     showCreateModal.value = false
-    fetchOperators()
+    await fetchOperators()
+    if (res.data?.id) {
+      selectedOperatorId.value = res.data.id
+    }
   } catch (e) {
     const msg = e.response?.data?.message || e.message || 'Erreur inconnue'
     error.value = msg + ' (status: ' + (e.response?.status || 'n/a') + ')'
@@ -869,6 +1122,24 @@ const confirmData = ref({ visible: false, title: '', message: '', type: 'danger'
 const pendingAction = ref(null)
 const deactivateOperator = (id) => { confirmData.value = { visible: true, title: "Désactiver l'opérateur", message: 'Voulez-vous vraiment désactiver cet opérateur ?', type: 'danger' }; pendingAction.value = async () => { try { await operatorsApi.deactivate(id); fetchOperators() } catch (e) { console.error(e) } } }
 const activateOperator = (id) => { confirmData.value = { visible: true, title: "Activer l'opérateur", message: 'Voulez-vous réactiver cet opérateur ?', type: 'info' }; pendingAction.value = async () => { try { await operatorsApi.activate(id); fetchOperators() } catch (e) { console.error(e) } } }
+const deletePermanently = (op) => {
+  confirmData.value = {
+    visible: true,
+    title: "Suppression définitive de l'opérateur",
+    message: `ATTENTION : Êtes-vous sûr de vouloir supprimer définitivement ${op.lastName} ${op.firstName} (${op.employeeId}) ? Toutes ses formations, évaluations, sessions et plannings associés seront supprimés de la base de données de manière irréversible.`,
+    type: 'danger'
+  };
+  pendingAction.value = async () => {
+    try {
+      await operatorsApi.deletePermanently(op.id);
+      selectedOperatorId.value = null;
+      await fetchOperators();
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de la suppression: ' + (e.response?.data?.message || e.message));
+    }
+  };
+};
 const handleConfirm = () => { confirmData.value.visible = false; if (pendingAction.value) { pendingAction.value(); pendingAction.value = null } }
 const handleCancel = () => { confirmData.value.visible = false; pendingAction.value = null }
 
@@ -1068,8 +1339,12 @@ function exportOperatorsToExcel() {
   XLSX.writeFile(workbook, `Liste_Operateurs_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-onMounted(async () => {
-  await loadUserProjects()
-  await Promise.allSettled([fetchOperators(), fetchProjects(), fetchTeams()])
+onMounted(() => {
+  Promise.allSettled([
+    loadUserProjects(),
+    fetchOperators(),
+    fetchProjects(),
+    fetchTeams()
+  ])
 })
 </script>

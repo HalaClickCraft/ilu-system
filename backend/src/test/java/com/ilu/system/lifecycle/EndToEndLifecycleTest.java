@@ -38,7 +38,6 @@ class EndToEndLifecycleTest {
     @Mock private ProjectRepository projectRepo;
     @Mock private ZoneRepository zoneRepo;
     @Mock private WorkstationRepository wsRepo;
-    @Mock private ProjectMemberRepository memberRepo;
 
     // Operator Mocks
     @Mock private OperatorRepository operatorRepo;
@@ -64,9 +63,9 @@ class EndToEndLifecycleTest {
 
     @BeforeEach
     void setUp() {
-        structureService = new StructureService(projectRepo, zoneRepo, wsRepo, memberRepo, null);
+        structureService = new StructureService(projectRepo, zoneRepo, wsRepo, null);
         operatorService = new OperatorService(
-                operatorRepo, teamRepo, projectRepo, zoneRepo,
+                operatorRepo, teamRepo, projectRepo, zoneRepo, wsRepo,
                 formationRepo, assignmentRepo, recyclageRepo
         );
         evaluationService = new EvaluationService(
@@ -104,12 +103,6 @@ class EndToEndLifecycleTest {
         ws.setTargetIluLevel("L");
 
         when(projectRepo.findById(100L)).thenReturn(Optional.of(project));
-        when(memberRepo.save(any(ProjectMember.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // Assign Chef d'Équipe to Project
-        var pmDto = structureService.addMember(100L, "TL-99", "Hassan Chef", "TEAM_LEADER");
-        assertNotNull(pmDto);
-        assertEquals("TL-99", pmDto.employeeId());
 
         // ====================================================================
         // STEP 2: CREATE OPERATOR & ASSIGN TO CHEF D'ÉQUIPE TEAM
@@ -118,6 +111,7 @@ class EndToEndLifecycleTest {
         team.setId(1L);
         team.setTeamLeader("Hassan Chef");
         team.setTeamLeaderEmployeeId("TL-99");
+        team.setProject(project);
 
         CreateOperatorRequest opReq = new CreateOperatorRequest();
         opReq.setEmployeeId("OP-888");

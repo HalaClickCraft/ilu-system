@@ -19,4 +19,8 @@ public interface EvaluationAnswerRepository extends JpaRepository<EvaluationAnsw
     @Modifying
     @Query("DELETE FROM EvaluationAnswer a WHERE a.question.id = :questionId")
     void deleteByQuestionId(Long questionId);
+
+    @Modifying
+    @Query("DELETE FROM EvaluationAnswer a WHERE a.session.id = :sessionId")
+    void deleteBySessionId(Long sessionId);
 }

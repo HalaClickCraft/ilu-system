@@ -19,4 +19,6 @@ public interface AbsenceRepository extends JpaRepository<Absence, Long> {
     Optional<Absence> findByOperator_IdAndStatus(Long operatorId, AbsenceStatus status);
 
     boolean existsByOperator_IdAndStatus(Long operatorId, AbsenceStatus status);
+
+    void deleteByOperator_Id(Long operatorId);
 }

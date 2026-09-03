@@ -1,89 +1,90 @@
 <template>
-  <div class="space-y-6">
-    <!-- Excel-style Yellow Title Banner -->
-    <div>
-      <p class="text-xs text-gray-500 italic mb-1">
-        Indicateur de polyvalence : Minimum 6 personnes formés par poste => 6 personnes en L
-      </p>
-      <div class="w-full bg-yellow-400 border-2 border-yellow-500 rounded px-5 py-3 flex items-center gap-3">
-        <h1 class="text-xl font-extrabold text-gray-900 tracking-wide uppercase flex flex-wrap items-center gap-3">
-          MATRICE DE POLYVALENCE
-          <span v-if="selectedProjectName" class="text-lg">— {{ selectedProjectName }}</span>
-        </h1>
-      </div>
-    </div>
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 ml-auto">
-        <div v-if="showProjectFilter" class="flex items-center gap-2">
-          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Projet:</label>
-          <select v-model="selectedProject" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[180px]">
-            <option value="">Tous les projets</option>
-            <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </div>
-        
-        <!-- Toggle to show operators in integration -->
-        <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          <input type="checkbox" id="show-in-training" v-model="showInTraining" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-          <label for="show-in-training" class="text-xs font-semibold text-gray-700 whitespace-nowrap cursor-pointer select-none">En cours d'intégration</label>
+  <div class="space-y-4">
+    <!-- Sleek Compact Header Card -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <!-- Title & Subtitle -->
+        <div class="flex items-center gap-3">
+          <div class="bg-amber-400 text-gray-950 font-black px-3 py-1.5 rounded-lg text-sm tracking-wider uppercase shadow-xs">
+            Matrice de Polyvalence
+          </div>
+          <div class="text-xs text-gray-500 font-medium">
+            <span v-if="selectedProjectName" class="font-bold text-gray-800">{{ selectedProjectName }} &bull; </span>
+            <span>Indicateur cible : Min. 6 personnes formées par poste (&ge; Niveau L)</span>
+          </div>
         </div>
 
-        <button v-if="matrixData.operators?.length" @click="exportMatrixToExcel" class="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition text-sm font-medium shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Exporter Matrix
-        </button>
-        <button @click="openImportModal" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition text-sm font-medium shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-          Importer Certifications
-        </button>
-      </div>
-    </div>
+        <!-- Right Controls (Project, Integration, Actions) -->
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <div v-if="showProjectFilter" class="flex items-center gap-1.5">
+            <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">Projet :</label>
+            <select v-model="selectedProject" class="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-sky-500 outline-none bg-gray-50">
+              <option value="">Tous les projets</option>
+              <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
 
-    <!-- Campaign Tabs -->
-    <div v-if="campaignTabs.length > 0" class="border-b border-gray-200">
-      <nav class="-mb-px flex space-x-6 overflow-x-auto pb-1" aria-label="Tabs">
+          <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 cursor-pointer text-xs font-medium text-gray-700 hover:bg-gray-100 transition select-none">
+            <input type="checkbox" id="show-in-training" v-model="showInTraining" class="w-3.5 h-3.5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
+            <span>En cours d'intégration</span>
+          </label>
+
+          <button v-if="matrixData.operators?.length" @click="exportMatrixToExcel" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Exporter Matrix
+          </button>
+          <button @click="openImportModal" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Importer Certifications
+          </button>
+        </div>
+      </div>
+
+      <!-- Campaign Tabs (Clean Concise Labels) -->
+      <div v-if="campaignTabs.length > 0" class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 overflow-x-auto">
         <button
           v-for="tab in campaignTabs"
           :key="tab.key"
           @click="selectedCampaignTab = tab.key"
           :class="[
             selectedCampaignTab === tab.key
-              ? 'border-sky-600 text-sky-700 font-bold border-b-2'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2',
-            'whitespace-nowrap py-3 px-1 text-sm font-medium transition focus:outline-none'
+              ? 'bg-sky-50 text-sky-800 border-sky-300 font-bold shadow-xs'
+              : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200 font-medium',
+            'whitespace-nowrap px-3.5 py-1.5 text-xs rounded-lg border transition focus:outline-none'
           ]"
         >
           {{ tab.label }}
         </button>
-      </nav>
+      </div>
     </div>
-    <!-- Filters Row -->
-    <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+
+    <!-- Filters & Legend Row -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-xs">
       <div class="flex items-center gap-2 flex-wrap">
         <input
           v-model="matrixSearch"
           type="text"
-          placeholder="Rechercher un opérateur (nom, matricule...)"
-          class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 w-64"
+          placeholder="Rechercher un opérateur..."
+          class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 w-56"
         />
-        <select v-model="selectedTeamId" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 min-w-[150px]">
-          <option value="">Toutes les équipes (Chefs d'équipe)</option>
+        <select v-model="selectedTeamId" class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500 min-w-[140px]">
+          <option value="">Toutes les équipes</option>
           <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
         </select>
-        <select v-model="matrixPageSize" class="px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500">
-          <option :value="10">10 par page</option>
-          <option :value="25">25 par page</option>
-          <option :value="50">50 par page</option>
-          <option :value="100">100 par page</option>
+        <select v-model="matrixPageSize" class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-sky-500">
+          <option :value="10">10 / page</option>
+          <option :value="25">25 / page</option>
+          <option :value="50">50 / page</option>
+          <option :value="100">100 / page</option>
         </select>
       </div>
       
       <!-- Legends — exact Excel colors -->
-      <div class="flex items-center gap-4 text-[11px] font-medium text-gray-600">
-        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-gray-300 inline-block bg-white"></span> Non formé</span>
-        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#FFC000"></span> Niveau I (en cours)</span>
-        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#4472C4"></span> Niveau L (autonome)</span>
-        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded inline-block" style="background:#00B050"></span> Niveau U (expert)</span>
+      <div class="flex items-center gap-3 text-[11px] font-medium text-gray-600">
+        <span class="flex items-center gap-1"><span class="w-3.5 h-3.5 rounded border border-gray-300 inline-block bg-white"></span> Non formé</span>
+        <span class="flex items-center gap-1"><span class="w-3.5 h-3.5 rounded inline-block" style="background:#FFC000"></span> I (en cours)</span>
+        <span class="flex items-center gap-1"><span class="w-3.5 h-3.5 rounded inline-block" style="background:#4472C4"></span> L (autonome)</span>
+        <span class="flex items-center gap-1"><span class="w-3.5 h-3.5 rounded inline-block" style="background:#00B050"></span> U (expert)</span>
       </div>
     </div>
 
@@ -418,11 +419,7 @@ const campaignTabs = computed(() => {
   const tabsList = Array.from(keys).map(key => {
     const [year, category] = key.split('-')
     const typeLabel = category === 'EVAL_INITIALE' ? 'Éval. Initiale' : 'Recyclage'
-    
-    const firstPlanning = plannings.value.find(p => p.projectId && p.status !== 'ANNULEE')
-    const projName = firstPlanning ? (projectList.value.find(p => p.id === firstPlanning.projectId)?.name || 'Projet') : 'Projet'
-    
-    const label = `${projName} ${year} ${typeLabel}`
+    const label = `${year} ${typeLabel}`
     return {
       key,
       label,
@@ -495,7 +492,6 @@ const zones = computed(() => {
 })
 
 const allColumns = computed(() => zones.value.flatMap(z => z.workstations))
-
 function getColumnDate(op, col) {
   if (col.isGeneric) {
     return op.genericPassed ? formatDate(op.genericDate) : '-'
@@ -586,17 +582,31 @@ function isDefauthequeCol(col) {
 }
 
 function getTrainedCount(op) {
-  if (!op.workstations) return 0
   let count = 0
-  Object.entries(op.workstations).forEach(([wsId, ws]) => {
-    const matchedWs = (matrixData.value.workstations || []).find(w => String(w.id) === String(wsId))
-    if (matchedWs && matchedWs.type === 'TEST') return
-    if (['I', 'L', 'U'].includes(ws.level)) count++
-  })
+  const cols = allColumns.value.filter(c => !c.isGeneric)
+  
+  if (shouldShowRecyclage(op)) {
+    cols.forEach(col => {
+      const lvl = getRecyclageDisplay(op, col)
+      if (['I', 'L', 'U'].includes(lvl)) {
+        count++
+      }
+    })
+  } else {
+    cols.forEach(col => {
+      const lvl = getColumnLevel(op, col)
+      if (['I', 'L', 'U'].includes(lvl)) {
+        count++
+      }
+    })
+  }
   return count
 }
 
 function getCountPerNiveau(col, niveau) {
+  if (selectedCampaignTab.value && activeTab.value?.category === 'RECYCLAGE') {
+    return (matrixData.value.operators || []).filter(op => getRecyclageDisplay(op, col) === niveau).length
+  }
   return (matrixData.value.operators || []).filter(op => getColumnLevel(op, col) === niveau).length
 }
 
@@ -605,7 +615,7 @@ function getCompliantCount(col) {
 }
 
 function isWorkstationCompliant(col) {
-  if (col.isGeneric || isDefauthequeCol(col)) return true
+  if (col.isGeneric) return true
   return getCompliantCount(col) >= 6
 }
 
@@ -1158,6 +1168,9 @@ function handleFileChange(event) {
                   }
                 } else if (dateCell && /^\d{4}-\d{2}-\d{2}/.test(String(dateCell))) {
                   valDate = String(dateCell).slice(0, 10)
+                } else if (dateCell && /^\d{2}\/\d{2}\/\d{4}$/.test(String(dateCell).trim())) {
+                  const [d, m, y] = String(dateCell).trim().split('/')
+                  valDate = `${y}-${m}-${d}`
                 }
 
                 list.push({

@@ -40,7 +40,7 @@
         <div v-if="sidebarOpen" class="px-4 pt-3 pb-1"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Suivi & Intégration</span></div>
         <div v-else class="my-2 mx-4 border-t border-slate-700"></div>
 
-        <router-link v-if="!isDeptOnly && !authStore.isRespHse" to="/training" class="nav-item relative" :class="{ active: $route.path.startsWith('/training') }">
+        <router-link v-if="!isDeptOnly && canAccessTraining" to="/training" class="nav-item relative" :class="{ active: $route.path.startsWith('/training') }">
           <div class="relative">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
             <span v-if="!sidebarOpen && activeFormationsCount > 0" class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-sky-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-slate-900">
@@ -63,16 +63,11 @@
             </span>
           </div>
           <span v-if="sidebarOpen" class="flex-1 flex justify-between items-center">
-            <span>Onboarding</span>
+            <span>Onboarding & Intégration</span>
             <span v-if="onboardingPendingCount > 0" class="px-2 py-0.5 text-[10px] font-bold bg-sky-500 text-white rounded-full">
               {{ onboardingPendingCount }}
             </span>
           </span>
-        </router-link>
-
-        <router-link to="/evaluation/initial" class="nav-item" :class="{ active: $route.path === '/evaluation/initial' }">
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <span v-if="sidebarOpen">Évaluation Initiale</span>
         </router-link>
 
         <!-- ===== SECTION: RECYCLAGE & ABSENCES ===== -->
@@ -108,6 +103,11 @@
         <div v-if="sidebarOpen" class="px-4 pt-3 pb-1"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Qualité & Alertes</span></div>
         <div v-else class="my-2 mx-4 border-t border-slate-700"></div>
 
+        <router-link v-if="canAccessEvaluationInitial" to="/evaluation/initial" class="nav-item" :class="{ active: $route.path === '/evaluation/initial' }">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span v-if="sidebarOpen">Évaluation Initiale</span>
+        </router-link>
+
         <router-link to="/evaluation/history" class="nav-item" :class="{ active: $route.path === '/evaluation/history' }">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           <span v-if="sidebarOpen">Historique Évaluations</span>
@@ -128,9 +128,9 @@
             <span v-if="sidebarOpen">Structure Industrielle</span>
           </router-link>
 
-          <router-link v-if="showProjectAssignments" to="/teams" class="nav-item" :class="{ active: $route.path === '/teams' }">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            <span v-if="sidebarOpen">Affectation Équipes</span>
+          <router-link v-if="showProjectAssignments" to="/teams?tab=transfers" class="nav-item" :class="{ active: $route.query.tab === 'transfers' }">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            <span v-if="sidebarOpen">Transfert des Opérateurs</span>
           </router-link>
         </div>
 
@@ -212,22 +212,31 @@ const recyclagePendingCount = ref(0)
 
 const loadSidebarBadges = async () => {
   try {
-    const [fRes, oRes, rRes] = await Promise.allSettled([
-      trainingApi.getFormations(),
-      onboardingApi.getOperatorsSummary(),
-      recyclageApi.getUpcoming ? recyclageApi.getUpcoming() : recyclageApi.getPlanning()
-    ])
-    
-    if (fRes.status === 'fulfilled') {
-      const formations = fRes.value.data || []
-      activeFormationsCount.value = formations.filter(f => f.status === 'IN_PROGRESS').length
+    const promises = [
+      onboardingApi.getOperatorsSummary().catch(() => ({ data: [] })),
+      (recyclageApi.getUpcoming ? recyclageApi.getUpcoming() : recyclageApi.getPlanning()).catch(() => ({ data: [] }))
+    ]
+    if (canAccessTraining.value) {
+      promises.unshift(trainingApi.getFormations().catch(() => ({ data: [] })))
     }
-    if (oRes.status === 'fulfilled') {
-      const onboarding = oRes.value.data || []
+
+    const results = await Promise.allSettled(promises)
+    let idx = 0
+    if (canAccessTraining.value) {
+      const fRes = results[idx++]
+      if (fRes.status === 'fulfilled' && fRes.value?.data) {
+        const formations = Array.isArray(fRes.value.data) ? fRes.value.data : []
+        activeFormationsCount.value = formations.filter(f => f.status === 'IN_PROGRESS').length
+      }
+    }
+    const oRes = results[idx++]
+    if (oRes.status === 'fulfilled' && oRes.value?.data) {
+      const onboarding = Array.isArray(oRes.value.data) ? oRes.value.data : []
       onboardingPendingCount.value = onboarding.filter(o => !o.onboardingComplete).length
     }
-    if (rRes.status === 'fulfilled') {
-      const plannings = rRes.value.data || []
+    const rRes = results[idx++]
+    if (rRes.status === 'fulfilled' && rRes.value?.data) {
+      const plannings = Array.isArray(rRes.value.data) ? rRes.value.data : []
       recyclagePendingCount.value = plannings.filter(p => p.status === 'PLANNED' || p.status === 'IN_PROGRESS').length
     }
   } catch (e) {
@@ -245,21 +254,24 @@ const canSeeNotifications = computed(() =>
 
 const showEvaluationSection = computed(() => true)
 const canAccessTraining = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'SUPERVISEUR', 'RESP_QUALITE'])
+  authStore.hasAnyRole(['ADMIN', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_QUALITE'])
 )
 const canAccessRecyclage = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_HSE'])
 )
 const canManageAbsences = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'])
+  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE', 'RESP_HSE'])
+)
+const canAccessEvaluationInitial = computed(() =>
+  authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR', 'RH'])
 )
 const canAccessStructure = computed(() =>
   authStore.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'RESP_QUALITE', 'CHEF_EQUIPE', 'AGENT_QUALITE', 'RESP_HSE'])
 )
-const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'RESP_HSE', 'SUPERVISEUR']))
+const canManageQuestions = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'RESP_HSE']))
 const canAccessTemplates = computed(() => authStore.hasAnyRole(['ADMIN', 'RESP_QUALITE', 'AGENT_QUALITE', 'CHEF_EQUIPE', 'SUPERVISEUR']))
 const showProjectAssignments = computed(() =>
-  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE'])
+  authStore.hasAnyRole(['ADMIN', 'RH', 'SUPERVISEUR', 'CHEF_EQUIPE', 'RESP_HSE'])
 )
 
 const showDoubleFailures = computed(() =>

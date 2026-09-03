@@ -10,28 +10,63 @@
     </button>
 
     <!-- Dropdown -->
-    <div v-if="isOpen" class="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-96 flex flex-col">
+    <div v-if="isOpen" class="absolute right-0 top-full mt-2 w-84 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-[28rem] flex flex-col">
       <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
-        <button v-if="notifications.length > 0" @click.stop="markAllRead" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium">Tout marquer lu</button>
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-bold text-gray-900">Notifications</h3>
+          <span v-if="notifications.length > 0" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">
+            {{ notifications.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2" v-if="notifications.length > 0">
+          <button @click.stop="markAllRead" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium hover:underline transition">
+            Tout marquer lu
+          </button>
+          <span class="text-gray-300">•</span>
+          <button @click.stop="clearAll" class="text-xs text-red-500 hover:text-red-700 font-medium hover:underline transition" title="Effacer toutes les notifications">
+            Vider
+          </button>
+        </div>
       </div>
       <div class="overflow-y-auto flex-1">
-        <div v-for="n in notifications" :key="n.id" @click.stop="handleClick(n)" :class="n.read ? 'bg-white' : 'bg-emerald-50'" class="px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition">
+        <div
+          v-for="n in notifications"
+          :key="n.id"
+          @click.stop="handleClick(n)"
+          :class="n.read ? 'bg-white' : 'bg-emerald-50/60'"
+          class="px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition group relative"
+        >
           <div class="flex items-start gap-3">
-            <div :class="iconBg(n.type)" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+            <div :class="iconBg(n.type)" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5">
               <svg v-if="isRecyclageNotif(n.type)" class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               <svg v-else-if="n.type === 'ABSENCE_REPRISE'" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
               <svg v-else class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm text-gray-800" :class="n.read ? 'font-normal' : 'font-medium'">{{ n.message }}</p>
-              <p class="text-xs text-gray-400 mt-1">{{ timeAgo(n.createdAt) }}</p>
+            <div class="flex-1 min-w-0 pr-6">
+              <p class="text-xs sm:text-sm text-gray-800 leading-snug" :class="n.read ? 'font-normal' : 'font-semibold'">{{ n.message }}</p>
+              <p class="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                <span>{{ timeAgo(n.createdAt) }}</span>
+                <span v-if="!n.read" class="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+              </p>
             </div>
-            <span v-if="!n.read" class="w-2 h-2 bg-emerald-500 rounded-full shrink-0 mt-1.5"></span>
+            
+            <!-- Delete single notification button -->
+            <button
+              @click.stop="deleteNotif(n)"
+              class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded transition absolute top-3 right-3"
+              title="Supprimer cette notification"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
           </div>
         </div>
-        <div v-if="notifications.length === 0" class="px-4 py-8 text-center text-sm text-gray-400">
-          Aucune notification
+        <div v-if="notifications.length === 0" class="px-4 py-10 text-center text-sm text-gray-400 flex flex-col items-center justify-center gap-2">
+          <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+          </svg>
+          <span>Aucune notification pour le moment</span>
         </div>
       </div>
     </div>
@@ -95,6 +130,30 @@ async function markAllRead() {
     await notificationApi.markAllAsRead()
     await loadNotifications()
   } catch (e) { console.error(e) }
+}
+
+async function deleteNotif(n) {
+  if (!authStore.isAuthenticated) return
+  try {
+    await notificationApi.delete(n.id)
+    notifications.value = notifications.value.filter(item => item.id !== n.id)
+    if (!n.read && unreadCount.value > 0) {
+      unreadCount.value--
+    }
+  } catch (e) {
+    console.error('Error deleting notification:', e)
+  }
+}
+
+async function clearAll() {
+  if (!authStore.isAuthenticated) return
+  try {
+    await notificationApi.clearAll()
+    notifications.value = []
+    unreadCount.value = 0
+  } catch (e) {
+    console.error('Error clearing notifications:', e)
+  }
 }
 
 async function handleClick(n) {

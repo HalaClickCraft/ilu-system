@@ -34,37 +34,47 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Projet</label>
           <select v-model="filters.projectId" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <option :value="null">Tous</option>
+            <option :value="null">Tous les projets</option>
             <option v-for="p in scopedProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Année</label>
+          <select v-model="filters.year" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-gray-800">
+            <option :value="''">Toutes les années</option>
+            <option :value="currentYear">{{ currentYear }} (En cours)</option>
+            <option :value="currentYear - 1">{{ currentYear - 1 }}</option>
+            <option :value="currentYear + 1">{{ currentYear + 1 }}</option>
           </select>
         </div>
         
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Statut</label>
-          <select v-model="filters.status" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <option value="">Tous</option>
-            <option value="PLANIFIEE">Planifiee</option>
+          <select v-model="filters.status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <option value="">Tous les statuts</option>
+            <option value="PLANIFIEE">Planifiée</option>
             <option value="EN_COURS">En Cours</option>
-            <option value="TERMINEE">Terminee</option>
+            <option value="TERMINEE">Terminée</option>
           </select>
         </div>
 
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Période / Type</label>
-          <select v-model="filters.type" @change="loadPlanning" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          <select v-model="filters.type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
             <option value="">Tous</option>
-            <option value="INITIALE">Éval. Initiale (1er Semestre)</option>
-            <option value="RECYCLAGE">Recyclage (2ème Semestre)</option>
+            <option value="INITIALE">Éval. Initiale (S1 - Janvier)</option>
+            <option value="RECYCLAGE">Recyclage (S2 - Juillet)</option>
           </select>
         </div>
 
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Recherche</label>
-          <input v-model="filters.search" type="text" placeholder="Nom operateur..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          <input v-model="filters.search" type="text" placeholder="Nom opérateur..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
         </div>
       </div>
     </div>
@@ -155,6 +165,8 @@ const { loadUserProjects, filterOperators, isRestrictedRole, filterProjects } = 
 const allOperators = ref([])
 const rawItems = ref([])
 
+const currentYear = new Date().getFullYear()
+
 const projects = ref([])
 const scopedProjects = computed(() => filterProjects(projects.value))
 const projectList = computed(() => scopedProjects.value.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
@@ -171,6 +183,7 @@ const manualWorkstations = computed(() => manualZones.value.find(zone => zone.id
 const filters = ref({
   status: '',
   type: '',
+  year: currentYear,
   projectId: null,
   search: '',
 })
@@ -194,6 +207,13 @@ const items = computed(() => {
 const filteredItems = computed(() => {
   let result = items.value
   
+  if (filters.value.year) {
+    result = result.filter(i => {
+      if (!i.scheduledDate) return false
+      return String(i.scheduledDate).includes(String(filters.value.year))
+    })
+  }
+
   if (filters.value.type) {
     if (filters.value.type === 'INITIALE') {
       const initialTypes = ['INITIALE_NOUVELLE_RECRUE', 'EVALUATION_ANNUELLE_MOIS_1']

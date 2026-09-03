@@ -49,4 +49,10 @@ public class OperatorController {
         req.setTeamId(teamId);
         return ResponseEntity.ok(operatorService.updateOperator(id, req));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<java.util.Map<String, Object>> deleteOperator(@PathVariable Long id) {
+        operatorService.deleteOperatorPermanently(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Opérateur supprimé définitivement", "id", id));
+    }
 }

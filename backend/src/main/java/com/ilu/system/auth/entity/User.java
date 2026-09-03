@@ -29,7 +29,10 @@ public class User {
     private Boolean mustChangePassword = false;
 
     @Column(name = "department")
-private String department;
+    private String department;
+
+    @Column(name = "email")
+    private String email;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -65,6 +68,8 @@ private String department;
     public Boolean getActive() { return active; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
     public void setActive(Boolean active) { this.active = active; }
     public Set<Role> getRoles() { return roles; }
     public void setRoles(Set<Role> roles) { this.roles = roles; }

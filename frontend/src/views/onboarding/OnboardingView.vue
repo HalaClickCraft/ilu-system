@@ -483,7 +483,7 @@ const historyData = ref({
 const searchQuery = ref('');
 const detailSearchQuery = ref('');
 const filteredDetailOperators = computed(() => {
-  const scoped = filterOperators(allOperators.value)
+  const scoped = allOperators.value || []
   if (!detailSearchQuery.value) return scoped
   const q = detailSearchQuery.value.trim().toLowerCase()
   return scoped.filter(op =>
@@ -499,15 +499,11 @@ const validatingModuleId = ref(null);
 const userRoles = computed(() => authStore.user?.roles || []);
 
 const scopedPendingOperators = computed(() => {
-  const scoped = filterOperators(allOperators.value)
-  const scopedIds = new Set(scoped.map(o => o.id))
-  return (historyData.value.pendingOperators || []).filter(op => scopedIds.has(op.operatorId || op.id))
+  return historyData.value.pendingOperators || []
 })
 
 const scopedCompletedOperators = computed(() => {
-  const scoped = filterOperators(allOperators.value)
-  const scopedIds = new Set(scoped.map(o => o.id))
-  return (historyData.value.completedOperators || []).filter(op => scopedIds.has(op.operatorId || op.id))
+  return historyData.value.completedOperators || []
 })
 
 // Split operators by type in history
@@ -531,12 +527,8 @@ const departmentNames = computed(() => {
   return first.departmentProgress ? Object.keys(first.departmentProgress) : [];
 });
 
-
-
 const scopedOperatorsSummary = computed(() => {
-  const scoped = filterOperators(allOperators.value)
-  const scopedIds = new Set(scoped.map(o => o.id))
-  return operatorsSummary.value.filter(op => scopedIds.has(op.operatorId || op.id))
+  return operatorsSummary.value || []
 })
 
 // Filter operators in matrix

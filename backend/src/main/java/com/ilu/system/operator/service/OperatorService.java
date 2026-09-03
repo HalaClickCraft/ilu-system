@@ -5,12 +5,20 @@ import com.ilu.system.operator.entity.*;
 import com.ilu.system.operator.repository.*;
 import com.ilu.system.structure.repository.ProjectRepository;
 import com.ilu.system.structure.repository.ZoneRepository;
+import com.ilu.system.structure.repository.WorkstationRepository;
+import com.ilu.system.structure.entity.Workstation;
 import com.ilu.system.recyclage.repository.RecyclagePlanningRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
+import com.ilu.system.evaluation.repository.EvaluationSessionRepository;
+import com.ilu.system.evaluation.entity.EvaluationSession;
 import java.util.stream.Collectors;
+
+import com.ilu.system.absence.repository.AbsenceRepository;
+import com.ilu.system.evaluation.repository.EvaluationAnswerRepository;
+import com.ilu.system.notification.repository.NotificationRepository;
 
 @Service
 public class OperatorService {
@@ -18,22 +26,58 @@ public class OperatorService {
     private final TeamRepository teamRepository;
     private final ProjectRepository projectRepository;
     private final ZoneRepository zoneRepository;
+    private final WorkstationRepository workstationRepository;
     private final WorkstationFormationRepository workstationFormationRepository;
     private final FormationAssignmentRepository formationAssignmentRepository;
     private final RecyclagePlanningRepository recyclagePlanningRepository;
+    private final EvaluationSessionRepository evaluationSessionRepository;
+    private final EvaluationAnswerRepository evaluationAnswerRepository;
+    private final DailyFormationTrackingRepository dailyFormationTrackingRepository;
+    private final AbsenceRepository absenceRepository;
+    private final ProjectTransferRequestRepository projectTransferRequestRepository;
+    private final OperatorOnboardingRepository operatorOnboardingRepository;
+    private final NotificationRepository notificationRepository;
 
     public OperatorService(OperatorRepository operatorRepository, TeamRepository teamRepository,
                            ProjectRepository projectRepository, ZoneRepository zoneRepository,
+                           WorkstationRepository workstationRepository,
                            WorkstationFormationRepository workstationFormationRepository,
                            FormationAssignmentRepository formationAssignmentRepository,
                            RecyclagePlanningRepository recyclagePlanningRepository) {
+        this(operatorRepository, teamRepository, projectRepository, zoneRepository, workstationRepository,
+             workstationFormationRepository, formationAssignmentRepository, recyclagePlanningRepository,
+             null, null, null, null, null, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OperatorService(OperatorRepository operatorRepository, TeamRepository teamRepository,
+                           ProjectRepository projectRepository, ZoneRepository zoneRepository,
+                           WorkstationRepository workstationRepository,
+                           WorkstationFormationRepository workstationFormationRepository,
+                           FormationAssignmentRepository formationAssignmentRepository,
+                           RecyclagePlanningRepository recyclagePlanningRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) EvaluationSessionRepository evaluationSessionRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) EvaluationAnswerRepository evaluationAnswerRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) DailyFormationTrackingRepository dailyFormationTrackingRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) AbsenceRepository absenceRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) ProjectTransferRequestRepository projectTransferRequestRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) OperatorOnboardingRepository operatorOnboardingRepository,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) NotificationRepository notificationRepository) {
         this.operatorRepository = operatorRepository;
         this.teamRepository = teamRepository;
         this.projectRepository = projectRepository;
         this.zoneRepository = zoneRepository;
+        this.workstationRepository = workstationRepository;
         this.workstationFormationRepository = workstationFormationRepository;
         this.formationAssignmentRepository = formationAssignmentRepository;
         this.recyclagePlanningRepository = recyclagePlanningRepository;
+        this.evaluationSessionRepository = evaluationSessionRepository;
+        this.evaluationAnswerRepository = evaluationAnswerRepository;
+        this.dailyFormationTrackingRepository = dailyFormationTrackingRepository;
+        this.absenceRepository = absenceRepository;
+        this.projectTransferRequestRepository = projectTransferRequestRepository;
+        this.operatorOnboardingRepository = operatorOnboardingRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional
@@ -65,7 +109,34 @@ public class OperatorService {
             op.setProject(projectRepository.findById(request.getProjectId()).orElseThrow(() -> new RuntimeException("Projet non trouve")));
         if (request.getZoneId() != null)
             op.setZone(zoneRepository.findById(request.getZoneId()).orElseThrow(() -> new RuntimeException("Zone non trouvee")));
-        return operatorRepository.save(op);
+        Operator savedOp = operatorRepository.save(op);
+
+        if (request.getWorkstationId() != null) {
+            workstationRepository.findById(request.getWorkstationId()).ifPresent(ws -> {
+                boolean exists = workstationFormationRepository.findByOperator_Id(savedOp.getId()).stream()
+                        .anyMatch(f -> ws.getId().equals(f.getWorkstation().getId()) && "IN_PROGRESS".equals(f.getStatus()));
+                if (!exists) {
+                    WorkstationFormation formation = new WorkstationFormation();
+                    formation.setOperator(savedOp);
+                    formation.setWorkstation(ws);
+                    formation.setStartDate(LocalDate.now());
+                    formation.setStatus("IN_PROGRESS");
+                    formation.setAchievedLevel("0");
+                    formation.setTargetLevel("1");
+                    formation.setQualityObjective(7);
+                    workstationFormationRepository.save(formation);
+
+                    FormationAssignment assignment = new FormationAssignment();
+                    assignment.setOperator(savedOp);
+                    assignment.setWorkstation(ws);
+                    assignment.setIsPrimaryAssignment(true);
+                    assignment.setStartDate(LocalDate.now());
+                    assignment.setStatus("IN_PROGRESS");
+                    formationAssignmentRepository.save(assignment);
+                }
+            });
+        }
+        return savedOp;
     }
 
     @Transactional
@@ -107,7 +178,34 @@ public class OperatorService {
         if (request.getZoneId() != null) {
             op.setZone(zoneRepository.findById(request.getZoneId()).orElseThrow(() -> new RuntimeException("Zone non trouvee")));
         }
-        return operatorRepository.save(op);
+        Operator savedOp = operatorRepository.save(op);
+
+        if (request.getWorkstationId() != null) {
+            workstationRepository.findById(request.getWorkstationId()).ifPresent(ws -> {
+                boolean exists = workstationFormationRepository.findByOperator_Id(savedOp.getId()).stream()
+                        .anyMatch(f -> ws.getId().equals(f.getWorkstation().getId()) && "IN_PROGRESS".equals(f.getStatus()));
+                if (!exists) {
+                    WorkstationFormation formation = new WorkstationFormation();
+                    formation.setOperator(savedOp);
+                    formation.setWorkstation(ws);
+                    formation.setStartDate(LocalDate.now());
+                    formation.setStatus("IN_PROGRESS");
+                    formation.setAchievedLevel("0");
+                    formation.setTargetLevel("1");
+                    formation.setQualityObjective(7);
+                    workstationFormationRepository.save(formation);
+
+                    FormationAssignment assignment = new FormationAssignment();
+                    assignment.setOperator(savedOp);
+                    assignment.setWorkstation(ws);
+                    assignment.setIsPrimaryAssignment(true);
+                    assignment.setStartDate(LocalDate.now());
+                    assignment.setStatus("IN_PROGRESS");
+                    formationAssignmentRepository.save(assignment);
+                }
+            });
+        }
+        return savedOp;
     }
 
     @Transactional
@@ -122,6 +220,16 @@ public class OperatorService {
             com.ilu.system.recyclage.entity.RecyclagePlanning.PlanningStatus.PLANIFIEE,
             com.ilu.system.recyclage.entity.RecyclagePlanning.PlanningStatus.EN_COURS
         ));
+
+        // Clean up any uncompleted in-progress evaluation sessions for this deactivated operator.
+        if (evaluationSessionRepository != null) {
+            List<EvaluationSession> inProgressSessions = evaluationSessionRepository.findByOperatorIdOrderByCreatedAtDesc(id).stream()
+                    .filter(s -> s.getStatus() == EvaluationSession.SessionStatus.IN_PROGRESS)
+                    .collect(Collectors.toList());
+            if (!inProgressSessions.isEmpty()) {
+                evaluationSessionRepository.deleteAll(inProgressSessions);
+            }
+        }
     }
 
     @Transactional
@@ -130,6 +238,19 @@ public class OperatorService {
         op.setActive(true);
         op.setExitDate(null);
         operatorRepository.save(op);
+    }
+
+    private Integer parseIluLevel(String level) {
+        if (level == null || level.isBlank()) return 0;
+        String upper = level.trim().toUpperCase();
+        if (upper.equals("I") || upper.equals("NIVEAU_1") || upper.equals("1")) return 1;
+        if (upper.equals("L") || upper.equals("NIVEAU_2") || upper.equals("2")) return 2;
+        if (upper.equals("U") || upper.equals("NIVEAU_3") || upper.equals("3")) return 3;
+        try {
+            return Integer.parseInt(upper);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     public List<FormationDetailsDto> getOperatorFormations(Long operatorId) {
@@ -143,13 +264,69 @@ public class OperatorService {
             dto.setStartDate(f.getStartDate());
             dto.setEndDate(f.getEndDate());
             dto.setStatus(f.getStatus());
-           try { dto.setAchievedLevel(Integer.parseInt(f.getAchievedLevel())); } catch (Exception e) { dto.setAchievedLevel(0); }
-try { dto.setTargetLevel(Integer.parseInt(f.getTargetLevel())); } catch (Exception e) { dto.setTargetLevel(0); }
+            dto.setAchievedLevel(parseIluLevel(f.getAchievedLevel()));
+            dto.setTargetLevel(parseIluLevel(f.getTargetLevel()));
             return dto;
         }).collect(Collectors.toList());
     }
 
     public List<FormationAssignment> getOperatorAssignments(Long operatorId) {
         return formationAssignmentRepository.findByOperatorId(operatorId);
+    }
+
+    @Transactional
+    public void deleteOperatorPermanently(Long operatorId) {
+        Operator op = findById(operatorId);
+
+        // 1. Delete associated absences
+        if (absenceRepository != null) {
+            absenceRepository.deleteByOperator_Id(operatorId);
+        }
+
+        // 2. Delete associated project transfer requests
+        if (projectTransferRequestRepository != null && op.getEmployeeId() != null) {
+            projectTransferRequestRepository.deleteByEmployeeId(op.getEmployeeId());
+        }
+
+        // 3. Delete notifications relating to this operator
+        if (notificationRepository != null) {
+            notificationRepository.deleteByRelatedOperatorId(operatorId);
+        }
+
+        // 4. Delete recyclage plannings
+        if (recyclagePlanningRepository != null) {
+            recyclagePlanningRepository.deleteByOperator_Id(operatorId);
+        }
+
+        // 5. Delete evaluation answers and sessions
+        if (evaluationSessionRepository != null) {
+            List<EvaluationSession> sessions = evaluationSessionRepository.findByOperatorIdOrderByCreatedAtDesc(operatorId);
+            for (EvaluationSession session : sessions) {
+                if (evaluationAnswerRepository != null) {
+                    evaluationAnswerRepository.deleteBySessionId(session.getId());
+                }
+                evaluationSessionRepository.delete(session);
+            }
+        }
+
+        // 6. Delete onboarding records
+        if (operatorOnboardingRepository != null) {
+            operatorOnboardingRepository.deleteByOperatorId(operatorId);
+        }
+
+        // 7. Delete daily formation tracking and formations
+        List<WorkstationFormation> formations = workstationFormationRepository.findByOperator_Id(operatorId);
+        for (WorkstationFormation formation : formations) {
+            if (dailyFormationTrackingRepository != null) {
+                dailyFormationTrackingRepository.deleteByFormationId(formation.getId());
+            }
+        }
+        if (formationAssignmentRepository != null) {
+            formationAssignmentRepository.deleteByOperatorId(operatorId);
+        }
+        workstationFormationRepository.deleteByOperator_Id(operatorId);
+
+        // 8. Delete the operator entity permanently
+        operatorRepository.delete(op);
     }
 }

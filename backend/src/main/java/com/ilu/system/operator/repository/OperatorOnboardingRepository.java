@@ -21,4 +21,6 @@ public interface OperatorOnboardingRepository extends JpaRepository<OperatorOnbo
 
     @Query("SELECT COUNT(o) FROM OperatorOnboarding o WHERE o.operatorId = :operatorId AND o.completed = true AND o.moduleId IN :moduleIds")
     long countCompletedByOperatorIdAndModuleIds(@Param("operatorId") Long operatorId, @Param("moduleIds") List<Long> moduleIds);
+
+    void deleteByOperatorId(Long operatorId);
 }

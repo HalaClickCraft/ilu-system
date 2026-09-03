@@ -14,10 +14,12 @@ public class WorkstationFormation {
 
     @ManyToOne
     @JoinColumn(name = "operator_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"formations", "team", "project", "zone"})
     private Operator operator;
 
     @ManyToOne
     @JoinColumn(name = "workstation_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"formations", "zone"})
     private Workstation workstation;
 
     @Column(name = "start_date")

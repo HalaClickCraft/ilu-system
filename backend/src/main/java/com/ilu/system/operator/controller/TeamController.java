@@ -23,13 +23,16 @@ public class TeamController {
     private final TeamRepository teamRepository;
     private final TeamUpdateRequestRepository requestRepository;
     private final OperatorRepository operatorRepository;
+    private final com.ilu.system.structure.repository.ProjectRepository projectRepository;
 
     public TeamController(TeamRepository teamRepository,
                           TeamUpdateRequestRepository requestRepository,
-                          OperatorRepository operatorRepository) {
+                          OperatorRepository operatorRepository,
+                          com.ilu.system.structure.repository.ProjectRepository projectRepository) {
         this.teamRepository = teamRepository;
         this.requestRepository = requestRepository;
         this.operatorRepository = operatorRepository;
+        this.projectRepository = projectRepository;
     }
 
     @GetMapping
@@ -42,6 +45,21 @@ public class TeamController {
             map.put("name", team.getName());
             map.put("teamLeader", team.getTeamLeader());
             map.put("teamLeaderEmployeeId", team.getTeamLeaderEmployeeId());
+            map.put("agentQualite", team.getAgentQualite());
+            map.put("agentQualiteEmployeeId", team.getAgentQualiteEmployeeId());
+            map.put("qualityManager", team.getQualityManager());
+            map.put("qualityManagerEmployeeId", team.getQualityManagerEmployeeId());
+            map.put("projectManager", team.getProjectManager());
+            map.put("projectManagerEmployeeId", team.getProjectManagerEmployeeId());
+            map.put("hseManager", team.getHseManager());
+            map.put("hseManagerEmployeeId", team.getHseManagerEmployeeId());
+
+            if (team.getProject() != null) {
+                Map<String, Object> projMap = new LinkedHashMap<>();
+                projMap.put("id", team.getProject().getId());
+                projMap.put("name", team.getProject().getName());
+                map.put("project", projMap);
+            }
 
             List<Map<String, Object>> ops = new ArrayList<>();
             if (team.getOperators() != null) {
@@ -71,6 +89,79 @@ public class TeamController {
             result.add(map);
         }
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping
+    @Transactional
+    public ResponseEntity<Team> createTeam(@RequestBody Team team) {
+        if (team.getProjects() != null && !team.getProjects().isEmpty()) {
+            Set<com.ilu.system.structure.entity.Project> managedProjects = new HashSet<>();
+            for (var p : team.getProjects()) {
+                if (p.getId() != null) {
+                    projectRepository.findById(p.getId()).ifPresent(managedProjects::add);
+                }
+            }
+            team.setProjects(managedProjects);
+            if (!managedProjects.isEmpty()) {
+                team.setProject(managedProjects.iterator().next());
+            }
+        } else if (team.getProject() != null && team.getProject().getId() != null) {
+            projectRepository.findById(team.getProject().getId()).ifPresent(p -> {
+                team.setProject(p);
+                team.setProjects(Set.of(p));
+            });
+        }
+        return ResponseEntity.ok(teamRepository.save(team));
+    }
+
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Team> updateTeam(@PathVariable Long id, @RequestBody Team teamReq) {
+        Team t = teamRepository.findById(id).orElseThrow(() -> new RuntimeException("Équipe introuvable"));
+        if (teamReq.getName() != null) t.setName(teamReq.getName());
+        if (teamReq.getTeamLeader() != null) t.setTeamLeader(teamReq.getTeamLeader());
+        if (teamReq.getTeamLeaderEmployeeId() != null) t.setTeamLeaderEmployeeId(teamReq.getTeamLeaderEmployeeId());
+        if (teamReq.getAgentQualite() != null) t.setAgentQualite(teamReq.getAgentQualite());
+        if (teamReq.getAgentQualiteEmployeeId() != null) t.setAgentQualiteEmployeeId(teamReq.getAgentQualiteEmployeeId());
+        if (teamReq.getQualityManager() != null) t.setQualityManager(teamReq.getQualityManager());
+        if (teamReq.getQualityManagerEmployeeId() != null) t.setQualityManagerEmployeeId(teamReq.getQualityManagerEmployeeId());
+        if (teamReq.getProjectManager() != null) t.setProjectManager(teamReq.getProjectManager());
+        if (teamReq.getProjectManagerEmployeeId() != null) t.setProjectManagerEmployeeId(teamReq.getProjectManagerEmployeeId());
+        if (teamReq.getHseManager() != null) t.setHseManager(teamReq.getHseManager());
+        if (teamReq.getHseManagerEmployeeId() != null) t.setHseManagerEmployeeId(teamReq.getHseManagerEmployeeId());
+
+        if (teamReq.getProjects() != null && !teamReq.getProjects().isEmpty()) {
+            Set<com.ilu.system.structure.entity.Project> managedProjects = new HashSet<>();
+            for (var p : teamReq.getProjects()) {
+                if (p.getId() != null) {
+                    projectRepository.findById(p.getId()).ifPresent(managedProjects::add);
+                }
+            }
+            t.setProjects(managedProjects);
+            if (!managedProjects.isEmpty()) {
+                t.setProject(managedProjects.iterator().next());
+            }
+        } else if (teamReq.getProject() != null && teamReq.getProject().getId() != null) {
+            projectRepository.findById(teamReq.getProject().getId()).ifPresent(p -> {
+                t.setProject(p);
+                t.setProjects(Set.of(p));
+            });
+        }
+        return ResponseEntity.ok(teamRepository.save(t));
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteTeam(@PathVariable Long id) {
+        Team t = teamRepository.findById(id).orElseThrow(() -> new RuntimeException("Équipe introuvable"));
+        if (t.getOperators() != null) {
+            for (Operator op : t.getOperators()) {
+                op.setTeam(null);
+                operatorRepository.save(op);
+            }
+        }
+        teamRepository.delete(t);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

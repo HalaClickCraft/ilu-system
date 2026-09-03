@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,15 +51,21 @@ public class EvaluationController {
     public ResponseEntity<Map<String, Object>> createTemplate(
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
-                if (!hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_HSE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         Long userId = getCurrentUserId(authentication);
+        @SuppressWarnings("unchecked")
+        List<Object> rawWsIds = (List<Object>) body.get("workstationIds");
+        List<Long> wsIds = rawWsIds != null ? rawWsIds.stream().map(o -> Long.valueOf(o.toString())).toList() : null;
+        Long singleWsId = body.get("workstationId") != null ? Long.valueOf(body.get("workstationId").toString()) : null;
+
         Map<String, Object> result = evaluationService.createTemplate(
                 (String) body.get("name"),
                 (String) body.get("description"),
                 (String) body.get("type"),
-                body.get("workstationId") != null ? Long.valueOf(body.get("workstationId").toString()) : null,
+                singleWsId,
+                wsIds,
                 (String) body.get("targetNiveau"),
                 userId
         );
@@ -73,6 +80,29 @@ public class EvaluationController {
     @GetMapping("/templates/{templateId}")
     public ResponseEntity<Map<String, Object>> getTemplateWithQuestions(@PathVariable Long templateId) {
         return ResponseEntity.ok(evaluationService.getTemplateWithQuestions(templateId));
+    }
+
+    @PutMapping("/templates/{id}/workstations")
+    public ResponseEntity<Map<String, Object>> assignWorkstations(
+            @PathVariable Long id,
+            @RequestBody Object body,
+            Authentication authentication) {
+        if (!hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_HSE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
+        }
+        List<?> rawIds = null;
+        if (body instanceof Map<?,?> map) {
+            rawIds = (List<?>) map.get("workstationIds");
+        } else if (body instanceof List<?> list) {
+            rawIds = list;
+        }
+        List<Long> wsIds = new ArrayList<>();
+        if (rawIds != null) {
+            for (Object obj : rawIds) {
+                if (obj != null) wsIds.add(Long.valueOf(obj.toString()));
+            }
+        }
+        return ResponseEntity.ok(evaluationService.assignWorkstationsToTemplate(id, wsIds));
     }
 
     @PostMapping("/templates/{templateId}/sections")
@@ -99,6 +129,25 @@ public class EvaluationController {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         return ResponseEntity.ok(evaluationService.saveQuestionImage(file));
+    }
+
+    @GetMapping("/questions/images/{filename:.+}")
+    public ResponseEntity<org.springframework.core.io.Resource> getQuestionImage(@PathVariable String filename) {
+        return evaluationService.getQuestionImage(filename);
+    }
+
+    @PutMapping("/templates/{templateId}/workstations")
+    public ResponseEntity<Map<String, Object>> assignWorkstations(
+            @PathVariable Long templateId,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
+        }
+        @SuppressWarnings("unchecked")
+        List<Object> rawIds = (List<Object>) body.get("workstationIds");
+        List<Long> wsIds = rawIds != null ? rawIds.stream().map(o -> Long.valueOf(o.toString())).toList() : List.of();
+        return ResponseEntity.ok(evaluationService.assignWorkstationsToTemplate(templateId, wsIds));
     }
 
     @PostMapping("/templates/{templateId}/questions")
@@ -165,6 +214,26 @@ public class EvaluationController {
             return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
         }
         return ResponseEntity.ok(evaluationService.deleteQuestion(questionId, templateId));
+    }
+
+    @DeleteMapping("/templates/{templateId}")
+    public ResponseEntity<Map<String, Object>> deleteTemplate(
+            @PathVariable Long templateId,
+            Authentication authentication) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
+        }
+        return ResponseEntity.ok(evaluationService.deleteTemplate(templateId));
+    }
+
+    @DeleteMapping("/templates/{templateId}/questions")
+    public ResponseEntity<Map<String, Object>> clearTemplateQuestions(
+            @PathVariable Long templateId,
+            Authentication authentication) {
+        if (!hasRole(authentication, "CHEF_EQUIPE") && !hasRole(authentication, "AGENT_QUALITE") && !hasRole(authentication, "RESP_QUALITE") && !hasRole(authentication, "SUPERVISEUR") && !hasRole(authentication, "ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Non autorise"));
+        }
+        return ResponseEntity.ok(evaluationService.clearTemplateQuestions(templateId));
     }
 
     @GetMapping("/questions/pending")

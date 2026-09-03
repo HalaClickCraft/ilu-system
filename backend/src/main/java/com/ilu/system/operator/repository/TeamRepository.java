@@ -9,4 +9,5 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     List<Team> findByNameContaining(String name);
     boolean existsByName(String name);
     Optional<Team> findByTeamLeaderEmployeeId(String teamLeaderEmployeeId);
+    List<Team> findByProjectId(Long projectId);
 }

@@ -42,6 +42,7 @@ public class Operator {
 
     @ManyToOne
     @JoinColumn(name = "team_id")
+    @JsonIgnoreProperties({"operators", "projects"})
     private Team team;
 
     // Direct project/zone assignment (replaces the old, never-populated

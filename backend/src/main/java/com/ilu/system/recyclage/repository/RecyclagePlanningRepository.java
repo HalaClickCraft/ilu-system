@@ -18,6 +18,8 @@ public interface RecyclagePlanningRepository extends JpaRepository<RecyclagePlan
 
     void deleteByOperator_IdAndStatusIn(Long operatorId, List<PlanningStatus> statuses);
 
+    void deleteByOperator_Id(Long operatorId);
+
     List<RecyclagePlanning> findByStatus(PlanningStatus status);
 
     List<RecyclagePlanning> findByStatusAndScheduledDateBetween(PlanningStatus status, LocalDate start, LocalDate end);
